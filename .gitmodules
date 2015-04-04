@@ -1,3 +1,0 @@
-[submodule "data"]
-	path = data
-	url = git@gitlab.doc.ic.ac.uk:as12312/ireg-eval-data.git
