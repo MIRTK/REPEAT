@@ -9,18 +9,18 @@ import java.io.File
 object IRTK {
 
   /// Directory containing executable binaries
-  val bindir = Settings.irtkBinDir
+  val binDir = Settings.irtkBinDir
 
   /// Version information
-  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$bindir/ireg -version".!!).getOrElse("1.0")
+  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
 
   /// Git commit SHA
-  def revision: String = (s"$bindir/ireg -revision".!!).trim
+  def revision: String = s"$binDir/ireg -revision".!!.trim
 
   /// Invert transformation
   def dofinvert(dofin: File, dofout: File): Int = {
     if (!dofout.mkdirs()) return -1
-    println(Seq(s"$bindir/dofinvert", dofin.getAbsolutePath, dofout.getAbsolutePath))
+    println(Seq(s"$binDir/dofinvert", dofin.getAbsolutePath, dofout.getAbsolutePath))
     0
   }
 
@@ -35,7 +35,7 @@ object IRTK {
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    val cmd = Seq(s"$bindir/ireg", target.getAbsolutePath, source.getAbsolutePath, "-dofout", dofout.getAbsolutePath) ++ din ++ cfg
+    val cmd = Seq(s"$binDir/ireg", target.getAbsolutePath, source.getAbsolutePath, "-dofout", dofout.getAbsolutePath) ++ din ++ cfg
     println(cmd)
     0
   }
