@@ -19,14 +19,14 @@ object IRTK {
 
   /// Invert transformation
   def dofinvert(dofin: File, dofout: File): Int = {
-    if (!dofout.mkdirs()) return -1
     println(Seq(s"$binDir/dofinvert", dofin.getAbsolutePath, dofout.getAbsolutePath))
     0
+    dofout.getAbsoluteFile().getParentFile().mkdirs()
   }
 
   /// Register images using ireg
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, params: (String, Any)*): Int = {
-    if (!dofout.mkdirs()) return -1
+    dofout.getAbsoluteFile().getParentFile().mkdirs()
     val din = dofin match {
       case Some(file) => Seq("-dofin", file.getAbsolutePath)
       case None => Seq()
