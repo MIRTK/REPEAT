@@ -17,11 +17,16 @@ object IRTK {
   /// Git commit SHA
   def revision: String = s"$binDir/ireg -revision".!!.trim
 
+  /// Execute IRTK command
+  protected def execute(cmd: Seq[String]): Int = {
+    println(cmd.mkString("\n> \"", "\" \"", "\""))
+    cmd.!
+  }
+
   /// Invert transformation
   def dofinvert(dofin: File, dofout: File): Int = {
     dofout.getAbsoluteFile().getParentFile().mkdirs()
-    val cmd = Seq(s"$binDir/dofinvert", dofin.getAbsolutePath(), dofout.getAbsolutePath())
-    cmd.!
+    execute(Seq(s"$binDir/dofinvert", dofin.getAbsolutePath(), dofout.getAbsolutePath()))
   }
 
   /// Register images using ireg
@@ -31,11 +36,12 @@ object IRTK {
       case Some(file) => Seq("-dofin", file.getAbsolutePath())
       case None => Seq()
     }
-    val cfg = params flatMap {
+    val dout = Seq("-dofout", dofout.getAbsolutePath())
+    val opts = params flatMap {
+      case (k, v) if k == "No. of threads" => Seq("-threads", v.toString)
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    val cmd = Seq(s"$binDir/ireg", target.getAbsolutePath(), source.getAbsolutePath(), "-dofout", dofout.getAbsolutePath()) ++ din ++ cfg
-    cmd.!
+    execute(Seq(s"$binDir/ireg", target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts)
   }
 }
