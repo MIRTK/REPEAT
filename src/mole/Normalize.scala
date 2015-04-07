@@ -50,8 +50,8 @@ val rigidEnd = Capsule(EmptyTask() set(
     outputs += (srcId, srcIm, dof6)
   ))
 
-val rigidIf  = (rigidTask on env) -- Slot(rigidEnd)
-val rigidReg = rigidBegin -- (rigidIf when "!dof6.exists()", Slot(rigidEnd) when "dof6.exists()")
+val rigidIf  = (rigidTask on env) -- rigidEnd
+val rigidReg = rigidBegin -- (rigidIf when "!dof6.exists()", rigidEnd when "dof6.exists()")
 
 // Affine registration mole
 val affineOutputFile = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
@@ -79,9 +79,9 @@ val affineEnd = Capsule(EmptyTask() set(
     outputs += (srcId, srcIm, dof12)
   ))
 
-val affineIf  = (affineTask on env) -- Slot(affineEnd)
-val affineReg = rigidEnd -- affineBegin -- (affineIf when "!dof12.exists()", Slot(affineEnd) when "dof12.exists()")
+val affineIf  = (affineTask on env) -- affineEnd
+val affineReg = affineBegin -- (affineIf when "!dof12.exists()", affineEnd when "dof12.exists()")
 
 // Run spatial normalization pipeline for each input image
-val mole = forEachIm -- rigidReg + affineReg start
+val mole = (forEachIm -- rigidReg) + (rigidEnd -- affineReg) start
 mole.waitUntilEnded()
