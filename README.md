@@ -1,5 +1,5 @@
-Registration Performance Assessment Tool
-========================================
+About
+=====
 
 The REgistration PErformance Assessment Tool (REPEAT) provides a common framework for evaluating and comparing implementations of non-rigid image registration algorithms with the main focus on the inter-subject registration of brain MR images.
 
