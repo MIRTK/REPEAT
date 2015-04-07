@@ -79,5 +79,5 @@ val affineCond = "dof12.lastModified() < dof6.lastModified()"
 val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
 
 // Run spatial normalization pipeline for each input image
-val mole = (forEachIm -- rigidMole) + (rigidEnd -- affineMole) start
-mole.waitUntilEnded()
+val exec = (forEachIm -- rigidMole) + (rigidEnd -- affineMole) start
+exec.waitUntilEnded()
