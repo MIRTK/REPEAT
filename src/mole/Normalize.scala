@@ -61,7 +61,7 @@ val rigidEnd = ScalaTask(
     outputs += (srcId,         srcIm,         dof6)
   )
 
-val rigid = rigidBegin -- (rigidIf when "!dof6.exists()", rigidElse when "dof6.exists()") -- rigidEnd
+val rigidReg = rigidBegin -- (rigidIf when "!dof6.exists()", rigidElse when "dof6.exists()") -- rigidEnd
 
 // Affine registration mole
 val affineBegin = EmptyTask() set(
@@ -79,12 +79,12 @@ val affineIf = ScalaTask(
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (Settings.getClass(), IRTK.getClass()),
     inputs      += (srcId, srcIm, dof6, dof12),
-    outputs     += (srcId, srcIm, dof12)
+    outputs     += (srcId, srcIm,       dof12)
   ) source _srcIm on env
 
 val affineElse = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6, dof12),
-    outputs += (srcId, srcIm, dof12)
+    outputs += (srcId, srcIm,       dof12)
   ) source _srcIm
 
 val affineEnd = ScalaTask(
@@ -96,8 +96,8 @@ val affineEnd = ScalaTask(
     outputs += (srcId,         srcIm,         dof12)
   )
 
-val affine = affineBegin -- (affineIf when "!dof12.exists()", affineElse when "dof12.exists()") -- affineEnd
+val affineReg = affineBegin -- (affineIf when "!dof12.exists()", affineElse when "dof12.exists()") -- affineEnd
 
 // Run spatial normalization pipeline for each input image
-val mole = forEachId -< rigid -- affine start
+val mole = forEachId -< rigidReg -- affineReg start
 mole.waitUntilEnded()
