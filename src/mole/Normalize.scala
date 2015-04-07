@@ -48,7 +48,8 @@ val rigidReg = ScalaTask(
 
 val rigidEnd = StrainerCapsule(EmptyTask())
 
-val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when "!dof6.exists()", rigidEnd when "dof6.exists()")
+val rigidCond = "!dof6.exists()"
+val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
 
 // Affine registration mole
 val affineOutputFile = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
@@ -74,7 +75,8 @@ val affineReg = ScalaTask(
 
 val affineEnd = StrainerCapsule(EmptyTask())
 
-val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when "!dof12.exists()", affineEnd when "dof12.exists()")
+val affineCond = "dof12.lastModified() < dof6.lastModified()"
+val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
 
 // Run spatial normalization pipeline for each input image
 val mole = (forEachIm -- rigidMole) + (rigidEnd -- affineMole) start
