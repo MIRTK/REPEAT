@@ -6,7 +6,7 @@ version := "0.1"
 
 scalaVersion := "2.11.5"
 
-scalacOptions ++= Seq("-feature", "-deprecation")
+scalacOptions ++= Seq("-optimize", "-feature", "-deprecation")
 
 libraryDependencies += "com.typesafe" % "config" % "1.2.1"
 
