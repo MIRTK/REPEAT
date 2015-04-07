@@ -1,5 +1,5 @@
 // OpenMOLE workflow for initial spatial normalization of images
-import com.andreasschuh.repeat.Settings
+import com.andreasschuh.repeat._
 
 // Environment on which to execute registration tasks
 val env = LocalEnvironment(4)
@@ -53,6 +53,7 @@ val rigidReg = ScalaTask(
     |}
   """.stripMargin) set (
     imports += "com.andreasschuh.repeat._",
+    usedClasses += classOf[IRTK],
     inputs  += (srcId, srcIm, dof6),
     outputs += (srcId, srcIm, dof6)
   )
@@ -86,6 +87,7 @@ val affineReg = ScalaTask(
     |}
   """.stripMargin) set (
     imports += "com.andreasschuh.repeat._",
+    usedClasses += classOf[IRTK],
     inputs  += (srcId, srcIm, dof6, dof12),
     outputs += (srcId, srcIm, dof12)
   )
