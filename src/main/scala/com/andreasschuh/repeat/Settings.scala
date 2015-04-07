@@ -1,7 +1,6 @@
 package com.andreasschuh.repeat
 
-import com.github.kxbmap.configs._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config._
 import java.io.File
 import java.net.URL
 
@@ -28,13 +27,25 @@ object Settings {
   }
 
   /// Get absolute path
-  protected def filePath(propName: String) = (new File(config.get[String](propName))).getAbsoluteFile()
+  protected def filePath(propName: String) = (new File(config.getString(propName))).getAbsoluteFile()
+
+  /// Get string value
+  protected def stringValue(propName: String) = config.getString(propName)
 
   /// Directory containing IRTK executables
   val irtkBinDir = filePath("irtk.bindir")
 
+  /// Hostname of SLURM head node
+  val slurmHost = stringValue("slurm.host")
+
+  /// SLURM user name
+  val slurmUser = stringValue("slurm.user")
+
+  /// Authentication token for SLURM head node, e.g., name of SSH key file or password
+  val slurmAuth = stringValue("slurm.auth")
+
   /// Subject ID of reference used for spatial normalization (e.g., MNI305)
-  val refId = config.get[String]("repeat.reference.id")
+  val refId = stringValue("repeat.reference.id")
 
   /// Template image used for spatial normalization
   val refIm = filePath("repeat.reference.image")
@@ -43,10 +54,10 @@ object Settings {
   val imgCsv = filePath("repeat.image.csv")
 
   /// Image file name prefix (before subject ID)
-  val imgPre = config.get[String]("repeat.image.prefix")
+  val imgPre = stringValue("repeat.image.prefix")
 
   /// Image file name suffix (after subject ID)
-  val imgSuf = config.get[String]("repeat.image.suffix")
+  val imgSuf = stringValue("repeat.image.suffix")
 
   /// Directory containing input images
   val imgIDir = filePath("repeat.image.idir")
@@ -55,10 +66,10 @@ object Settings {
   val imgODir = filePath("repeat.image.odir")
 
   /// Segmentation image file name prefix (before subject ID)
-  val segPre = config.get[String]("repeat.segmentation.prefix")
+  val segPre = stringValue("repeat.segmentation.prefix")
 
   /// Segmentation image file name suffix (after subject ID)
-  val segSuf = config.get[String]("repeat.segmentation.suffix")
+  val segSuf = stringValue("repeat.segmentation.suffix")
 
   /// Directory containing ground truth segmentation images
   val segIDir = filePath("repeat.segmentation.idir")
@@ -67,7 +78,7 @@ object Settings {
   val segODir = filePath("repeat.segmentation.odir")
 
   /// Suffix/extension of output transformation files (e.g., ".dof" or ".dof.gz")
-  val dofSuf = config.get[String]("repeat.dof.suffix")
+  val dofSuf = stringValue("repeat.dof.suffix")
 
   /// Output directory for transformation files
   val dofDir = filePath("repeat.dof.dir")
