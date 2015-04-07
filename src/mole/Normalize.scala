@@ -20,20 +20,18 @@ val srcIm = Val[File]
 val dof6  = Val[File]
 val dof12 = Val[File]
 
-// Exploration task which iterates the image IDs
+// Exploration task which iterates the image IDs and file paths
 val sampleId  = CSVSampling(imgCsv) set(columns += ("ID", srcId))
-val forEachId = ExplorationTask(sampleId)
-
-// Source objects used to inject variables into workflow
-val _srcIm = FileSource(imgDir + "/" + imgPre + "${srcId}" + imgSuf, srcIm)
-val _dof6  = FileSource(dofDir + "/rigid/"  + refId + ",${srcId}" + dofSuf, dof6)
-val _dof12 = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
+val srcImFile = FileSource(imgDir + "/" + imgPre + "${srcId}" + imgSuf, srcIm)
+val forEachIm = ExplorationTask(sampleId) -< (EmptyTask() set(inputs += srcId, outputs += (srcId, srcIm)) source srcImFile)
 
 // Rigid registration mole
+val rigidOutputFile = FileSource(dofDir + "/rigid/"  + refId + ",${srcId}" + dofSuf, dof6)
+
 val rigidBegin = EmptyTask() set(
-    inputs  += srcId,
-    outputs += (srcId, dof6)
-  ) source _dof6
+    inputs  += (srcId, srcIm),
+    outputs += (srcId, srcIm, dof6)
+  ) source rigidOutputFile
 
 val rigidIf = ScalaTask(
   """IRTK.ireg(Settings.refIm, srcIm, None, dof6,
@@ -45,12 +43,12 @@ val rigidIf = ScalaTask(
     usedClasses += (Settings.getClass(), IRTK.getClass()),
     inputs      += (srcId, srcIm, dof6),
     outputs     += (srcId, srcIm, dof6)
-  ) source _srcIm on env
+  )
 
 val rigidElse = EmptyTask() set(
-  inputs  += (srcId, srcIm, dof6),
-  outputs += (srcId, srcIm, dof6)
-  ) source _srcIm
+    inputs  += (srcId, srcIm, dof6),
+    outputs += (srcId, srcIm, dof6)
+  )
 
 val rigidEnd = ScalaTask(
   """val srcId = input.srcId.head
@@ -61,13 +59,15 @@ val rigidEnd = ScalaTask(
     outputs += (srcId,         srcIm,         dof6)
   )
 
-val rigidReg = rigidBegin -- (rigidIf when "!dof6.exists()", rigidElse when "dof6.exists()") -- rigidEnd
+val rigidReg = rigidBegin -- (rigidIf on env when "!dof6.exists()", rigidElse when "dof6.exists()") -- rigidEnd
 
 // Affine registration mole
+val affineOutputFile = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
+
 val affineBegin = EmptyTask() set(
-    inputs  += (srcId, dof6),
-    outputs += (srcId, dof6, dof12)
-  ) source _dof12
+    inputs  += (srcId, srcIm, dof6),
+    outputs += (srcId, srcIm, dof6, dof12)
+  ) source affineOutputFile
 
 val affineIf = ScalaTask(
   """IRTK.ireg(Settings.refIm, srcIm, Some(dof6), dof12,
@@ -80,12 +80,12 @@ val affineIf = ScalaTask(
     usedClasses += (Settings.getClass(), IRTK.getClass()),
     inputs      += (srcId, srcIm, dof6, dof12),
     outputs     += (srcId, srcIm,       dof12)
-  ) source _srcIm on env
+  )
 
 val affineElse = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6, dof12),
     outputs += (srcId, srcIm,       dof12)
-  ) source _srcIm
+  )
 
 val affineEnd = ScalaTask(
   """val srcId = input.srcId.head
@@ -96,8 +96,8 @@ val affineEnd = ScalaTask(
     outputs += (srcId,         srcIm,         dof12)
   )
 
-val affineReg = affineBegin -- (affineIf when "!dof12.exists()", affineElse when "dof12.exists()") -- affineEnd
+val affineReg = affineBegin -- (affineIf on env when "!dof12.exists()", affineElse when "dof12.exists()") -- affineEnd
 
 // Run spatial normalization pipeline for each input image
-val mole = forEachId -< rigidReg -- affineReg start
+val mole = forEachIm -- rigidReg -- affineReg start
 mole.waitUntilEnded()
