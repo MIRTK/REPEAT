@@ -16,12 +16,12 @@ object Settings {
   /// Parsed configuration object
   protected val config = {
     val home = System.getProperty("user.home")
-    val location = Option(System.getProperty("openmole.location"))
-    val reference = location match {
+    val openmole = Option(System.getProperty("openmole.location"))
+    val reference = openmole match {
       case Some(_) => ConfigFactory.parseURL(new URL("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
       case None => ConfigFactory.load()
     }
-    val shared = ConfigFactory.parseFile(new File(s"$location/configuration/repeat.conf"))
+    val shared = ConfigFactory.parseFile(new File(s"$openmole/configuration/repeat.conf"))
     val user = ConfigFactory.parseFile(new File(s"$home/.openmole/repeat.conf"))
     val local = ConfigFactory.parseFile(new File("repeat.conf"))
     local.withFallback(user).withFallback(shared).withFallback(reference).resolve()
