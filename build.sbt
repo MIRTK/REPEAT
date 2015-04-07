@@ -4,7 +4,7 @@ name := "repeat"
 
 version := "0.1"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.5"
 
 scalacOptions ++= Seq("-feature", "-deprecation")
 
