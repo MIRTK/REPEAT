@@ -33,7 +33,7 @@ val rigidBegin = EmptyTask() set(
     outputs += (srcId, srcIm, dof6)
   ) source rigidOutputFile
 
-val rigidIf = ScalaTask(
+val rigidTask = ScalaTask(
   """IRTK.ireg(Settings.refIm, srcIm, None, dof6,
     |  "Transformation model" -> "Rigid",
     |  "Background value"     -> 0
@@ -45,21 +45,13 @@ val rigidIf = ScalaTask(
     outputs     += (srcId, srcIm, dof6)
   )
 
-val rigidElse = EmptyTask() set(
+val rigidEnd = Capsule(EmptyTask() set(
     inputs  += (srcId, srcIm, dof6),
     outputs += (srcId, srcIm, dof6)
-  )
+  ))
 
-val rigidEnd = ScalaTask(
-  """val srcId = input.srcId.head
-    |val srcIm = input.srcIm.head
-    |val dof6  = input.dof6 .head
-  """.stripMargin) set(
-    inputs  += (srcId.toArray, srcIm.toArray, dof6.toArray),
-    outputs += (srcId,         srcIm,         dof6)
-  )
-
-val rigidReg = rigidBegin -- (rigidIf on env when "!dof6.exists()", rigidElse when "dof6.exists()") -- rigidEnd
+val rigidIf  = (rigidTask on env) -- rigidEnd
+val rigidReg = rigidBegin -- (rigidIf when "!dof6.exists()", rigidEnd when "dof6.exists()")
 
 // Affine registration mole
 val affineOutputFile = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
@@ -69,7 +61,7 @@ val affineBegin = EmptyTask() set(
     outputs += (srcId, srcIm, dof6, dof12)
   ) source affineOutputFile
 
-val affineIf = ScalaTask(
+val affineTask = ScalaTask(
   """IRTK.ireg(Settings.refIm, srcIm, Some(dof6), dof12,
     |  "Transformation model" -> "Affine",
     |  "Background value"     -> 0,
@@ -82,22 +74,14 @@ val affineIf = ScalaTask(
     outputs     += (srcId, srcIm,       dof12)
   )
 
-val affineElse = EmptyTask() set(
+val affineEnd = Capsule(EmptyTask() set(
     inputs  += (srcId, srcIm, dof6, dof12),
     outputs += (srcId, srcIm,       dof12)
-  )
+  ))
 
-val affineEnd = ScalaTask(
-  """val srcId = input.srcId.head
-    |val srcIm = input.srcIm.head
-    |val dof12 = input.dof12.head
-  """.stripMargin) set(
-    inputs  += (srcId.toArray, srcIm.toArray, dof12.toArray),
-    outputs += (srcId,         srcIm,         dof12)
-  )
-
-val affineReg = affineBegin -- (affineIf on env when "!dof12.exists()", affineElse when "dof12.exists()") -- affineEnd
+val affineIf  = (affineTask on env) -- affineEnd
+val affineReg = affineBegin -- (affineIf when "!dof12.exists()", affineEnd when "dof12.exists()")
 
 // Run spatial normalization pipeline for each input image
-val mole = forEachIm -- rigidReg -- affineReg start
+val mole = (forEachIm -- rigidReg) + rigidEnd -- affineReg start
 mole.waitUntilEnded()
