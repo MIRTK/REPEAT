@@ -1,5 +1,6 @@
 // OpenMOLE workflow for initial spatial normalization of images
-import com.andreasschuh.repeat._
+import com.andreasschuh.repeat.Settings
+import com.andreasschuh.repeat.IRTK
 
 // Environment on which to execute registration tasks
 val env = LocalEnvironment(4)
@@ -48,12 +49,12 @@ val rigidReg = ScalaTask(
   """if (!dof6.exists()) {
     |  IRTK.ireg(Settings.refIm, srcIm, None, dof6,
     |    "Transformation model" -> "Rigid",
-    |    "Background value" -> 0
+    |    "Background value"     -> 0
     |  )
     |}
   """.stripMargin) set (
     imports += "com.andreasschuh.repeat._",
-    usedClasses += classOf[IRTK],
+    usedClasses += (Settings.getClass(), IRTK.getClass()),
     inputs  += (srcId, srcIm, dof6),
     outputs += (srcId, srcIm, dof6)
   )
@@ -80,14 +81,15 @@ val affineDemux = ScalaTask("val dof12 = input.dof12.head") set (
 
 val affineReg = ScalaTask(
   """if (!dof12.exists()) {
-    |  IRTK.ireg(Settings.refIm, srcIm, dof6, dof12,
+    |  IRTK.ireg(Settings.refIm, srcIm, Some(dof6), dof12,
     |    "Transformation model" -> "Affine",
-    |    "Padding value" -> 0
+    |    "Background value"     -> 0,
+    |    "Padding value"        -> 0
     |  )
     |}
   """.stripMargin) set (
     imports += "com.andreasschuh.repeat._",
-    usedClasses += classOf[IRTK],
+    usedClasses += (Settings.getClass(), IRTK.getClass()),
     inputs  += (srcId, srcIm, dof6, dof12),
     outputs += (srcId, srcIm, dof12)
   )

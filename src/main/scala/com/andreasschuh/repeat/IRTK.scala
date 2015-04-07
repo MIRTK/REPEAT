@@ -19,24 +19,23 @@ object IRTK {
 
   /// Invert transformation
   def dofinvert(dofin: File, dofout: File): Int = {
-    println(Seq(s"$binDir/dofinvert", dofin.getAbsolutePath, dofout.getAbsolutePath))
-    0
     dofout.getAbsoluteFile().getParentFile().mkdirs()
+    val cmd = Seq(s"$binDir/dofinvert", dofin.getAbsolutePath(), dofout.getAbsolutePath())
+    cmd.!
   }
 
   /// Register images using ireg
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, params: (String, Any)*): Int = {
     dofout.getAbsoluteFile().getParentFile().mkdirs()
     val din = dofin match {
-      case Some(file) => Seq("-dofin", file.getAbsolutePath)
+      case Some(file) => Seq("-dofin", file.getAbsolutePath())
       case None => Seq()
     }
     val cfg = params flatMap {
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    val cmd = Seq(s"$binDir/ireg", target.getAbsolutePath, source.getAbsolutePath, "-dofout", dofout.getAbsolutePath) ++ din ++ cfg
-    println(cmd)
-    0
+    val cmd = Seq(s"$binDir/ireg", target.getAbsolutePath(), source.getAbsolutePath(), "-dofout", dofout.getAbsolutePath()) ++ din ++ cfg
+    cmd.!
   }
 }
