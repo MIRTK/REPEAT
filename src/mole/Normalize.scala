@@ -21,9 +21,8 @@ val dof6  = Val[File]
 val dof12 = Val[File]
 
 // Exploration task which iterates the image IDs and file paths
-val sampleId  = CSVSampling(imgCsv) set(columns += ("ID", srcId))
-val srcImFile = FileSource(imgDir + "/" + imgPre + "${srcId}" + imgSuf, srcIm)
-val forEachIm = ExplorationTask(sampleId) -< (EmptyTask() set(inputs += srcId, outputs += (srcId, srcIm)) source srcImFile)
+val srcIdSampling = CSVSampling(imgCsv).set(columns += ("ID", srcId)).toSampling()
+val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)))
 
 // Rigid registration mole
 val rigidOutputFile = FileSource(dofDir + "/rigid/"  + refId + ",${srcId}" + dofSuf, dof6)
@@ -79,5 +78,5 @@ val affineCond = "dof12.lastModified() < dof6.lastModified()"
 val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
 
 // Run spatial normalization pipeline for each input image
-val exec = (forEachIm -- rigidMole) + (rigidEnd -- affineMole) start
+val exec = (forEachIm -< rigidMole) + (rigidEnd -- affineMole) start
 exec.waitUntilEnded()
