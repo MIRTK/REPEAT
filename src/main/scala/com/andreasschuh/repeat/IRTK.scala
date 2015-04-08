@@ -2,7 +2,6 @@ package com.andreasschuh.repeat
 
 import scala.sys.process._
 import java.io.File
-import java.lang.Exception
 
 /**
  * Interface to IRTK executables
