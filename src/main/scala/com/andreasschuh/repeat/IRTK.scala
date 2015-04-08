@@ -18,7 +18,8 @@ object IRTK {
   def revision: String = s"$binDir/ireg -revision".!!.trim
 
   /// Execute IRTK command
-  protected def execute(cmd: Seq[String], errorOnReturnCode: Boolean = true): Int = {
+  protected def execute(command: String, args: Seq[String], errorOnReturnCode: Boolean = true): Int = {
+    val cmd = Seq[String](Path.join(binDir, command)) ++ args
     println(cmd.mkString("\n> \"", "\" \"", "\""))
     val returnCode = cmd.!
     if (errorOnReturnCode && returnCode != 0) throw new Exception(s"Error executing: ${cmd(0)} return code was not 0 but $returnCode")
@@ -28,7 +29,7 @@ object IRTK {
   /// Type of transformation file
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq(s"$binDir/dofprint", dof.getAbsolutePath(), "-type").!!.trim
+    Seq[String](Path.join(binDir, "dofprint"), dof.getAbsolutePath(), "-type").!!.trim
   }
 
   /// Whether given transformation is linear
@@ -46,8 +47,7 @@ object IRTK {
   def invert(dofIn: File, dofOut: File): Int = {
     if (!dofIn.exists()) throw new Exception(s"Input transformation does not exist: ${dofIn.getAbsolutePath}")
     dofOut.getAbsoluteFile().getParentFile().mkdirs()
-    val binName = if (isLinear(dofIn)) "dofinvert" else "ffdinvert"
-    execute(Seq(s"$binDir/$binName", dofIn.getAbsolutePath(), dofOut.getAbsolutePath()))
+    execute(if (isLinear(dofIn)) "dofinvert" else "ffdinvert", Seq(dofIn.getAbsolutePath(), dofOut.getAbsolutePath()))
   }
 
   /// Compose transformations: (dof2 o dof1)
@@ -59,12 +59,12 @@ object IRTK {
       // Note: dof1 and dof2 arguments are swapped!
       val inv1 = if (invert1) Seq("-invert2") else Seq()
       val inv2 = if (invert2) Seq("-invert1") else Seq()
-      execute(Seq(s"$binDir/dofcombine", dof2.getAbsolutePath, dof1.getAbsolutePath, dofOut.getAbsolutePath) ++ inv1 ++ inv2)
+      execute("dofcombine", Seq(dof2.getAbsolutePath, dof1.getAbsolutePath, dofOut.getAbsolutePath) ++ inv1 ++ inv2)
     } else {
       // TODO: Write inverse FFD to temporary file or even better add -invert1/-invert2 options to ffdcompose
       if (invert1) throw new Exception(s"ffdcompose does not support inversion of dof1 (${dofType(dof1)})")
       if (invert2) throw new Exception(s"ffdcompose does not support inversion of dof2 (${dofType(dof2)})")
-      execute(Seq(s"$binDir/ffdcompose", dof1.getAbsolutePath, dof2.getAbsolutePath, dofOut.getAbsolutePath))
+      execute("ffdcompose", Seq(dof1.getAbsolutePath, dof2.getAbsolutePath, dofOut.getAbsolutePath))
     }
   }
 
@@ -86,6 +86,6 @@ object IRTK {
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    execute(Seq(s"$binDir/ireg", target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts)
+    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts)
   }
 }

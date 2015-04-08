@@ -1,5 +1,6 @@
 // OpenMOLE workflow for pairwise affine registration of images
 import com.andreasschuh.repeat.Settings
+import com.andreasschuh.repeat.Path
 import com.andreasschuh.repeat.IRTK
 
 // Environment on which to execute registration tasks
@@ -33,15 +34,15 @@ val forEachTuple  = ExplorationTask(
     (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") +
     (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) +
     (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) +
-    (tgtDof in SelectFileDomain(dofDir + "/affine", refId + ",${tgtId}" + dofSuf)) +
-    (srcDof in SelectFileDomain(dofDir + "/affine", refId + ",${srcId}" + dofSuf))
+    (tgtDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${tgtId}" + dofSuf)) +
+    (srcDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${srcId}" + dofSuf))
   )
 
 // Transformation composition mole
 val compBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
     outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
-  ) source FileSource(dofDir + "/initial/${tgtId},${srcId}" + dofSuf, iniDof)
+  ) source FileSource(Path.join(dofDir, "initial", "${tgtId},${srcId}" + dofSuf), iniDof)
 
 val compTask = ScalaTask("IRTK.compose(tgtDof, srcDof, iniDof, true, false)") set (
     imports     += "com.andreasschuh.repeat.IRTK",
@@ -62,7 +63,7 @@ val compMole = compBegin -- (((compTask on env) -- compEnd) when compCond, compE
 val affineBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, iniDof),
     outputs += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof)
-  ) source FileSource(dofDir + "/affine/${tgtId},${srcId}" + dofSuf, outDof)
+  ) source FileSource(Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf), outDof)
 
 val affineTask = ScalaTask(
   """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof,
@@ -91,7 +92,7 @@ val affineMole = affineBegin -- (((affineTask on env) -- affineEnd) when affineC
 val invBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
     outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
-  ) source FileSource(dofDir + "/affine/${srcId},${tgtId}" + dofSuf, invDof)
+  ) source FileSource(Path.join(dofDir, "affine", "${srcId},${tgtId}" + dofSuf), invDof)
 
 val invTask = ScalaTask("IRTK.invert(outDof, invDof)") set (
     imports     += "com.andreasschuh.repeat.IRTK",

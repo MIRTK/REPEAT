@@ -1,5 +1,6 @@
 // OpenMOLE workflow for initial spatial normalization of images
 import com.andreasschuh.repeat.Settings
+import com.andreasschuh.repeat.Path
 import com.andreasschuh.repeat.IRTK
 
 // Environment on which to execute registration tasks
@@ -25,7 +26,7 @@ val srcIdSampling = CSVSampling(imgCsv).set(columns += ("ID", srcId)).toSampling
 val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)))
 
 // Rigid registration mole
-val rigidOutputFile = FileSource(dofDir + "/rigid/"  + refId + ",${srcId}" + dofSuf, dof6)
+val rigidOutputFile = FileSource(Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf), dof6)
 
 val rigidBegin = EmptyTask() set(
     inputs  += (srcId, srcIm),
@@ -54,7 +55,7 @@ val rigidCond = "!dof6.exists()"
 val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
 
 // Affine registration mole
-val affineOutputFile = FileSource(dofDir + "/affine/" + refId + ",${srcId}" + dofSuf, dof12)
+val affineOutputFile = FileSource(Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf), dof12)
 
 val affineBegin = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6),
