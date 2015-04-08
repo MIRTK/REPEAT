@@ -45,7 +45,10 @@ val rigidReg = ScalaTask(
     outputs     += (srcId, srcIm, dof6)
   )
 
-val rigidEnd = StrainerCapsule(EmptyTask())
+val rigidEnd = Capsule(EmptyTask() set (
+    inputs  += (srcId, srcIm, dof6),
+    outputs += (srcId, srcIm, dof6)
+  ))
 
 val rigidCond = "!dof6.exists()"
 val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
@@ -72,7 +75,10 @@ val affineReg = ScalaTask(
     outputs     += (srcId, srcIm,       dof12)
   )
 
-val affineEnd = StrainerCapsule(EmptyTask())
+val affineEnd = Capsule(EmptyTask() set (
+    inputs  += (srcId, srcIm, dof12),
+    outputs += (srcId, srcIm, dof12)
+  ))
 
 val affineCond = "dof12.lastModified() < dof6.lastModified()"
 val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
