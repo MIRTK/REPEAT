@@ -6,17 +6,8 @@
 // See LICENSE file for license information.
 // =============================================================================
 
-// Environment on which to execute registration tasks
-val env = Workflow.env
-
-// Constants
-val imgCsv = Workflow.imgCsv
-val imgDir = Workflow.imgIDir
-val imgPre = Workflow.imgPre
-val imgSuf = Workflow.imgSuf
-val dofDir = Workflow.dofDir
-val dofSuf = Workflow.dofSuf
-val logDir = Workflow.logDir
+import com.andreasschuh.repeat._
+import com.andreasschuh.repeat.Workflow._
 
 // Variables
 val tgtId  = Val[Int]    // ID of target image
@@ -25,6 +16,7 @@ val tgtIm  = Val[File]   // Target image
 val srcIm  = Val[File]   // Source image
 val iniDof = Val[File]   // Initial guess/input transformation
 val outDof = Val[File]   // Output transformation
+val regLog = Val[File]   // Registration output file
 
 val model  = Val[String] // Transformation model
 val im     = Val[String] // Integration method
@@ -70,15 +62,13 @@ val numPairwiseRegistrations      = sampling     .build(Context())(new util.Rand
 val forEachTuple = ExplorationTask(imageSampling x paramSampling)
 
 // Non-rigid registration mole
-val iregLog = Val[File]
-
 val iregBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof),
     outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
   ) source FileSource(Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf), outDof)
 
 val iregTask = ScalaTask(
-  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, Some(iregLog),
+  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, Some(regLog),
     |  "Verbosity" -> 1,
     |  "No. of threads" -> 1,
     |  "No. of resolution levels" -> 4,
@@ -95,9 +85,9 @@ val iregTask = ScalaTask(
   """.stripMargin) set (
     imports     += "com.andreasschuh.repeat._",
     usedClasses += IRTK.getClass(),
-    inputs      += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof, iregLog),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch,         outDof, iregLog)
-  ) source FileSource(Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}.log"), iregLog)
+    inputs      += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof, regLog),
+    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch,         outDof)
+  ) source FileSource(Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}.log"), regLog)
 
 val iregEnd = Capsule(EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),

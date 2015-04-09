@@ -7,18 +7,7 @@
 // =============================================================================
 
 import com.andreasschuh.repeat._
-
-// Environment on which to execute registration tasks
-val env = Workflow.env
-
-// Constants
-val refId  = Workflow.refId
-val imgDir = Workflow.imgIDir
-val imgPre = Workflow.imgPre
-val imgSuf = Workflow.imgSuf
-val dofDir = Workflow.dofDir
-val dofSuf = Workflow.dofSuf
-val imgCsv = Workflow.imgCsv
+import com.andreasschuh.repeat.Workflow._
 
 // Variables
 val tgtId  = Val[Int]
@@ -30,6 +19,7 @@ val srcDof = Val[File]
 val iniDof = Val[File]
 val outDof = Val[File]
 val invDof = Val[File]
+val regLog = Val[File]
 
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
@@ -71,7 +61,7 @@ val affineBegin = EmptyTask() set (
   ) source FileSource(Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf), outDof)
 
 val affineTask = ScalaTask(
-  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, None,
+  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, Some(regLog),
     |  "Transformation model"     -> "Affine",
     |  "No. of threads"           -> 8,
     |  "No. of resolution levels" -> 2,
@@ -81,9 +71,9 @@ val affineTask = ScalaTask(
   """.stripMargin) set (
     imports     += "com.andreasschuh.repeat.IRTK",
     usedClasses += IRTK.getClass(),
-    inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof),
+    inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof, regLog),
     outputs     += (tgtId, tgtIm, srcId, srcIm,         outDof)
-  )
+  ) source FileSource(Path.join(logDir, "affine", "${tgtId},${srcId}.log"), regLog)
 
 val affineEnd = Capsule(EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
