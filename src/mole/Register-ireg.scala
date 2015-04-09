@@ -9,7 +9,7 @@
 import com.andreasschuh.repeat._
 
 // Environment on which to execute registrations
-val env = Workflow.env
+val parEnv = Workflow.parEnv
 
 // Constants
 val imgCsv = Workflow.imgCsv
@@ -106,7 +106,7 @@ val iregEnd = Capsule(EmptyTask() set (
   ))
 
 val iregCond = "outDof.lastModified() < iniDof.lastModified()"
-val iregMole = iregBegin -- (((iregTask on env) -- iregEnd) when iregCond, iregEnd when s"!($iregCond)")
+val iregMole = iregBegin -- (((iregTask on parEnv) -- iregEnd) when iregCond, iregEnd when s"!($iregCond)")
 
 // Run non-rigid registration pipeline for each pair of images
 val exec = (forEachTuple -< iregMole) start

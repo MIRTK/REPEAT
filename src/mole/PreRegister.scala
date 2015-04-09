@@ -9,7 +9,7 @@
 import com.andreasschuh.repeat._
 
 // Environment on which to execute registrations
-val env = Workflow.env
+val parEnv = Workflow.parEnv
 
 // Constants
 val refId  = Workflow.refId
@@ -64,7 +64,7 @@ val compEnd = Capsule(EmptyTask() set (
   ))
 
 val compCond = "iniDof.lastModified() < tgtDof.lastModified() || iniDof.lastModified() < srcDof.lastModified()"
-val compMole = compBegin -- (((compTask on env) -- compEnd) when compCond, compEnd when s"!($compCond)")
+val compMole = compBegin -- (((compTask on parEnv) -- compEnd) when compCond, compEnd when s"!($compCond)")
 
 // Affine registration mole
 val affineBegin = EmptyTask() set (
@@ -93,7 +93,7 @@ val affineEnd = Capsule(EmptyTask() set (
   ))
 
 val affineCond = "outDof.lastModified() < iniDof.lastModified()"
-val affineMole = affineBegin -- (((affineTask on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
+val affineMole = affineBegin -- (((affineTask on parEnv) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
 
 // Invert transformation
 val invBegin = EmptyTask() set (
@@ -114,7 +114,7 @@ val invEnd = Capsule(EmptyTask() set (
   ))
 
 val invCond = "invDof.lastModified() < outDof.lastModified()"
-val invMole = invBegin -- (((invTask on env) -- invEnd) when invCond, invEnd when s"!($invCond)")
+val invMole = invBegin -- (((invTask on parEnv) -- invEnd) when invCond, invEnd when s"!($invCond)")
 
 // Run affine registration pipeline for each pair of images
 val exec = (forEachTuple -< compMole) + (compEnd -- affineMole) + (affineEnd -- invMole) start

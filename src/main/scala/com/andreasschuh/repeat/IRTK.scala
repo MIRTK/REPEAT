@@ -17,6 +17,9 @@ object IRTK extends Configurable("irtk") {
     dir
   }
 
+  /// Maximum number of threads to be used by each command
+  val nThreads = getIntProperty("threads")
+
   /// Version information
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
 
@@ -100,6 +103,6 @@ object IRTK extends Configurable("irtk") {
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts, log)
+    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath(), "-threads", nThreads.toString) ++ din ++ dout ++ opts, log)
   }
 }

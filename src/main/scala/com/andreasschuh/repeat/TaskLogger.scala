@@ -19,11 +19,15 @@ class TaskLogger(log: File) extends Configurable("workflow.log") with ProcessLog
   /// Whether to flush buffers after each line read from STDOUT (STDERR is always written immediately)
   protected val flush = getBooleanProperty("flush")
 
+  /// Whether to
+  protected val tee = getBooleanProperty("tee")
+
   /// Write line of process' STDOUT
   def out(s: => String): Unit = {
     writer.write(s)
     writer.write('\n')
     if (flush) writer.flush()
+    if (tee) println(s)
   }
 
   /// Write line of process' STDERR
@@ -31,6 +35,7 @@ class TaskLogger(log: File) extends Configurable("workflow.log") with ProcessLog
     writer.write(s)
     writer.write('\n')
     writer.flush()
+    if (tee) println(s)
   }
 
   /// Wrap process execution and close file when finished

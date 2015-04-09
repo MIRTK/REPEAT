@@ -9,7 +9,8 @@
 import com.andreasschuh.repeat._
 
 // Environment on which to execute registrations
-val env = Workflow.env
+val parEnv = Workflow.parEnv
+val symLnk = Workflow.symLnk
 
 // Constants
 val refId  = Workflow.refId
@@ -20,6 +21,7 @@ val imgSuf = Workflow.imgSuf
 val dofSuf = Workflow.dofSuf
 val dofDir = Workflow.dofDir
 val logDir = Workflow.logDir
+val logSuf = Workflow.logSuf
 
 // Variables
 val srcId    = Val[Int]
@@ -35,7 +37,7 @@ val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(i
 
 // Rigid registration mole
 val dof6Template    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
-val dof6LogTemplate = Path.join(logDir, "rigid", refId + ",${srcId}.log")
+val dof6LogTemplate = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
 
 val rigidBegin = EmptyTask() set(
     inputs  += (srcId, srcIm),
@@ -44,24 +46,27 @@ val rigidBegin = EmptyTask() set(
 
 val rigidReg = ScalaTask(
   """
-    | val dof6    = newFile
-    | val dof6Log = newFile
+    | val src     = new java.io.File(workDir, imgPre + srcId + imgSuf)
+    | val dof6    = new java.io.File(workDir, "transformation" + dofSuf)
+    | val dof6Log = new java.io.File(workDir, "output" + logSuf)
     |
-    | IRTK.ireg(Workflow.refIm, srcIm, None, dof6, Some(dof6Log),
-    |   "No. of threads"       -> 8,
+    | IRTK.ireg(refIm, src, None, dof6, Some(dof6Log),
     |   "Transformation model" -> "Rigid",
     |   "Background value"     -> 0
     | )
     |
   """.stripMargin) set(
-    imports     += "com.andreasschuh.repeat._",
+    imports     += ("com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
     usedClasses += (Workflow.getClass(), IRTK.getClass()),
-    inputs      += (srcId, srcIm),
-    outputs     += (srcId, srcIm, dof6, dof6Log)
+    inputs      += srcId,
+    inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
+    outputs     += (srcId, srcIm),
+    outputFiles += ("transformation.dof.gz", dof6),
+    outputFiles += ("output.log", dof6Log)
   ) hook (
     CopyFileHook(dof6,    dof6Template),
     CopyFileHook(dof6Log, dof6LogTemplate)
-  )
+  ) on parEnv
 
 val rigidEnd = Capsule(EmptyTask() set (
     inputs  += (srcId, srcIm, dof6),
@@ -69,11 +74,11 @@ val rigidEnd = Capsule(EmptyTask() set (
   ))
 
 val rigidCond = "!dof6.exists()"
-val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
+val rigidMole = rigidBegin -- ((rigidReg -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
 
 // Affine registration mole
 val dof12Template    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
-val dof12LogTemplate = Path.join(logDir, "affine", refId + ",${srcId}.log")
+val dof12LogTemplate = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
 
 val affineBegin = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6),
@@ -82,25 +87,30 @@ val affineBegin = EmptyTask() set(
 
 val affineReg = ScalaTask(
   """
-    | val dof12    = newFile
-    | val dof12Log = newFile
+    | val src      = new java.io.File(workDir, imgPre + srcId + imgSuf)
+    | val ini      = new java.io.File(workDir, "initial_guess"  + dofSuf)
+    | val dof12    = new java.io.File(workDir, "transformation" + dofSuf)
+    | val dof12Log = new java.io.File(workDir, "output" + logSuf)
     |
-    | IRTK.ireg(Workflow.refIm, srcIm, Some(dof6), dof12, Some(dof12Log),
-    |   "No. of threads"       -> 8,
+    | IRTK.ireg(refIm, src, Some(ini), dof12, Some(dof12Log),
     |   "Transformation model" -> "Affine",
     |   "Background value"     -> 0,
     |   "Padding value"        -> 0
     | )
     |
   """.stripMargin) set(
-    imports     += "com.andreasschuh.repeat._",
+    imports     += ("com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
     usedClasses += (Workflow.getClass(), IRTK.getClass()),
-    inputs      += (srcId, srcIm, dof6),
-    outputs     += (srcId, srcIm, dof12, dof12Log)
+    inputs      += srcId,
+    inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
+    inputFiles  += (dof6, "initial_guess"      + dofSuf, symLnk),
+    outputs     += (srcId, srcIm),
+    outputFiles += ("transformation.dof.gz", dof12),
+    outputFiles += ("output.log", dof12Log)
   ) hook (
     CopyFileHook(dof12,    dof12Template),
     CopyFileHook(dof12Log, dof12LogTemplate)
-  )
+  ) on parEnv
 
 val affineEnd = Capsule(EmptyTask() set (
     inputs  += (srcId, srcIm, dof12),
@@ -108,7 +118,7 @@ val affineEnd = Capsule(EmptyTask() set (
   ))
 
 val affineCond = "dof12.lastModified() < dof6.lastModified()"
-val affineMole = affineBegin -- (((affineReg on env) -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
+val affineMole = affineBegin -- ((affineReg -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
 
 // Run spatial normalization pipeline for each input image
 val exec = (forEachIm -< rigidMole) + (rigidEnd -- affineMole) start
