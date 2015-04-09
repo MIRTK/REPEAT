@@ -1,19 +1,17 @@
 // OpenMOLE workflow for pairwise affine registration of images
-import com.andreasschuh.repeat.Settings
-import com.andreasschuh.repeat.Path
-import com.andreasschuh.repeat.IRTK
+import com.andreasschuh.repeat._
 
 // Environment on which to execute registration tasks
 val env = LocalEnvironment(1)
 
 // Constants
-val refId  = Settings.refId
-val imgDir = Settings.imgIDir
-val imgPre = Settings.imgPre
-val imgSuf = Settings.imgSuf
-val dofDir = Settings.dofDir
-val dofSuf = Settings.dofSuf
-val imgCsv = Settings.imgCsv
+val refId  = Workflow.refId
+val imgDir = Workflow.imgIDir
+val imgPre = Workflow.imgPre
+val imgSuf = Workflow.imgSuf
+val dofDir = Workflow.dofDir
+val dofSuf = Workflow.dofSuf
+val imgCsv = Workflow.imgCsv
 
 // Variables
 val tgtId  = Val[Int]
@@ -27,8 +25,8 @@ val outDof = Val[File]
 val invDof = Val[File]
 
 // Exploration task which iterates the image IDs and file paths
-val tgtIdSampling = CSVSampling(imgCsv).set(columns += ("ID", tgtId)).toSampling()
-val srcIdSampling = CSVSampling(imgCsv).set(columns += ("ID", srcId)).toSampling()
+val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 
 val forEachTuple  = ExplorationTask(
     (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") +
@@ -66,7 +64,7 @@ val affineBegin = EmptyTask() set (
   ) source FileSource(Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf), outDof)
 
 val affineTask = ScalaTask(
-  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof,
+  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, None,
     |  "Transformation model"     -> "Affine",
     |  "No. of threads"           -> 8,
     |  "No. of resolution levels" -> 2,

@@ -1,19 +1,17 @@
 // OpenMOLE workflow for initial spatial normalization of images
-import com.andreasschuh.repeat.Settings
-import com.andreasschuh.repeat.Path
-import com.andreasschuh.repeat.IRTK
+import com.andreasschuh.repeat._
 
 // Environment on which to execute registration tasks
 val env = LocalEnvironment(1)
 
 // Constants
-val refId  = Settings.refId
-val imgDir = Settings.imgIDir
-val imgPre = Settings.imgPre
-val imgSuf = Settings.imgSuf
-val dofDir = Settings.dofDir
-val dofSuf = Settings.dofSuf
-val imgCsv = Settings.imgCsv
+val refId  = Workflow.refId
+val imgDir = Workflow.imgIDir
+val imgPre = Workflow.imgPre
+val imgSuf = Workflow.imgSuf
+val dofDir = Workflow.dofDir
+val dofSuf = Workflow.dofSuf
+val imgCsv = Workflow.imgCsv
 
 // Variables
 val srcId = Val[Int]
@@ -22,7 +20,7 @@ val dof6  = Val[File]
 val dof12 = Val[File]
 
 // Exploration task which iterates the image IDs and file paths
-val srcIdSampling = CSVSampling(imgCsv).set(columns += ("ID", srcId)).toSampling()
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)))
 
 // Rigid registration mole
@@ -34,14 +32,14 @@ val rigidBegin = EmptyTask() set(
   ) source rigidOutputFile
 
 val rigidReg = ScalaTask(
-  """IRTK.ireg(Settings.refIm, srcIm, None, dof6,
+  """IRTK.ireg(Workflow.refIm, srcIm, None, dof6, None,
     |  "No. of threads"       -> 8,
     |  "Transformation model" -> "Rigid",
     |  "Background value"     -> 0
     |)
   """.stripMargin) set(
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (Settings.getClass(), IRTK.getClass()),
+    usedClasses += (Workflow.getClass(), IRTK.getClass()),
     inputs      += (srcId, srcIm, dof6),
     outputs     += (srcId, srcIm, dof6)
   )
@@ -63,7 +61,7 @@ val affineBegin = EmptyTask() set(
   ) source affineOutputFile
 
 val affineReg = ScalaTask(
-  """IRTK.ireg(Settings.refIm, srcIm, Some(dof6), dof12,
+  """IRTK.ireg(Workflow.refIm, srcIm, Some(dof6), dof12, None,
     |  "No. of threads"       -> 8,
     |  "Transformation model" -> "Affine",
     |  "Background value"     -> 0,
@@ -71,7 +69,7 @@ val affineReg = ScalaTask(
     |)
   """.stripMargin) set(
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (Settings.getClass(), IRTK.getClass()),
+    usedClasses += (Workflow.getClass(), IRTK.getClass()),
     inputs      += (srcId, srcIm, dof6, dof12),
     outputs     += (srcId, srcIm,       dof12)
   )
