@@ -1,19 +1,27 @@
 package com.andreasschuh.repeat
 
-import com.typesafe.config._
+import com.typesafe.config.ConfigFactory
 import java.io.File
 import java.net.URL
 
 /**
- * Global settings such as file paths and environment
+ * Access values in configuration file
  *
- * This object reads the configuration from the reference.conf file
- * found in the jar archive of the OpenMOLE plugin (OSGi bundle).
+ * This object reads the configuration from the following HOCON files:
+ * 1. /repeat.conf
+ * 2. $HOME/.openmole/repeat.conf
+ * 3. $OPENMOLE/configuration/repeat.conf
+ * 4. $JAR/reference.conf
+ * where:
+ * - $PWD is the current working directory
+ * - $HOME is the home directory of the user
+ * - $OPENMOLE is the location of the OpenMOLE installation
+ * - $JAR is the root of the OpenMOLE plugin .jar file
  */
 object Settings {
 
   /// Parsed configuration object
-  protected val config = {
+  private val config = {
     val home = System.getProperty("user.home")
     val openmole = Option(System.getProperty("openmole.location"))
     val reference = openmole match {
@@ -27,59 +35,14 @@ object Settings {
   }
 
   /// Get absolute path
-  protected def filePath(propName: String) = (new File(config.getString(propName))).getAbsoluteFile()
+  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile()
+
+  /// Get absolute path string
+  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath()
 
   /// Get string value
-  protected def stringValue(propName: String) = config.getString(propName)
+  def getString(propName: String): String = config.getString(propName)
 
-  /// Directory containing IRTK executables
-  val irtkBinDir = filePath("irtk.bindir")
-
-  /// Hostname of SLURM head node
-  val slurmHost = stringValue("slurm.host")
-
-  /// SLURM user name
-  val slurmUser = stringValue("slurm.user")
-
-  /// Authentication token for SLURM head node, e.g., name of SSH key file or password
-  val slurmAuth = stringValue("slurm.auth")
-
-  /// Subject ID of reference used for spatial normalization (e.g., MNI305)
-  val refId = stringValue("repeat.reference.id")
-
-  /// Template image used for spatial normalization
-  val refIm = filePath("repeat.reference.image")
-
-  /// CSV file listing subject IDs of images
-  val imgCsv = filePath("repeat.image.csv")
-
-  /// Image file name prefix (before subject ID)
-  val imgPre = stringValue("repeat.image.prefix")
-
-  /// Image file name suffix (after subject ID)
-  val imgSuf = stringValue("repeat.image.suffix")
-
-  /// Directory containing input images
-  val imgIDir = filePath("repeat.image.idir")
-
-  /// Output directory for transformed and resampled images
-  val imgODir = filePath("repeat.image.odir")
-
-  /// Segmentation image file name prefix (before subject ID)
-  val segPre = stringValue("repeat.segmentation.prefix")
-
-  /// Segmentation image file name suffix (after subject ID)
-  val segSuf = stringValue("repeat.segmentation.suffix")
-
-  /// Directory containing ground truth segmentation images
-  val segIDir = filePath("repeat.segmentation.idir")
-
-  /// Output directory for transformed and resampled segmentation images
-  val segODir = filePath("repeat.segmentation.odir")
-
-  /// Suffix/extension of output transformation files (e.g., ".dof" or ".dof.gz")
-  val dofSuf = stringValue("repeat.dof.suffix")
-
-  /// Output directory for transformation files
-  val dofDir = filePath("repeat.dof.dir")
+  /// Get boolean value
+  def getBoolean(propName: String): Boolean = config.getBoolean(propName)
 }

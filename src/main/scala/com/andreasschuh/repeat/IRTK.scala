@@ -6,10 +6,16 @@ import java.io.File
 /**
  * Interface to IRTK executables
  */
-object IRTK {
+object IRTK extends Configurable("irtk") {
 
   /// Directory containing executable binaries
-  val binDir = Settings.irtkBinDir
+  val binDir = {
+    val dir = getFileProperty("bindir")
+    if (!dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
+    val ireg = new File(dir, "ireg")
+    if (!ireg.exists()) throw new Exception(s"Invalid IRTK version, missing ireg executable: $ireg")
+    dir
+  }
 
   /// Version information
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
@@ -18,11 +24,20 @@ object IRTK {
   def revision: String = s"$binDir/ireg -revision".!!.trim
 
   /// Execute IRTK command
-  protected def execute(command: String, args: Seq[String], errorOnReturnCode: Boolean = true): Int = {
+  protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
     val cmd = Seq[String](Path.join(binDir, command)) ++ args
-    println(cmd.mkString("\n> \"", "\" \"", "\""))
-    val returnCode = cmd.!
-    if (errorOnReturnCode && returnCode != 0) throw new Exception(s"Error executing: ${cmd(0)} return code was not 0 but $returnCode")
+    val cmdString = cmd.mkString("> \"", "\" \"", "\"")
+    println("\n" + cmdString)
+    val returnCode = log match {
+      case Some(file) => {
+        val logger = new TaskLogger(file)
+        logger.out(cmdString)
+        cmd ! logger
+      }
+      case None => cmd.!
+    }
+    if (errorOnReturnCode && returnCode != 0)
+      throw new Exception(s"Error executing: ${cmd(0)} return code was not 0 but $returnCode")
     returnCode
   }
 
@@ -34,9 +49,7 @@ object IRTK {
 
   /// Whether given transformation is linear
   def isLinear(dof: File): Boolean = dofType(dof) match {
-    case "irtkRigidTransformation" => true
-    case "irtkAffineTransformation" => true
-    case "irtkSimilarityTransformation" => true
+    case "irtkRigidTransformation" | "irtkAffineTransformation" | "irtkSimilarityTransformation" => true
     case _ => false
   }
 
@@ -69,7 +82,7 @@ object IRTK {
   }
 
   /// Compute image transformation using ireg
-  def ireg(target: File, source: File, dofin: Option[File], dofout: File, params: (String, Any)*): Int = {
+  def ireg(target: File, source: File, dofin: Option[File], dofout: File, log: Option[File], params: (String, Any)*): Int = {
     if (!target.exists()) throw new Exception(s"Target image does not exist: ${target.getAbsolutePath}")
     if (!source.exists()) throw new Exception(s"Source image does not exist: ${target.getAbsolutePath}")
     dofout.getAbsoluteFile().getParentFile().mkdirs()
@@ -82,10 +95,11 @@ object IRTK {
     }
     val dout = Seq("-dofout", dofout.getAbsolutePath())
     val opts = params flatMap {
+      case (k, v) if k == "Verbosity" => Seq("-verbose", v.toString)
       case (k, v) if k == "No. of threads" => Seq("-threads", v.toString)
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts)
+    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath()) ++ din ++ dout ++ opts, log)
   }
 }
