@@ -84,7 +84,7 @@ object IRTK extends Configurable("irtk") {
   /// Compute image transformation using ireg
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, log: Option[File], params: (String, Any)*): Int = {
     if (!target.exists()) throw new Exception(s"Target image does not exist: ${target.getAbsolutePath}")
-    if (!source.exists()) throw new Exception(s"Source image does not exist: ${target.getAbsolutePath}")
+    if (!source.exists()) throw new Exception(s"Source image does not exist: ${source.getAbsolutePath}")
     dofout.getAbsoluteFile().getParentFile().mkdirs()
     val din = dofin match {
       case Some(file) => {
