@@ -7,7 +7,19 @@
 // =============================================================================
 
 import com.andreasschuh.repeat._
-import com.andreasschuh.repeat.Workflow._
+
+// Environment on which to execute registrations
+val env = Workflow.env
+
+// Constants
+val refId  = Workflow.refId
+val imgCsv = Workflow.imgCsv
+val imgDir = Workflow.imgIDir
+val imgPre = Workflow.imgPre
+val imgSuf = Workflow.imgSuf
+val dofSuf = Workflow.dofSuf
+val dofDir = Workflow.dofDir
+val logDir = Workflow.logDir
 
 // Variables
 val tgtId  = Val[Int]
