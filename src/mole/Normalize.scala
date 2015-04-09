@@ -34,23 +34,34 @@ val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)))
 
 // Rigid registration mole
+val dof6Template    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
+val dof6LogTemplate = Path.join(logDir, "rigid", refId + ",${srcId}.log")
+
 val rigidBegin = EmptyTask() set(
     inputs  += (srcId, srcIm),
     outputs += (srcId, srcIm, dof6)
-  ) source FileSource(Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf), dof6)
+  ) source FileSource(dof6Template, dof6)
 
 val rigidReg = ScalaTask(
-  """IRTK.ireg(Workflow.refIm, srcIm, None, dof6, Some(dof6Log),
-    |  "No. of threads"       -> 8,
-    |  "Transformation model" -> "Rigid",
-    |  "Background value"     -> 0
-    |)
+  """
+    | val dof6    = newFile
+    | val dof6Log = newFile
+    |
+    | IRTK.ireg(Workflow.refIm, srcIm, None, dof6, Some(dof6Log),
+    |   "No. of threads"       -> 8,
+    |   "Transformation model" -> "Rigid",
+    |   "Background value"     -> 0
+    | )
+    |
   """.stripMargin) set(
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (Workflow.getClass(), IRTK.getClass()),
-    inputs      += (srcId, srcIm, dof6, dof6Log),
-    outputs     += (srcId, srcIm, dof6)
-  ) source FileSource(Path.join(logDir, "rigid", refId + ",${srcId}.log"), dof6Log)
+    inputs      += (srcId, srcIm),
+    outputs     += (srcId, srcIm, dof6, dof6Log)
+  ) hook (
+    CopyFileHook(dof6,    dof6Template),
+    CopyFileHook(dof6Log, dof6LogTemplate)
+  )
 
 val rigidEnd = Capsule(EmptyTask() set (
     inputs  += (srcId, srcIm, dof6),
@@ -61,24 +72,35 @@ val rigidCond = "!dof6.exists()"
 val rigidMole = rigidBegin -- (((rigidReg on env) -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
 
 // Affine registration mole
+val dof12Template    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
+val dof12LogTemplate = Path.join(logDir, "affine", refId + ",${srcId}.log")
+
 val affineBegin = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6),
     outputs += (srcId, srcIm, dof6, dof12)
-  ) source FileSource(Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf), dof12)
+  ) source FileSource(dof12Template, dof12)
 
 val affineReg = ScalaTask(
-  """IRTK.ireg(Workflow.refIm, srcIm, Some(dof6), dof12, Some(dof12Log),
-    |  "No. of threads"       -> 8,
-    |  "Transformation model" -> "Affine",
-    |  "Background value"     -> 0,
-    |  "Padding value"        -> 0
-    |)
+  """
+    | val dof12    = newFile
+    | val dof12Log = newFile
+    |
+    | IRTK.ireg(Workflow.refIm, srcIm, Some(dof6), dof12, Some(dof12Log),
+    |   "No. of threads"       -> 8,
+    |   "Transformation model" -> "Affine",
+    |   "Background value"     -> 0,
+    |   "Padding value"        -> 0
+    | )
+    |
   """.stripMargin) set(
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (Workflow.getClass(), IRTK.getClass()),
-    inputs      += (srcId, srcIm, dof6, dof12, dof12Log),
-    outputs     += (srcId, srcIm,       dof12)
-  ) source FileSource(Path.join(logDir, "affine", refId + ",${srcId}.log"), dof12Log)
+    inputs      += (srcId, srcIm, dof6),
+    outputs     += (srcId, srcIm, dof12, dof12Log)
+  ) hook (
+    CopyFileHook(dof12,    dof12Template),
+    CopyFileHook(dof12Log, dof12LogTemplate)
+  )
 
 val affineEnd = Capsule(EmptyTask() set (
     inputs  += (srcId, srcIm, dof12),
