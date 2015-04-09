@@ -6,7 +6,8 @@
 // See LICENSE file for license information.
 // =============================================================================
 
-//:load Setup.scala
+// Environment on which to execute registration tasks
+val env = Workflow.env
 
 // Constants
 val imgCsv = Workflow.imgCsv

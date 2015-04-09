@@ -1,8 +1,15 @@
-// OpenMOLE workflow for pairwise affine registration of images
+// =============================================================================
+// Project: Registration Performance Assessment Tool (REPEAT)
+// Module:  OpenMOLE script for affine pre-alignment
+//
+// Copyright (c) 2015, Andreas Schuh.
+// See LICENSE file for license information.
+// =============================================================================
+
 import com.andreasschuh.repeat._
 
 // Environment on which to execute registration tasks
-val env = LocalEnvironment(1)
+val env = Workflow.env
 
 // Constants
 val refId  = Workflow.refId

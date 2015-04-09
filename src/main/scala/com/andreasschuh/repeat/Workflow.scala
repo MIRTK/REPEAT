@@ -1,5 +1,12 @@
 package com.andreasschuh.repeat
 
+import org.openmole.core.workflow.tools._
+import org.openmole.core.workflow.execution.local.LocalEnvironment
+import org.openmole.plugin.environment.condor.CondorEnvironment
+import org.openmole.plugin.environment.slurm.SLURMEnvironment
+import org.openmole.plugin.environment.ssh.{ PrivateKey, SSHAuthentication }
+import org.openmole.core.workspace.Workspace._
+
 /**
  * Settings common to all OpenMOLE workflows
  */
@@ -48,5 +55,17 @@ object Workflow extends Configurable("workflow") {
   val logDir = getFileProperty("log.dir")
 
   /// Environment on which to execute parallel tasks
-  val useEnv = getStringProperty("environment").toLowerCase()
+  val env = {
+    getStringProperty("environment").toLowerCase() match {
+      case "slurm" => {
+        SLURM.sshKey match {
+          case Some(sshKey) => SSHAuthentication(0) = PrivateKey(sshKey, SLURM.user, "", SLURM.host)
+          case None =>
+        }
+        SLURMEnvironment(SLURM.user, SLURM.host, queue = SLURM.queueLong, threads = 1, memory = 4096, openMOLEMemory = 256)
+      }
+      case "local" => LocalEnvironment(1)
+      case v => LocalEnvironment(v.toInt)
+    }
+  }
 }
