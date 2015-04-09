@@ -24,10 +24,9 @@ object Settings {
   private val config = {
     val home      = System.getProperty("user.home")
     val reference = ConfigFactory.parseURL (new URL ("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
-    val shared    = ConfigFactory.parseFile(new File(s"$openmole/configuration/repeat.conf"))
     val user      = ConfigFactory.parseFile(new File(s"$home/.openmole/repeat.conf"))
     val local     = ConfigFactory.parseFile(new File("repeat.conf"))
-    local.withFallback(user).withFallback(shared).withFallback(reference).resolve()
+    local.withFallback(user).withFallback(reference).resolve()
   }
 
   /// Get absolute path
