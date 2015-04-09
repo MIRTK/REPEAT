@@ -18,4 +18,7 @@ abstract class Configurable(val propGroup: String) {
 
   /// Get boolean value of property in this group
   protected def getBooleanProperty(propName: String): Boolean = Settings.getBoolean(s"$propGroup.$propName")
+
+  /// Get integer value of property in this group
+  protected def getIntProperty(propName: String): Int = Settings.getInt(s"$propGroup.$propName")
 }

@@ -40,4 +40,7 @@ object Settings {
 
   /// Get boolean value
   def getBoolean(propName: String): Boolean = config.getBoolean(propName)
+
+  /// Get integer value
+  def getInt(propName: String): Int = config.getInt(propName)
 }
