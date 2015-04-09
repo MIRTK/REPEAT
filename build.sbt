@@ -16,7 +16,7 @@ OsgiKeys.importPackage := Seq("*")
 
 OsgiKeys.privatePackage := Seq("")
 
-scalariformSettings
+defaultScalariformSettings
 
 resolvers += "ISC-PIF Release" at "http://maven.iscpif.fr/public/"
 
