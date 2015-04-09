@@ -1,11 +1,10 @@
 package com.andreasschuh.repeat
 
-import org.openmole.core.workflow.tools._
+import org.openmole.core.workspace.Workspace.authenticationProvider
 import org.openmole.core.workflow.execution.local.LocalEnvironment
-import org.openmole.plugin.environment.condor.CondorEnvironment
-import org.openmole.plugin.environment.slurm.SLURMEnvironment
 import org.openmole.plugin.environment.ssh.{ PrivateKey, SSHAuthentication }
-import org.openmole.core.workspace.Workspace._
+import org.openmole.plugin.environment.slurm.SLURMEnvironment
+import org.openmole.plugin.environment.condor.CondorEnvironment
 
 /**
  * Settings common to all OpenMOLE workflows
@@ -62,10 +61,15 @@ object Workflow extends Configurable("workflow") {
           case Some(sshKey) => SSHAuthentication(0) = PrivateKey(sshKey, SLURM.user, "", SLURM.host)
           case None =>
         }
-        SLURMEnvironment(SLURM.user, SLURM.host, queue = SLURM.queueLong, threads = 1, memory = 4096, openMOLEMemory = 256)
+        SLURMEnvironment(SLURM.user, SLURM.host,
+          queue = Some(SLURM.queueLong),
+          threads = Some(1),
+          memory = Some(4096),
+          openMOLEMemory = Some(256)
+        )
       }
-      case "local" => LocalEnvironment(1)
-      case v => LocalEnvironment(v.toInt)
+      case "condor" => throw new Exception("Condor not yet supported by the REPEAT workflows")
+      case "local" => LocalEnvironment(4)
     }
   }
 }
