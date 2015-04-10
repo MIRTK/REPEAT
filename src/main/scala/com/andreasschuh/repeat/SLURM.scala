@@ -13,11 +13,8 @@ object SLURM extends Configurable("slurm") {
   /// SLURM user name
   val user = getStringProperty("user")
 
-  /// Name of queue for short running jobs (< 1hr)
-  val queueShort = getStringProperty("queue.short")
-
-  /// Name of queue for long running jobs (>= 1hr)
-  val queueLong = getStringProperty("queue.long")
+  /// Name of specified queue (e.g., "long" or "short")
+  def queue(name: String): String = getStringProperty(s"queue.$name")
 
   /// Authentication token for SLURM head node, e.g., name of SSH key file or password
   val auth = getStringProperty("auth")

@@ -23,7 +23,7 @@ object Environment extends Configurable("workflow.environment") {
           case None =>
         }
         SLURMEnvironment(SLURM.user, SLURM.host,
-          queue = Some(SLURM.queueLong),
+          queue = Some(SLURM.queue(propName)),
           threads = Some(1),
           memory = Some(4096),
           openMOLEMemory = Some(256)
