@@ -12,18 +12,18 @@ val configFile: File = GlobalSettings().configFile.get()
 
 // Environment on which to execute registrations
 val parEnv = Workflow.parEnv
-val symLnk = Workflow.symLnk
 
 // Constants
-val refId  = Workflow.refId
-val imgCsv = Workflow.imgCsv
-val imgDir = Workflow.imgIDir
-val imgPre = Workflow.imgPre
-val imgSuf = Workflow.imgSuf
-val dofSuf = Workflow.dofSuf
-val dofDir = Workflow.dofDir
-val logDir = Workflow.logDir
-val logSuf = Workflow.logSuf
+val symLnk = Constants.symLnk
+val refId  = Constants.refId
+val imgCsv = Constants.imgCsv
+val imgDir = Constants.imgIDir
+val imgPre = Constants.imgPre
+val imgSuf = Constants.imgSuf
+val dofSuf = Constants.dofSuf
+val dofDir = Constants.dofDir
+val logDir = Constants.logDir
+val logSuf = Constants.logSuf
 
 // Variables
 val srcId    = Val[Int]
@@ -62,7 +62,7 @@ val rigidReg = ScalaTask(
     |
   """.stripMargin) set(
     resources   += configFile,
-    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
+    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
     usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
@@ -109,7 +109,7 @@ val affineReg = ScalaTask(
     |
   """.stripMargin) set(
     resources   += configFile,
-    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
+    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
     usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
