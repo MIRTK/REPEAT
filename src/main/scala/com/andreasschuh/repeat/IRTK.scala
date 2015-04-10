@@ -29,18 +29,21 @@ object IRTK extends Configurable("irtk") {
   /// Execute IRTK command
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
     val cmd = Seq[String](Path.join(binDir, command)) ++ args
-    val cmdString = cmd.mkString("> \"", "\" \"", "\"")
-    println("\n" + cmdString)
+    val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     val returnCode = log match {
       case Some(file) => {
         val logger = new TaskLogger(file)
         logger.out(cmdString)
         cmd ! logger
       }
-      case None => cmd.!
+      case None => {
+        println(cmdString)
+        cmd.!
+      }
     }
-    if (errorOnReturnCode && returnCode != 0)
+    if (errorOnReturnCode && returnCode != 0) {
       throw new Exception(s"Error executing: ${cmd(0)} return code was not 0 but $returnCode")
+    }
     returnCode
   }
 
