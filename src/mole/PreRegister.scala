@@ -69,7 +69,7 @@ val compTask = ScalaTask(
     | IRTK.compose(dof1, dof2, iniDof, true, false)
   """.stripMargin) set (
     resources   += configFile,
-    imports     += "com.andreasschuh.repeat.IRTK",
+    imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm),
     inputFiles  += (tgtDof, refId + ",${tgtId}" + dofSuf, symLnk),
