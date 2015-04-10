@@ -8,6 +8,7 @@
 
 import com.andreasschuh.repeat._
 
+// TODO: Add config file to resources list only if not None!
 val configFile: File = GlobalSettings().configFile.get()
 
 // Environment on which to execute registrations
