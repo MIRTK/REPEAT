@@ -30,9 +30,11 @@ object IRTK extends Configurable("irtk") {
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
     val cmd = Seq[String](Path.join(binDir, command)) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
+    print('\n')
     val returnCode = log match {
       case Some(file) => {
         val logger = new TaskLogger(file)
+        if (!logger.tee) println(cmdString)
         logger.out(cmdString)
         cmd ! logger
       }

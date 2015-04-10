@@ -17,10 +17,10 @@ class TaskLogger(log: File) extends Configurable("workflow.log") with ProcessLog
   }
 
   /// Whether to flush buffers after each line read from STDOUT (STDERR is always written immediately)
-  protected val flush = getBooleanProperty("flush")
+  val flush = getBooleanProperty("flush")
 
   /// Whether to
-  protected val tee = getBooleanProperty("tee")
+  val tee = getBooleanProperty("tee")
 
   /// Write line of process' STDOUT
   def out(s: => String): Unit = {
