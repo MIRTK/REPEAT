@@ -8,17 +8,17 @@ import java.io.File
 abstract class Configurable(val propGroup: String) {
 
   /// Get absolute path of property in this group
-  protected def getFileProperty(propName: String): File = Settings.getFile(s"$propGroup.$propName")
+  protected def getFileProperty(propName: String): File = GlobalSettings().getFile(s"$propGroup.$propName")
 
   /// Get absolute path of property in this group
-  protected def getPathProperty(propName: String): String = Settings.getPath(s"$propGroup.$propName")
+  protected def getPathProperty(propName: String): String = GlobalSettings().getPath(s"$propGroup.$propName")
 
   /// Get string value of property in this group
-  protected def getStringProperty(propName: String): String = Settings.getString(s"$propGroup.$propName")
+  protected def getStringProperty(propName: String): String = GlobalSettings().getString(s"$propGroup.$propName")
 
   /// Get boolean value of property in this group
-  protected def getBooleanProperty(propName: String): Boolean = Settings.getBoolean(s"$propGroup.$propName")
+  protected def getBooleanProperty(propName: String): Boolean = GlobalSettings().getBoolean(s"$propGroup.$propName")
 
   /// Get integer value of property in this group
-  protected def getIntProperty(propName: String): Int = Settings.getInt(s"$propGroup.$propName")
+  protected def getIntProperty(propName: String): Int = GlobalSettings().getInt(s"$propGroup.$propName")
 }

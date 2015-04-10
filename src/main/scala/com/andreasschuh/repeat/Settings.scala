@@ -18,15 +18,33 @@ import java.net.URL
  * - $OPENMOLE is the location of the OpenMOLE installation
  * - $JAR is the root of the OpenMOLE plugin .jar file
  */
-object Settings {
+class Settings(configName: Option[String] = None, configDir: File = new File(System.getProperty("user.dir"))) {
+
+  /// Found (main) configuration file
+  val configFile: Option[File] = configName match {
+    case Some(name) => {
+      val file = new File(configDir, name)
+      if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath())
+      Some(file)
+    }
+    case None => {
+      val localConfig = new File(configDir, "repeat.conf")
+      if (localConfig.exists()) Some(localConfig.getAbsoluteFile())
+      else {
+        val homeConfig = new File(Path.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
+        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile())
+        else None
+      }
+    }
+  }
 
   /// Parsed configuration object
   private val config = {
-    val home      = System.getProperty("user.home")
-    val reference = ConfigFactory.parseURL (new URL ("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
-    val user      = ConfigFactory.parseFile(new File(s"$home/.openmole/repeat.conf"))
-    val local     = ConfigFactory.parseFile(new File("repeat.conf"))
-    local.withFallback(user).withFallback(reference).resolve()
+    val reference = ConfigFactory.parseURL(new URL("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
+    configFile match {
+      case Some(f) => ConfigFactory.parseFile(f).withFallback(reference).resolve()
+      case None => reference.resolve()
+    }
   }
 
   /// Get absolute path
@@ -43,4 +61,35 @@ object Settings {
 
   /// Get integer value
   def getInt(propName: String): Int = config.getInt(propName)
+}
+
+/**
+ * Global settings object
+ */
+object GlobalSettings {
+  private var defaultConfigDir: File = new File(System.getProperty("user.dir"))
+  private var defaultConfigName: Option[String] = None
+  private var defaultSettings: Option[Settings] = None
+
+  /// Change directory in which to look for default configuration file
+  def setConfigDir(dir: File): Unit = {
+    defaultSettings = None
+    defaultConfigDir = dir
+  }
+
+  /// Change configuration file from which global/default settings are read
+  def setConfigName(name: String): Unit = {
+    defaultSettings = None
+    defaultConfigName = Some(name)
+  }
+
+  /// Get global/default settings instance
+  def apply(): Settings = defaultSettings match {
+    case None => {
+      val s = new Settings(defaultConfigName, defaultConfigDir)
+      defaultSettings = Some(s)
+      s
+    }
+    case Some(s) => s
+  }
 }
