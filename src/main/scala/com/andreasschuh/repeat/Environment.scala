@@ -30,7 +30,10 @@ object Environment extends Configurable("workflow.environment") {
         )
       }
       case "condor" => throw new Exception("Condor not yet supported by REPEAT")
-      case "local" => LocalEnvironment(getIntProperty("cores"))
+      case "local" => LocalEnvironment(getIntProperty("nodes") match {
+        case n if n <= 0 => Runtime.getRuntime().availableProcessors()
+        case n if n >  0 => n
+      })
     }
   }
 
