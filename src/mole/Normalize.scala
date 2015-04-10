@@ -8,6 +8,8 @@
 
 import com.andreasschuh.repeat._
 
+val configFile: File = GlobalSettings().configFile.get()
+
 // Environment on which to execute registrations
 val parEnv = Workflow.parEnv
 val symLnk = Workflow.symLnk
@@ -44,11 +46,13 @@ val rigidBegin = EmptyTask() set(
     outputs += (srcId, srcIm, dof6)
   ) source FileSource(dof6Template, dof6)
 
-val rigidReg = ScalaTask(
+val rigidReg1 = ScalaTask(
   """
-    | val src     = new java.io.File(workDir, imgPre + srcId + imgSuf)
-    | val dof6    = new java.io.File(workDir, "transformation" + dofSuf)
-    | val dof6Log = new java.io.File(workDir, "output" + logSuf)
+    | GlobalSettings.setConfigDir(workDir)
+    |
+    | val src     = new File(workDir, imgPre + srcId + imgSuf)
+    | val dof6    = new File(workDir, "transformation" + dofSuf)
+    | val dof6Log = new File(workDir, "output" + logSuf)
     |
     | IRTK.ireg(refIm, src, None, dof6, Some(dof6Log),
     |   "Transformation model" -> "Rigid",
@@ -56,8 +60,9 @@ val rigidReg = ScalaTask(
     | )
     |
   """.stripMargin) set(
-    imports     += ("com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
-    usedClasses += (Workflow.getClass(), IRTK.getClass()),
+    resources   += configFile,
+    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
+    usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     outputs     += (srcId, srcIm),
@@ -87,10 +92,12 @@ val affineBegin = EmptyTask() set(
 
 val affineReg = ScalaTask(
   """
-    | val src      = new java.io.File(workDir, imgPre + srcId + imgSuf)
-    | val ini      = new java.io.File(workDir, "initial_guess"  + dofSuf)
-    | val dof12    = new java.io.File(workDir, "transformation" + dofSuf)
-    | val dof12Log = new java.io.File(workDir, "output" + logSuf)
+    | GlobalSettings.setConfigDir(workDir)
+    |
+    | val src      = new File(workDir, imgPre + srcId + imgSuf)
+    | val ini      = new File(workDir, "initial_guess"  + dofSuf)
+    | val dof12    = new File(workDir, "transformation" + dofSuf)
+    | val dof12Log = new File(workDir, "output" + logSuf)
     |
     | IRTK.ireg(refIm, src, Some(ini), dof12, Some(dof12Log),
     |   "Transformation model" -> "Affine",
@@ -99,8 +106,9 @@ val affineReg = ScalaTask(
     | )
     |
   """.stripMargin) set(
-    imports     += ("com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
-    usedClasses += (Workflow.getClass(), IRTK.getClass()),
+    resources   += configFile,
+    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Workflow._"),
+    usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     inputFiles  += (dof6, "initial_guess"      + dofSuf, symLnk),
