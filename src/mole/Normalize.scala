@@ -109,7 +109,6 @@ val affineReg = ScalaTask(
     |
     | IRTK.ireg(tgt, src, Some(ini), dof12, Some(dof12Log),
     |   "Transformation model" -> "Affine",
-    |   "Background value" -> 0,
     |   "Padding value" -> 0
     | )
   """.stripMargin) set(
