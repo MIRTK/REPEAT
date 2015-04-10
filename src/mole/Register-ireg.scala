@@ -8,17 +8,22 @@
 
 import com.andreasschuh.repeat._
 
+// TODO: Add config file to resources list only if not None!
+val configFile: File = GlobalSettings().configFile.get()
+
 // Environment on which to execute registrations
-val parEnv = Workflow.parEnv
+val parEnv = Environment.long
+val symLnk = Environment.symLnk
 
 // Constants
-val imgCsv = Workflow.imgCsv
-val imgDir = Workflow.imgIDir
-val imgPre = Workflow.imgPre
-val imgSuf = Workflow.imgSuf
-val dofSuf = Workflow.dofSuf
-val dofDir = Workflow.dofDir
-val logDir = Workflow.logDir
+val imgCsv = Constants.imgCsv
+val imgDir = Constants.imgIDir
+val imgPre = Constants.imgPre
+val imgSuf = Constants.imgSuf
+val dofSuf = Constants.dofSuf
+val dofDir = Constants.dofDir
+val logDir = Constants.logDir
+val logSuf = Constants.logSuf
 
 // Variables
 val tgtId  = Val[Int]    // ID of target image
@@ -62,7 +67,7 @@ val svffdSampling = {
   (be    in List(.0, .0001, .0005, .001, .005, .01, .05)) x
   (bch   in List(0, 4))
 }
-val paramSampling = svffdSampling
+val paramSampling = ffdSampling :: svffdSampling
 */
 val sampling      = imageSampling x paramSampling
 
@@ -73,32 +78,52 @@ val numPairwiseRegistrations      = sampling     .build(Context())(new util.Rand
 val forEachTuple = ExplorationTask(imageSampling x paramSampling)
 
 // Non-rigid registration mole
+val outDofPath = Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf)
+val regLogPath = Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + logSuf)
+
 val iregBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof),
     outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
-  ) source FileSource(Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf), outDof)
+  ) source FileSource(outDofPath, outDof)
 
 val iregTask = ScalaTask(
-  """IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, Some(regLog),
-    |  "Verbosity" -> 1,
-    |  "No. of threads" -> 1,
-    |  "No. of resolution levels" -> 4,
-    |  "Maximum streak of rejected steps" -> 1,
-    |  "Strict step length range" -> false,
-    |  "Background value" -> 0,
-    |  "Padding value" -> 0,
-    |  "Transformation model" -> model,
-    |  "Integration method" -> im,
-    |  "Control point spacing" -> ds,
-    |  "Bending energy weight" -> be,
-    |  "No. of BCH terms" -> bch
+  s"""
+    | GlobalSettings.setConfigDir(workDir)
+    |
+    | val tgt    = new java.io.File(workDir, "$imgPre" + tgtId + "$imgSuf")
+    | val src    = new java.io.File(workDir, "$imgPre" + tgtId + "$imgSuf")
+    | val ini    = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
+    | val outDof = new java.io.File(workDir, "result$dofSuf")
+    | val regLog = new java.io.File(workDir, "output$logSuf")
+    |
+    | IRTK.ireg(tgt, src, Some(ini), outDof, Some(regLog),
+    |   "Verbosity" -> 1,
+    |   "No. of resolution levels" -> 4,
+    |   "Maximum streak of rejected steps" -> 1,
+    |   "Strict step length range" -> false,
+    |   "Background value" -> 0,
+    |   "Padding value" -> 0,
+    |   "Transformation model" -> model,
+    |   "Integration method" -> im,
+    |   "Control point spacing" -> ds,
+    |   "Bending energy weight" -> be,
+    |   "No. of BCH terms" -> bch
     |)
   """.stripMargin) set (
+    resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += IRTK.getClass(),
-    inputs      += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof, regLog),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch,         outDof)
-  ) source FileSource(Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}.log"), regLog)
+    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    inputs      += (tgtId, srcId, model, im, ds, be, bch),
+    inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
+    inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
+    inputFiles  += (iniDof, "${tgtId},${srcId}" + dofSuf, symLnk),
+    outputFiles += ("result" + dofSuf, outDof),
+    outputFiles += ("output" + logSuf, regLog),
+    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch)
+  ) hook (
+    CopyFileHook(outDof, outDofPath),
+    CopyFileHook(regLog, regLogPath)
+  ) on parEnv
 
 val iregEnd = Capsule(EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
@@ -106,7 +131,7 @@ val iregEnd = Capsule(EmptyTask() set (
   ))
 
 val iregCond = "outDof.lastModified() < iniDof.lastModified()"
-val iregMole = iregBegin -- (((iregTask on parEnv) -- iregEnd) when iregCond, iregEnd when s"!($iregCond)")
+val iregMole = iregBegin -- ((iregTask -- iregEnd) when iregCond, iregEnd when s"!($iregCond)")
 
 // Run non-rigid registration pipeline for each pair of images
 val exec = (forEachTuple -< iregMole) start

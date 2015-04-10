@@ -39,39 +39,38 @@ val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm     = ExplorationTask(srcIdSampling + (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)))
 
 // Rigid registration mole
-val dof6Template    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
-val dof6LogTemplate = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
+val dof6Path    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
+val dof6LogPath = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
 
 val rigidBegin = EmptyTask() set(
     inputs  += (srcId, srcIm),
     outputs += (srcId, srcIm, dof6)
-  ) source FileSource(dof6Template, dof6)
+  ) source FileSource(dof6Path, dof6)
 
 val rigidReg = ScalaTask(
-  """
+  s"""
     | GlobalSettings.setConfigDir(workDir)
     |
-    | val src     = new File(workDir, imgPre + srcId + imgSuf)
-    | val dof6    = new File(workDir, "transformation" + dofSuf)
-    | val dof6Log = new File(workDir, "output" + logSuf)
+    | val src     = new java.io.File(workDir, "$imgPre" + srcId + "$imgSuf")
+    | val dof6    = new java.io.File(workDir, "result$dofSuf")
+    | val dof6Log = new java.io.File(workDir, "output$logSuf")
     |
     | IRTK.ireg(refIm, src, None, dof6, Some(dof6Log),
     |   "Transformation model" -> "Rigid",
-    |   "Background value"     -> 0
+    |   "Background value" -> 0
     | )
-    |
   """.stripMargin) set(
     resources   += configFile,
-    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
-    usedClasses += (GlobalSettings.getClass(), Constants.getClass(), IRTK.getClass()),
+    imports     += "com.andreasschuh.repeat._",
+    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
-    outputs     += (srcId, srcIm),
-    outputFiles += ("transformation.dof.gz", dof6),
-    outputFiles += ("output.log", dof6Log)
+    outputFiles += ("result" + dofSuf, dof6),
+    outputFiles += ("output" + logSuf, dof6Log),
+    outputs     += (srcId, srcIm)
   ) hook (
-    CopyFileHook(dof6,    dof6Template),
-    CopyFileHook(dof6Log, dof6LogTemplate)
+    CopyFileHook(dof6,    dof6Path),
+    CopyFileHook(dof6Log, dof6LogPath)
   ) on parEnv
 
 val rigidEnd = Capsule(EmptyTask() set (
@@ -83,42 +82,41 @@ val rigidCond = "!dof6.exists()"
 val rigidMole = rigidBegin -- ((rigidReg -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
 
 // Affine registration mole
-val dof12Template    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
-val dof12LogTemplate = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
+val dof12Path    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
+val dof12LogPath = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
 
 val affineBegin = EmptyTask() set(
     inputs  += (srcId, srcIm, dof6),
     outputs += (srcId, srcIm, dof6, dof12)
-  ) source FileSource(dof12Template, dof12)
+  ) source FileSource(dof12Path, dof12)
 
 val affineReg = ScalaTask(
-  """
+  s"""
     | GlobalSettings.setConfigDir(workDir)
     |
-    | val src      = new File(workDir, imgPre + srcId + imgSuf)
-    | val ini      = new File(workDir, "initial_guess"  + dofSuf)
-    | val dof12    = new File(workDir, "transformation" + dofSuf)
-    | val dof12Log = new File(workDir, "output" + logSuf)
+    | val src      = new java.io.File(workDir, "$imgPre" + srcId + "$imgSuf")
+    | val ini      = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
+    | val dof12    = new java.io.File(workDir, "result$dofSuf")
+    | val dof12Log = new java.io.File(workDir, "output$logSuf")
     |
     | IRTK.ireg(refIm, src, Some(ini), dof12, Some(dof12Log),
     |   "Transformation model" -> "Affine",
-    |   "Background value"     -> 0,
-    |   "Padding value"        -> 0
+    |   "Background value" -> 0,
+    |   "Padding value" -> 0
     | )
-    |
   """.stripMargin) set(
     resources   += configFile,
-    imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
-    usedClasses += (GlobalSettings.getClass(), Constants.getClass(), IRTK.getClass()),
+    imports     += "com.andreasschuh.repeat._",
+    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
-    inputFiles  += (dof6, "initial_guess"      + dofSuf, symLnk),
-    outputs     += (srcId, srcIm),
-    outputFiles += ("transformation.dof.gz", dof12),
-    outputFiles += ("output.log", dof12Log)
+    inputFiles  += (dof6, "${tgtId},${srcId}"  + dofSuf, symLnk),
+    outputFiles += ("result" + dofSuf, dof12),
+    outputFiles += ("output" + logSuf, dof12Log),
+    outputs     += (srcId, srcIm)
   ) hook (
-    CopyFileHook(dof12,    dof12Template),
-    CopyFileHook(dof12Log, dof12LogTemplate)
+    CopyFileHook(dof12,    dof12Path),
+    CopyFileHook(dof12Log, dof12LogPath)
   ) on parEnv
 
 val affineEnd = Capsule(EmptyTask() set (
