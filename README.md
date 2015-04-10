@@ -7,6 +7,8 @@ REPEAT uses [OpenMOLE](http://openmole.org/) to execute the workflows for the re
 
 The software tools included in this project are implemented in C++ and Scala, a functional incarnation of Java which combines strong typesafety with the ease and expressiveness of other scripting languages such as Ruby and Python. They are executed by the JVM which is available for all major operating systems.
 
+It is a free software distributed under the [AGPLv3](LICENSE.txt) free software license.
+
 Data
 ====
 
