@@ -108,7 +108,6 @@ val affineTask = ScalaTask(
     | IRTK.ireg(tgt, src, Some(ini), outDof, Some(regLog),
     |   "Transformation model" -> "Affine",
     |   "No. of resolution levels" -> 2,
-    |   "Background value" -> 0,
     |   "Padding value" -> 0
     | )
   """.stripMargin) set (

@@ -101,7 +101,6 @@ val iregTask = ScalaTask(
     |   "No. of resolution levels" -> 4,
     |   "Maximum streak of rejected steps" -> 1,
     |   "Strict step length range" -> false,
-    |   "Background value" -> 0,
     |   "Padding value" -> 0,
     |   "Transformation model" -> model,
     |   "Integration method" -> im,
