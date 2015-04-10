@@ -9,7 +9,7 @@
 import com.andreasschuh.repeat._
 
 // TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get()
+val configFile: File = GlobalSettings().configFile.get
 
 // Environment on which to execute registrations
 val parEnv = Environment.long
@@ -112,7 +112,7 @@ val iregTask = ScalaTask(
   """.stripMargin) set (
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId, model, im, ds, be, bch),
     inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),

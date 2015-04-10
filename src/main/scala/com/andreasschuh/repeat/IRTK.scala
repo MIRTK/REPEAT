@@ -32,19 +32,17 @@ object IRTK extends Configurable("irtk") {
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     print('\n')
     val returnCode = log match {
-      case Some(file) => {
+      case Some(file) =>
         val logger = new TaskLogger(file)
         if (!logger.tee) println(cmdString)
         logger.out(cmdString)
         cmd ! logger
-      }
-      case None => {
+      case None =>
         println(cmdString)
         cmd.!
-      }
     }
     if (errorOnReturnCode && returnCode != 0) {
-      throw new Exception(s"Error executing: ${cmd(0)} return code was not 0 but $returnCode")
+      throw new Exception(s"Error executing: ${cmd.head} return code was not 0 but $returnCode")
     }
     returnCode
   }
@@ -52,7 +50,7 @@ object IRTK extends Configurable("irtk") {
   /// Type of transformation file
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq[String](Path.join(binDir, "dofprint"), dof.getAbsolutePath(), "-type").!!.trim
+    Seq[String](Path.join(binDir, "dofprint"), dof.getAbsolutePath, "-type").!!.trim
   }
 
   /// Whether given transformation is linear
@@ -67,15 +65,15 @@ object IRTK extends Configurable("irtk") {
   /// Invert transformation
   def invert(dofIn: File, dofOut: File): Int = {
     if (!dofIn.exists()) throw new Exception(s"Input transformation does not exist: ${dofIn.getAbsolutePath}")
-    dofOut.getAbsoluteFile().getParentFile().mkdirs()
-    execute(if (isLinear(dofIn)) "dofinvert" else "ffdinvert", Seq(dofIn.getAbsolutePath(), dofOut.getAbsolutePath()))
+    dofOut.getAbsoluteFile.getParentFile.mkdirs()
+    execute(if (isLinear(dofIn)) "dofinvert" else "ffdinvert", Seq(dofIn.getAbsolutePath, dofOut.getAbsolutePath))
   }
 
   /// Compose transformations: (dof2 o dof1)
   def compose(dof1: File, dof2: File, dofOut: File, invert1: Boolean = false, invert2: Boolean = false): Int = {
     if (!dof1.exists()) throw new Exception(s"Input dof1 does not exist: ${dof1.getAbsolutePath}")
     if (!dof2.exists()) throw new Exception(s"Input dof2 does not exist: ${dof2.getAbsolutePath}")
-    dofOut.getAbsoluteFile().getParentFile().mkdirs()
+    dofOut.getAbsoluteFile.getParentFile.mkdirs()
     if (isLinear(dof1) && isLinear(dof2)) {
       // Note: dof1 and dof2 arguments are swapped!
       val inv1 = if (invert1) Seq("-invert2") else Seq()
@@ -93,21 +91,20 @@ object IRTK extends Configurable("irtk") {
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, log: Option[File], params: (String, Any)*): Int = {
     if (!target.exists()) throw new Exception(s"Target image does not exist: ${target.getAbsolutePath}")
     if (!source.exists()) throw new Exception(s"Source image does not exist: ${source.getAbsolutePath}")
-    dofout.getAbsoluteFile().getParentFile().mkdirs()
+    dofout.getAbsoluteFile.getParentFile.mkdirs()
     val din = dofin match {
-      case Some(file) => {
+      case Some(file) =>
         if (!file.exists()) throw new Exception(s"Initial transformation does not exist: ${file.getAbsolutePath}")
-        Seq("-dofin", file.getAbsolutePath())
-      }
+        Seq("-dofin", file.getAbsolutePath)
       case None => Seq()
     }
-    val dout = Seq("-dofout", dofout.getAbsolutePath())
+    val dout = Seq("-dofout", dofout.getAbsolutePath)
     val opts = params flatMap {
       case (k, v) if k == "Verbosity" => Seq("-verbose", v.toString)
       case (k, v) if k == "No. of threads" => Seq("-threads", v.toString)
       case (k, v) => Seq("-par", s"$k = $v")
       case _ => None
     }
-    execute("ireg", Seq(target.getAbsolutePath(), source.getAbsolutePath(), "-threads", threads.toString) ++ din ++ dout ++ opts, log)
+    execute("ireg", Seq(target.getAbsolutePath, source.getAbsolutePath, "-threads", threads.toString) ++ din ++ dout ++ opts, log)
   }
 }

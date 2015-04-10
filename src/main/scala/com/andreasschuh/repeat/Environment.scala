@@ -16,8 +16,8 @@ object Environment extends Configurable("workflow.environment") {
 
   /// Get environment for the named task category
   protected def getEnvironmentProperty(propName: String) = {
-    getStringProperty(propName).toLowerCase() match {
-      case "slurm" => {
+    getStringProperty(propName).toLowerCase match {
+      case "slurm" =>
         SLURM.sshKey match {
           case Some(sshKey) => SSHAuthentication(0) = PrivateKey(sshKey, SLURM.user, "", SLURM.host)
           case None =>
@@ -28,10 +28,9 @@ object Environment extends Configurable("workflow.environment") {
           memory = Some(4096),
           openMOLEMemory = Some(256)
         )
-      }
       case "condor" => throw new Exception("Condor not yet supported by REPEAT")
       case "local" => LocalEnvironment(getIntProperty("nodes") match {
-        case n if n <= 0 => Runtime.getRuntime().availableProcessors()
+        case n if n <= 0 => Runtime.getRuntime.availableProcessors()
         case n if n >  0 => n
       })
     }

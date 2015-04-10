@@ -22,20 +22,18 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
 
   /// Found (main) configuration file
   val configFile: Option[File] = configName match {
-    case Some(name) => {
+    case Some(name) =>
       val file = new File(configDir, name)
-      if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath())
+      if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath)
       Some(file)
-    }
-    case None => {
+    case None =>
       val localConfig = new File(configDir, "repeat.conf")
-      if (localConfig.exists()) Some(localConfig.getAbsoluteFile())
+      if (localConfig.exists()) Some(localConfig.getAbsoluteFile)
       else {
         val homeConfig = new File(Path.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
-        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile())
+        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)
         else None
       }
-    }
   }
 
   /// Parsed configuration object
@@ -48,10 +46,10 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
   }
 
   /// Get absolute path
-  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile()
+  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile
 
   /// Get absolute path string
-  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath()
+  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath
 
   /// Get string value
   def getString(propName: String): String = config.getString(propName)
@@ -85,11 +83,9 @@ object GlobalSettings {
 
   /// Get global/default settings instance
   def apply(): Settings = defaultSettings match {
-    case None => {
-      val s = new Settings(defaultConfigName, defaultConfigDir)
-      defaultSettings = Some(s)
-      s
-    }
+    case None =>
+      defaultSettings = Some(new Settings(defaultConfigName, defaultConfigDir))
+      defaultSettings.get
     case Some(s) => s
   }
 }

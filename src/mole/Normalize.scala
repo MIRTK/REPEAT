@@ -9,7 +9,7 @@
 import com.andreasschuh.repeat._
 
 // TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get()
+val configFile: File = GlobalSettings().configFile.get
 
 // Environment on which to execute registrations
 val parEnv = Environment.short
@@ -39,7 +39,7 @@ val dof12Log = Val[File]
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm     = ExplorationTask(
   srcIdSampling +
-  (refIm in SelectFileDomain(Constants.refIm.getParentFile(), Constants.refIm.getName())) +
+  (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) +
   (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf))
 )
 
@@ -68,9 +68,9 @@ val rigidReg = ScalaTask(
   """.stripMargin) set(
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += srcId,
-    inputFiles  += (refIm, Constants.refIm.getName(), symLnk),
+    inputFiles  += (refIm, Constants.refIm.getName, symLnk),
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     outputFiles += ("result" + dofSuf, dof6),
     outputFiles += ("output" + logSuf, dof6Log),
@@ -115,9 +115,9 @@ val affineReg = ScalaTask(
   """.stripMargin) set(
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += srcId,
-    inputFiles  += (refIm, Constants.refIm.getName(), symLnk),
+    inputFiles  += (refIm, Constants.refIm.getName, symLnk),
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     inputFiles  += (dof6, refId + ",${srcId}" + dofSuf, symLnk),
     outputFiles += ("result" + dofSuf, dof12),

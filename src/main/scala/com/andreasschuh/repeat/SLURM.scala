@@ -21,13 +21,10 @@ object SLURM extends Configurable("slurm") {
 
   /// SSH key file if specified as authentication token
   val sshKey: Option[File] = auth match {
-    case "id_dsa" | "id_rsa" => {
+    case "id_dsa" | "id_rsa" =>
       val sshDir = new File(System.getProperty("user.home"), ".ssh")
-      if (sshDir.exists())
-        Some[File](new File(sshDir, auth))
-      else
-        None
-    }
+      if (sshDir.exists()) Some[File](new File(sshDir, auth))
+      else None
     case _ => None
   }
 }

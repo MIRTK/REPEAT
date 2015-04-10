@@ -11,8 +11,8 @@ class TaskLogger(log: File) extends Configurable("workflow.log") with ProcessLog
 
   /// File writer object
   protected val writer = {
-    val logFile = log.getAbsoluteFile()
-    logFile.getParentFile().mkdirs()
+    val logFile = log.getAbsoluteFile
+    logFile.getParentFile.mkdirs()
     new FileWriter(logFile, getBooleanProperty("append"))
   }
 

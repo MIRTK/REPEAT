@@ -9,7 +9,7 @@
 import com.andreasschuh.repeat._
 
 // TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get()
+val configFile: File = GlobalSettings().configFile.get
 
 // Environment on which to execute registrations
 val parEnv = Environment.short
@@ -70,7 +70,7 @@ val compTask = ScalaTask(
   """.stripMargin) set (
     resources   += configFile,
     imports     += "com.andreasschuh.repeat.IRTK",
-    usedClasses += IRTK.getClass(),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm),
     inputFiles  += (tgtDof, refId + ",${tgtId}" + dofSuf, symLnk),
     inputFiles  += (srcDof, refId + ",${srcId}" + dofSuf, symLnk),
@@ -114,7 +114,7 @@ val affineTask = ScalaTask(
   """.stripMargin) set (
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId),
     inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
@@ -154,7 +154,7 @@ val invTask = ScalaTask(
   """.stripMargin) set (
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += ("${srcId},${tgtId}" + dofSuf, invDof),
