@@ -62,7 +62,7 @@ val rigidReg = ScalaTask(
   """.stripMargin) set(
     resources   += configFile,
     imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
-    usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass(), Constants.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     outputs     += (srcId, srcIm),
@@ -108,7 +108,7 @@ val affineReg = ScalaTask(
   """.stripMargin) set(
     resources   += configFile,
     imports     += ("java.io.File", "com.andreasschuh.repeat._", "com.andreasschuh.repeat.Constants._"),
-    usedClasses += (GlobalSettings.getClass(), Workflow.getClass(), IRTK.getClass()),
+    usedClasses += (GlobalSettings.getClass(), Constants.getClass(), IRTK.getClass()),
     inputs      += srcId,
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     inputFiles  += (dof6, "initial_guess"      + dofSuf, symLnk),
