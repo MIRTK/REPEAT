@@ -49,7 +49,6 @@ val rigidBegin = EmptyTask() set(
 val rigidReg = ScalaTask(
   """
     | GlobalSettings.setConfigDir(workDir)
-    | println("IRTK directory: " + IRTK.binDir.getAbsolutePath())
     |
     | val src     = new File(workDir, imgPre + srcId + imgSuf)
     | val dof6    = new File(workDir, "transformation" + dofSuf)
@@ -94,7 +93,6 @@ val affineBegin = EmptyTask() set(
 val affineReg = ScalaTask(
   """
     | GlobalSettings.setConfigDir(workDir)
-    | println("IRTK directory: " + IRTK.binDir.getAbsolutePath())
     |
     | val src      = new File(workDir, imgPre + srcId + imgSuf)
     | val ini      = new File(workDir, "initial_guess"  + dofSuf)
