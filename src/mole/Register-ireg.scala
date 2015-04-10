@@ -107,7 +107,7 @@ val iregTask = ScalaTask(
     |   "Control point spacing" -> ds,
     |   "Bending energy weight" -> be,
     |   "No. of BCH terms" -> bch
-    |)
+    | )
   """.stripMargin) set (
     resources   += configFile,
     imports     += "com.andreasschuh.repeat._",
