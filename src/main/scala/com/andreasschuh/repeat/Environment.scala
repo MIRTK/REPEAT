@@ -9,11 +9,14 @@ import org.openmole.plugin.environment.condor.CondorEnvironment
 /**
  * Settings common to all OpenMOLE workflows
  */
-object Workflow extends Configurable("workflow") {
+object Environment extends Configurable("workflow.environment") {
 
-  /// Environment on which to execute parallel tasks
-  val parEnv = {
-    getStringProperty("environment").toLowerCase() match {
+  /// Whether to use symbolic links for input files instead of copying them to (remote) working directory
+  val symLnk = getBooleanProperty("symlinks")
+
+  /// Get environment for the named task category
+  protected def getEnvironmentProperty(propName: String) = {
+    getStringProperty(propName).toLowerCase() match {
       case "slurm" => {
         SLURM.sshKey match {
           case Some(sshKey) => SSHAuthentication(0) = PrivateKey(sshKey, SLURM.user, "", SLURM.host)
@@ -26,9 +29,14 @@ object Workflow extends Configurable("workflow") {
           openMOLEMemory = Some(256)
         )
       }
-      case "condor" => throw new Exception("Condor not yet supported by the REPEAT workflows")
-      case "local" => LocalEnvironment(1)
+      case "condor" => throw new Exception("Condor not yet supported by REPEAT")
+      case "local" => LocalEnvironment(getIntProperty("cores"))
     }
   }
 
+  /// Environment on which to execute short running tasks
+  val short = getEnvironmentProperty("short")
+
+  /// Environment on which to execute long running tasks
+  val long = getEnvironmentProperty("long")
 }

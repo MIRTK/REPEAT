@@ -11,10 +11,10 @@ import com.andreasschuh.repeat._
 val configFile: File = GlobalSettings().configFile.get()
 
 // Environment on which to execute registrations
-val parEnv = Workflow.parEnv
+val parEnv = Environment.short
+val symLnk = Environment.symLnk
 
 // Constants
-val symLnk = Constants.symLnk
 val refId  = Constants.refId
 val imgCsv = Constants.imgCsv
 val imgDir = Constants.imgIDir

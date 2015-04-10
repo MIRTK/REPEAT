@@ -5,9 +5,6 @@ package com.andreasschuh.repeat
  */
 object Constants extends Configurable("workflow") {
 
-  /// Whether to use symbolic links for input files instead of copying them to (remote) working directory
-  val symLnk = getBooleanProperty("symlinks")
-
   /// Subject ID of reference used for spatial normalization (e.g., MNI305)
   val refId = getStringProperty("reference.id")
 
