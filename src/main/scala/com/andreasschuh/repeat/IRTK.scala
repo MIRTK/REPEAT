@@ -28,7 +28,7 @@ object IRTK extends Configurable("irtk") {
 
   /// Execute IRTK command
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
-    val cmd = Seq[String](Path.join(binDir, command)) ++ args
+    val cmd = Seq[String](Path.join(binDir, command).getAbsolutePath) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     print('\n')
     val returnCode = log match {
@@ -50,7 +50,7 @@ object IRTK extends Configurable("irtk") {
   /// Type of transformation file
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq[String](Path.join(binDir, "dofprint"), dof.getAbsolutePath, "-type").!!.trim
+    Seq[String](Path.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
   }
 
   /// Whether given transformation is linear
