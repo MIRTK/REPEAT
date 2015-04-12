@@ -38,11 +38,13 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
 
   /// Parsed configuration object
   private val config = {
-    val reference = ConfigFactory.parseURL(new URL("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
-    configFile match {
-      case Some(f) => ConfigFactory.parseFile(f).withFallback(reference).resolve()
-      case None => reference.resolve()
-    }
+    ConfigFactory.defaultOverrides().withFallback(configFile match {
+      case Some(f) => ConfigFactory.parseFile(f)
+      case None => ConfigFactory.empty()
+    }).withFallback(System.getProperty("eclipse.application", "NotOpenMOLE") match {
+      case "org.openmole.ui" => ConfigFactory.parseURL(new URL("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
+      case _ => ConfigFactory.defaultReference()
+    }).resolve()
   }
 
   /// Get absolute path
