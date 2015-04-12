@@ -3,13 +3,13 @@ package com.andreasschuh.repeat
 /**
  * Settings common to all OpenMOLE workflows and tasks
  */
-object Constants extends Configurable("workflow") {
+object Constants extends Configurable {
 
   /// Subject ID of reference used for spatial normalization (e.g., MNI305)
-  val refId = getStringProperty("reference.id")
+  val refId = getStringProperty("template.id")
 
   /// Template image used for spatial normalization
-  val refIm = getFileProperty("reference.image")
+  val refIm = getFileProperty("template.image")
 
   /// CSV file listing subject IDs of images
   val imgCsv = getFileProperty("image.csv")
