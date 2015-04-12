@@ -38,8 +38,8 @@ val dof12Log = Val[File]
 // Exploration task which iterates the image IDs and file paths
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm     = ExplorationTask(
-  srcIdSampling +
-  (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) +
+  srcIdSampling x
+  (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) x
   (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf))
 )
 

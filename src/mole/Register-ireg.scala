@@ -44,9 +44,9 @@ val bch    = Val[Int]    // No. of BCH terms
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val imageSampling = {
-  (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") +
-  (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) +
-  (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) +
+  (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
+  (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
+  (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
   (iniDof in SelectFileDomain(Path.join(dofDir, "affine"), "${tgtId},${srcId}" + dofSuf))
 }
 
@@ -57,9 +57,6 @@ val ffdSampling = {
   (be    in List(.0, .0001, .0005, .001, .005, .01, .05)) x
   (bch   in List(0)) // unused
 }
-val paramSampling = ffdSampling
-
-/*
 val svffdSampling = {
   (model in List("SVFFD")) x
   (im    in List("FastSS", "SS", "RKE1", "RK4")) x
@@ -68,7 +65,6 @@ val svffdSampling = {
   (bch   in List(0, 4))
 }
 val paramSampling = ffdSampling :: svffdSampling
-*/
 val sampling      = imageSampling x paramSampling
 
 import org.openmole.core.workflow.data.Context
