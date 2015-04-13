@@ -155,4 +155,24 @@ object IRTK extends Configurable("irtk") {
       else       r -> (0, 0, 0, .0, .0)
     }}.toMap
   }
+
+  /// Compute label overlap statistics
+  ///
+  /// @param a   Segmentation of image A.
+  /// @param b   Segmentation of image B.
+  /// @param roi Label set (ROI) for which to compute overlap statistics.
+  ///
+  /// @returns Average number of voxels in a, n(a), number of voxels in b, n(b),
+  ///          and average number of voxels in intersection of a and b, n(a^b).
+  def labelStats(a: File, b: File, roi: Set[Int]): (Int, Int, Int, Double, Double) = labelStats(a, b, Map("roi" -> roi))("roi")
+
+  /// Compute label overlap statistics
+  ///
+  /// @param a Segmentation of image A.
+  /// @param b Segmentation of image B.
+  /// @param l Label of segment for which to compute overlap statistics.
+  ///
+  /// @returns Average number of voxels in a, n(a), number of voxels in b, n(b),
+  ///          and average number of voxels in intersection of a and b, n(a^b).
+  def labelStats(a: File, b: File, label: Int): (Int, Int, Int, Double, Double) = labelStats(a, b, Set(label))
 }
