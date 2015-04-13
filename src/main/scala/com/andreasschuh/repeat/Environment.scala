@@ -9,7 +9,7 @@ import org.openmole.plugin.environment.condor.CondorEnvironment
 /**
  * Settings common to all OpenMOLE workflows
  */
-object Environment extends Configurable("workflow.environment") {
+object Environment extends Configurable("environment") {
 
   /// Whether to use symbolic links for input files instead of copying them to (remote) working directory
   val symLnk = getBooleanProperty("links")
