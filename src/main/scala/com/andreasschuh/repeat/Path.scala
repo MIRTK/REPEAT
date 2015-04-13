@@ -25,5 +25,5 @@ object Path {
   }
 
   /// Join file path and multiple path strings
-  def join(a: File, b: String, c: String*): File = join(a, b, c: _*)
+  def join(a: File, b: String, c: String*): File = c.foldLeft(join(a, b))((a, b) => join(a, b))
 }
