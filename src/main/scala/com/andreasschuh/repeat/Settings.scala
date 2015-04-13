@@ -3,6 +3,7 @@ package com.andreasschuh.repeat
 import com.typesafe.config.ConfigFactory
 import java.io.File
 import java.net.URL
+import scala.collection.JavaConverters._
 
 /**
  * Access values in configuration file
@@ -47,18 +48,27 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
     }).resolve()
   }
 
-  /// Get absolute path
-  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile
-
-  /// Get absolute path string
-  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath
-
-  /// Get string value
-  def getString(propName: String): String = config.getString(propName)
+  /// Get set of keys
+  def getKeySet(propName: String): Set[String] = config.getObject(propName).keySet.asScala.toSet
 
   /// Get boolean value
   def getBoolean(propName: String): Boolean = config.getBoolean(propName)
 
   /// Get integer value
   def getInt(propName: String): Int = config.getInt(propName)
+
+  /// Get list of string values
+  def getIntList(propName: String): Seq[Int] = config.getIntList(propName).asScala.map(_.intValue)
+
+  /// Get string value
+  def getString(propName: String): String = config.getString(propName)
+
+  /// Get list of string values
+  def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
+
+  /// Get absolute path string
+  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath
+
+  /// Get absolute path
+  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile
 }
