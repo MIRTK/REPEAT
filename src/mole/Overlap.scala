@@ -31,6 +31,9 @@ val outDir = Constants.segODir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
+val regions   = Measure.regions
+val csvHeader = "target,source," + regions.mkString(",")
+
 val outSegPath  = Path.join(outDir, subDir, "${srcId}-${tgtId}" + segSuf).getAbsolutePath
 val diceCsvPath = Path.join(outDir, subDir, "dice.csv").getAbsolutePath
 val jaccCsvPath = Path.join(outDir, subDir, "jaccard.csv").getAbsolutePath
@@ -96,7 +99,7 @@ val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastM
 //val warpSeg = warpBegin -- warpTask
 
 // Compute overlap measures
-val calculateOverlap = ScalaTask(
+val _calculateOverlap = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -110,7 +113,12 @@ val calculateOverlap = ScalaTask(
     |
     | val diceRow = tgtId + "," + srcId + "," + regions.map(region => dice   (region)).mkString(",")
     | val jaccRow = tgtId + "," + srcId + "," + regions.map(region => jaccard(region)).mkString(",")
-  """.stripMargin) set (
+  """.stripMargin)
+
+val calculateOverlap = (configFile match {
+    case Some(file) => _calculateOverlap.addResource(file)
+    case None => _calculateOverlap
+  }) set (
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, Measure.getClass),
     inputs      += (tgtId, srcId),
@@ -120,39 +128,34 @@ val calculateOverlap = ScalaTask(
   ) on parEnv
 
 // Write overlap to CSV file, one for each measure
-val writeToCsv = ScalaTask(
-  """
-    | GlobalSettings.setConfigDir(workDir)
-    |
-    | val regions = Measure.regions
-    | val header  = "target,source," + regions.mkString(",")
-    |
+val writeDiceToCsv = ScalaTask(
+  s"""
     | val diceCsv = new java.io.File(workDir, "dice.csv")
-    | val diceWriter = new java.io.FileWriter(diceCsv, false)
+    | val writer  = new java.io.FileWriter(diceCsv, false)
     | try {
-    |   diceWriter.write(header + '\n')
-    |   diceRow.foreach(row => diceWriter.write(row + '\n'))
+    |   writer.write("$csvHeader\n")
+    |   diceRow.sorted.foreach(row => writer.write(row + '\n'))
     | }
-    | finally diceWriter.close()
-    |
-    | val jaccCsv = new java.io.File(workDir, "jaccard.csv")
-    | val jaccWriter = new java.io.FileWriter(jaccCsv, false)
-    | try {
-    |   jaccWriter.write(header + '\n')
-    |   jaccRow.foreach(row => jaccWriter.write(row + '\n'))
-    | }
-    | finally jaccWriter.close()
+    | finally writer.close()
   """.stripMargin) set (
-    imports     += "com.andreasschuh.repeat._",
-    usedClasses += GlobalSettings.getClass,
-    inputs      += (diceRow.toArray, jaccRow.toArray),
-    outputFiles += ("dice.csv",    diceCsv),
+    inputs      += diceRow.toArray,
+    outputFiles += ("dice.csv", diceCsv)
+  ) hook CopyFileHook(diceCsv, diceCsvPath)
+
+val writeJaccardToCsv = ScalaTask(
+  s"""
+    | val jaccCsv = new java.io.File(workDir, "jaccard.csv")
+    | val writer  = new java.io.FileWriter(jaccCsv, false)
+    | try {
+    |   writer.write("$csvHeader\n")
+    |   jaccRow.sorted.foreach(row => writer.write(row + '\n'))
+    | }
+    | finally writer.close()
+  """.stripMargin) set (
+    inputs      += jaccRow.toArray,
     outputFiles += ("jaccard.csv", jaccCsv)
-  ) hook (
-    CopyFileHook(diceCsv, diceCsvPath),
-    CopyFileHook(jaccCsv, jaccCsvPath)
-  )
+  ) hook CopyFileHook(jaccCsv, jaccCsvPath)
 
 // Run overlap evaluation pipeline for each transformation
-val exec = (forEachDof -< warpSeg -- calculateOverlap >- writeToCsv) start
+val exec = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv) start
 exec.waitUntilEnded()
