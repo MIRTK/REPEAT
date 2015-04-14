@@ -6,10 +6,10 @@
 // See LICENSE file for license information.
 // =============================================================================
 
+import java.io.File
 import com.andreasschuh.repeat._
 
-// TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get
+val configFile = GlobalSettings().configFile
 
 // Environment on which to execute registrations
 val parEnv = Environment.short
@@ -43,22 +43,23 @@ val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 
 val forEachTuple  = ExplorationTask(
-    (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") +
-    (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) +
-    (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) +
-    (tgtDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${tgtId}" + dofSuf)) +
+    (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
+    (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
+    (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
+    (tgtDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${tgtId}" + dofSuf)) x
     (srcDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${srcId}" + dofSuf))
-  )
+  ) set (name := "forEachTuple")
 
 // Transformation composition mole
 val iniDofPath = Path.join(dofDir, "initial", "${tgtId},${srcId}" + dofSuf)
 
 val compBegin = EmptyTask() set (
+    name    := "compBegin",
     inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
     outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
   ) source FileSource(iniDofPath, iniDof)
 
-val compTask = ScalaTask(
+val _compTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -67,8 +68,13 @@ val compTask = ScalaTask(
     | val iniDof = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
     |
     | IRTK.compose(dof1, dof2, iniDof, true, false)
-  """.stripMargin) set (
-    resources   += configFile,
+  """.stripMargin)
+
+val compTask = (configFile match {
+    case Some(file) => _compTask.addResource(file)
+    case None => _compTask
+  }) set (
+    name        := "compTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm),
@@ -78,13 +84,7 @@ val compTask = ScalaTask(
     outputFiles += ("${tgtId},${srcId}" + dofSuf, iniDof)
   ) hook CopyFileHook(iniDof, iniDofPath) on parEnv
 
-val compEnd = Capsule(EmptyTask() set (
-    inputs  += (tgtId, tgtIm, srcId, srcIm, iniDof),
-    outputs += (tgtId, tgtIm, srcId, srcIm, iniDof)
-  ))
-
-val compCond = "iniDof.lastModified() < tgtDof.lastModified() || iniDof.lastModified() < srcDof.lastModified()"
-val compMole = compBegin -- ((compTask -- compEnd) when compCond, compEnd when s"!($compCond)")
+val compMole = compBegin -- Skip(compTask, "iniDof.lastModified() >= tgtDof.lastModified() && iniDof.lastModified() >= srcDof.lastModified()")
 
 // Affine registration mole
 val outDofPath = Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf)
@@ -95,7 +95,7 @@ val affineBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof)
   ) source FileSource(outDofPath, outDof)
 
-val affineTask = ScalaTask(
+val _affineTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -110,8 +110,13 @@ val affineTask = ScalaTask(
     |   "No. of resolution levels" -> 2,
     |   "Padding value" -> 0
     | )
-  """.stripMargin) set (
-    resources   += configFile,
+  """.stripMargin)
+
+val affineTask = (configFile match {
+    case Some(file) => _affineTask.addResource(file)
+    case None => _affineTask
+  }) set (
+    name        := "affineTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId),
@@ -126,13 +131,7 @@ val affineTask = ScalaTask(
     CopyFileHook(regLog, regLogPath)
   ) on parEnv
 
-val affineEnd = Capsule(EmptyTask() set (
-    inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
-    outputs += (tgtId, tgtIm, srcId, srcIm, outDof)
-  ))
-
-val affineCond = "outDof.lastModified() < iniDof.lastModified()"
-val affineMole = affineBegin -- ((affineTask -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
+val affineMole = affineBegin -- Skip(affineTask, "outDof.lastModified() >= iniDof.lastModified()")
 
 // Invert transformation
 val invDofPath = Path.join(dofDir, "affine", "${srcId},${tgtId}" + dofSuf)
@@ -142,7 +141,7 @@ val invBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
   ) source FileSource(invDofPath, invDof)
 
-val invTask = ScalaTask(
+val _invTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -150,8 +149,13 @@ val invTask = ScalaTask(
     | val invDof = new java.io.File(workDir, srcId + "," + tgtId + "$dofSuf")
     |
     | IRTK.invert(dof, invDof)
-  """.stripMargin) set (
-    resources   += configFile,
+  """.stripMargin)
+
+val invTask = (configFile match {
+    case Some(file) => _invTask.addResource(file)
+    case None => _invTask
+  }) set (
+    name        += "invTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
@@ -160,14 +164,8 @@ val invTask = ScalaTask(
     outputs     += (tgtId, tgtIm, srcId, srcIm, outDof)
   ) hook CopyFileHook(invDof, invDofPath) on parEnv
 
-val invEnd = Capsule(EmptyTask() set (
-    inputs  += (tgtId, tgtIm, srcId, srcIm, outDof, invDof),
-    outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
-  ))
-
-val invCond = "invDof.lastModified() < outDof.lastModified()"
-val invMole = invBegin -- ((invTask -- invEnd) when invCond, invEnd when s"!($invCond)")
+val invMole = invBegin -- Skip(invTask, "invDof.lastModified() >= outDof.lastModified()")
 
 // Run affine registration pipeline for each pair of images
-val exec = (forEachTuple -< compMole) + (compEnd -- affineMole) + (affineEnd -- invMole) start
+val exec = forEachTuple -< compMole -- affineMole -- invMole start
 exec.waitUntilEnded()

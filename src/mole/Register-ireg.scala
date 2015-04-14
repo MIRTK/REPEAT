@@ -6,10 +6,10 @@
 // See LICENSE file for license information.
 // =============================================================================
 
+import java.io.File
 import com.andreasschuh.repeat._
 
-// TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get
+val configFile = GlobalSettings().configFile
 
 // Environment on which to execute registrations
 val parEnv = Environment.long
@@ -44,7 +44,7 @@ val bch    = Val[Int]    // No. of BCH terms
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val imageSampling = {
-  (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
+  (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
   (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
   (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
   (iniDof in SelectFileDomain(Path.join(dofDir, "affine"), "${tgtId},${srcId}" + dofSuf))
@@ -71,18 +71,19 @@ import org.openmole.core.workflow.data.Context
 val numConfigurationsPerImagePair = paramSampling.build(Context())(new util.Random()).size
 val numPairwiseRegistrations      = sampling     .build(Context())(new util.Random()).size
 
-val forEachTuple = ExplorationTask(imageSampling x paramSampling)
+val forEachTuple = ExplorationTask(imageSampling x paramSampling) set (name := "forEachTuple")
 
 // Non-rigid registration mole
 val outDofPath = Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf)
 val regLogPath = Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + logSuf)
 
 val iregBegin = EmptyTask() set (
+    name    := "iregBegin",
     inputs  += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof),
     outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
   ) source FileSource(outDofPath, outDof)
 
-val iregTask = ScalaTask(
+val _iregTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -104,8 +105,13 @@ val iregTask = ScalaTask(
     |   "Bending energy weight" -> be,
     |   "No. of BCH terms" -> bch
     | )
-  """.stripMargin) set (
-    resources   += configFile,
+  """.stripMargin)
+
+val iregTask = (configFile match {
+    case Some(file) => _iregTask.addResource(file)
+    case None => _iregTask
+  }) set (
+    name        := "iregTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId, model, im, ds, be, bch),
@@ -120,13 +126,7 @@ val iregTask = ScalaTask(
     CopyFileHook(regLog, regLogPath)
   ) on parEnv
 
-val iregEnd = Capsule(EmptyTask() set (
-    inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
-    outputs += (tgtId, tgtIm, srcId, srcIm, outDof)
-  ))
-
-val iregCond = "outDof.lastModified() < iniDof.lastModified()"
-val iregMole = iregBegin -- ((iregTask -- iregEnd) when iregCond, iregEnd when s"!($iregCond)")
+val iregMole = iregBegin -- Skip(iregTask, "outDof.lastModified() > iniDof.lastModified()")
 
 // Run non-rigid registration pipeline for each pair of images
 val exec = (forEachTuple -< iregMole) start

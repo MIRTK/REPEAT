@@ -6,10 +6,10 @@
 // See LICENSE file for license information.
 // =============================================================================
 
+import java.io.File
 import com.andreasschuh.repeat._
 
-// TODO: Add config file to resources list only if not None!
-val configFile: File = GlobalSettings().configFile.get
+val configFile = GlobalSettings().configFile
 
 // Environment on which to execute registrations
 val parEnv = Environment.short
@@ -37,22 +37,23 @@ val dof12Log = Val[File]
 
 // Exploration task which iterates the image IDs and file paths
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
-val forEachIm     = ExplorationTask(
-  srcIdSampling x
-  (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) x
-  (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf))
-)
+val forEachIm = ExplorationTask(
+    srcIdSampling x
+    (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) x
+    (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf))
+  ) set (name := "forEachIm")
 
 // Rigid registration mole
 val dof6Path    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
 val dof6LogPath = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
 
-val rigidBegin = EmptyTask() set(
+val rigidBegin = EmptyTask() set (
+    name    := "rigidBegin",
     inputs  += (refIm, srcId, srcIm),
     outputs += (refIm, srcId, srcIm, dof6)
   ) source FileSource(dof6Path, dof6)
 
-val rigidReg = ScalaTask(
+val _rigidReg = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -65,8 +66,13 @@ val rigidReg = ScalaTask(
     |   "Transformation model" -> "Rigid",
     |   "Background value" -> 0
     | )
-  """.stripMargin) set(
-    resources   += configFile,
+  """.stripMargin)
+
+val rigidReg = (configFile match {
+    case Some(file) => _rigidReg.addResource(file)
+    case None => _rigidReg
+  }) set (
+    name        := "rigidReg",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += srcId,
@@ -80,24 +86,19 @@ val rigidReg = ScalaTask(
     CopyFileHook(dof6Log, dof6LogPath)
   ) on parEnv
 
-val rigidEnd = Capsule(EmptyTask() set (
-    inputs  += (refIm, srcId, srcIm, dof6),
-    outputs += (refIm, srcId, srcIm, dof6)
-  ))
-
-val rigidCond = "!dof6.exists()"
-val rigidMole = rigidBegin -- ((rigidReg -- rigidEnd) when rigidCond, rigidEnd when s"!($rigidCond)")
+val rigidMole = rigidBegin -- Skip(rigidReg, "dof6.exists()")
 
 // Affine registration mole
 val dof12Path    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
 val dof12LogPath = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
 
-val affineBegin = EmptyTask() set(
+val affineBegin = EmptyTask() set (
+    name    := "affineBegin",
     inputs  += (refIm, srcId, srcIm, dof6),
     outputs += (refIm, srcId, srcIm, dof6, dof12)
   ) source FileSource(dof12Path, dof12)
 
-val affineReg = ScalaTask(
+val _affineReg = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -111,8 +112,13 @@ val affineReg = ScalaTask(
     |   "Transformation model" -> "Affine",
     |   "Padding value" -> 0
     | )
-  """.stripMargin) set(
-    resources   += configFile,
+  """.stripMargin)
+
+val affineReg = (configFile match {
+    case Some(file) => _affineReg.addResource(file)
+    case None => _affineReg
+  }) set (
+    name        := "affineReg",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += srcId,
@@ -127,14 +133,8 @@ val affineReg = ScalaTask(
     CopyFileHook(dof12Log, dof12LogPath)
   ) on parEnv
 
-val affineEnd = Capsule(EmptyTask() set (
-    inputs  += (refIm, srcId, srcIm, dof12),
-    outputs += (refIm, srcId, srcIm, dof12)
-  ))
-
-val affineCond = "dof12.lastModified() < dof6.lastModified()"
-val affineMole = affineBegin -- ((affineReg -- affineEnd) when affineCond, affineEnd when s"!($affineCond)")
+val affineMole = affineBegin -- Skip(affineReg, "dof12.lastModified() >= dof6.lastModified()")
 
 // Run spatial normalization pipeline for each input image
-val exec = (forEachIm -< rigidMole) + (rigidEnd -- affineMole) start
+val exec = forEachIm -< rigidMole -- affineMole start
 exec.waitUntilEnded()
