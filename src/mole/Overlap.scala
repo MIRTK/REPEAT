@@ -31,12 +31,13 @@ val outDir = Constants.segODir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
-val regions   = Measure.regions
-val csvHeader = "target,source," + regions.mkString(",")
+val regions = Measure.regions
 
-val outSegPath  = Path.join(outDir, subDir, "${srcId}-${tgtId}" + segSuf).getAbsolutePath
-val diceCsvPath = Path.join(outDir, subDir, "dice.csv").getAbsolutePath
-val jaccCsvPath = Path.join(outDir, subDir, "jaccard.csv").getAbsolutePath
+val outSegPath      = Path.join(outDir, subDir, "${srcId}-${tgtId}" + segSuf).getAbsolutePath
+val diceCsvPath     = Path.join(outDir, subDir, "DSC.csv").getAbsolutePath
+val jaccCsvPath     = Path.join(outDir, subDir, "JSI.csv").getAbsolutePath
+val meanDiceCsvPath = Path.join(outDir, "DSC.csv").getAbsolutePath
+val meanJaccCsvPath = Path.join(outDir, "JSI.csv").getAbsolutePath
 
 // Variables
 val tgtId   = Val[Int]    // ID of target image
@@ -45,10 +46,14 @@ val tgtSeg  = Val[File]   // Target segmentation
 val srcSeg  = Val[File]   // Source segmentation
 val outDof  = Val[File]   // Transformation from target to source
 val outSeg  = Val[File]   // Transformed source segmentation
-val diceCsv = Val[File]   // CSV file with Dice coefficients for each transformation
+
 val diceRow = Val[String] // Comma-separated Dice coefficients for each ROI of one segmentation
-val jaccCsv = Val[File]   // CSV file with overlap measures for each transformation
+val diceAvg = Val[String] // Comma-separated mean Dice coefficients for each ROI over all segmentations
+val diceCsv = Val[File]   // CSV file with Dice coefficients for each transformation
+
 val jaccRow = Val[String] // Comma-separated Jaccard indices for each ROI of one segmentation
+val jaccAvg = Val[String] // Comma-separated Jaccard indices for each ROI over all segmentations
+val jaccCsv = Val[File]   // CSV file with Jaccard indices for each transformation
 
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
@@ -97,9 +102,6 @@ val warpTask = (configFile match {
   ) hook CopyFileHook(outSeg, outSegPath) on parEnv
 
 val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
-//val warpSeg = warpBegin -- (warpTask, "outSeg.lastModified() >= outDof.lastModified()")
-//val warpSeg = warpBegin -- warpTask
-//val warpSeg = warpBegin
 
 // Compute overlap measures
 val _calculateOverlap = ScalaTask(
@@ -114,8 +116,8 @@ val _calculateOverlap = ScalaTask(
     | val dice    = Measure.dice(overlap)
     | val jaccard = Measure.jaccard(overlap)
     |
-    | val diceRow = tgtId + "," + srcId + "," + regions.map(region => dice   (region)).mkString(",")
-    | val jaccRow = tgtId + "," + srcId + "," + regions.map(region => jaccard(region)).mkString(",")
+    | val diceRow = regions.map(region => dice   (region)).mkString(",")
+    | val jaccRow = regions.map(region => jaccard(region)).mkString(",")
   """.stripMargin)
 
 val calculateOverlap = (configFile match {
@@ -128,66 +130,42 @@ val calculateOverlap = (configFile match {
     inputs      += (tgtId, srcId),
     inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf),
     inputFiles  += (outSeg, segPre + "${srcId}-${tgtId}" + segSuf),
-    outputs     += (diceRow, jaccRow)
+    outputs     += (tgtId, srcId, diceRow, jaccRow)
+  ) hook (
+    AppendToFileHook(diceCsvPath, "${tgtId},${srcId},${diceRow}\n"),
+    AppendToFileHook(jaccCsvPath, "${tgtId},${srcId},${jaccRow}\n")
   ) on parEnv
 
-// Write overlap to CSV file, one for each measure
-val writeDiceToCsv = ScalaTask(
-  s"""
-    | val diceCsv = new java.io.File(workDir, "dice.csv")
-    | val writer  = new java.io.FileWriter(diceCsv, false)
-    | try {
-    |   writer.write("$csvHeader\\n")
-    |   diceRow.sorted.foreach(row => writer.write(row + '\\n'))
-    | }
-    | finally writer.close()
+// Compute mean overlap, one for each measure
+val writeMeanDiceToCsv = ScalaTask(
+  """
+    | val diceAvg = diceRow.map( row => row.split(",").map(_.toDouble) ).transpose.map(_.sum / diceRow.size).mkString(",")
   """.stripMargin) set (
-    name        := "writeDiceToCsv",
+    name        := "writeMeanDiceToCsv",
     inputs      += diceRow.toArray,
-    outputFiles += ("dice.csv", diceCsv)
-  ) hook CopyFileHook(diceCsv, diceCsvPath)
+    outputs     += diceAvg
+  ) hook (
+    AppendToFileHook(meanDiceCsvPath, subDir + ",${diceAvg}\n"),
+    ToStringHook()
+  )
 
-val writeJaccardToCsv = ScalaTask(
-  s"""
-    | val jaccCsv = new java.io.File(workDir, "jaccard.csv")
-    | val writer  = new java.io.FileWriter(jaccCsv, false)
-    | try {
-    |   writer.write("$csvHeader\\n")
-    |   jaccRow.sorted.foreach(row => writer.write(row + '\\n'))
-    | }
-    | finally writer.close()
+val writeMeanJaccardToCsv = ScalaTask(
+  """
+     | val jaccAvg = jaccRow.map( row => row.split(",").map(_.toDouble) ).transpose.map(_.sum / jaccRow.size).mkString(",")
   """.stripMargin) set (
-    name        := "writeJaccardToCsv",
+    name        := "writeMeanJaccardToCsv",
     inputs      += jaccRow.toArray,
-    outputFiles += ("jaccard.csv", jaccCsv)
-  ) hook CopyFileHook(jaccCsv, jaccCsvPath)
-
-// Report average overlap
-val avgDice = ScalaTask(
-  s"""
-    | val num = diceRow.size
-    | val sum = diceRow.map( row => row.split(',').drop(2).map(_.toDouble) ).transpose.map(_.sum)
-    | val roi = "$csvHeader".split(',').drop(2)
-    | for (i <- 0 until roi.size) {
-    |   println(f"Average Dice coefficient for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
-    | }
-  """.stripMargin) set (name := "avgDice", inputs += diceRow.toArray)
-
-val avgJaccard = ScalaTask(
-  s"""
-     | val num = jaccRow.size
-     | val sum = jaccRow.map( row => row.split(',').drop(2).map(_.toDouble) ).transpose.map(_.sum)
-     | val roi = "$csvHeader".split(',').drop(2)
-     | for (i <- 0 until roi.size) {
-     |   println(f"Average Jaccard index for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
-     | }
-  """.stripMargin) set (name := "avgJaccard", inputs += jaccRow.toArray)
+    outputs     += jaccAvg
+  ) hook (
+    AppendToFileHook(meanJaccCsvPath, subDir + ",${jaccAvg}\n"),
+    ToStringHook()
+  )
 
 // Run overlap evaluation pipeline for each transformation
-val mole = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv, avgDice, avgJaccard) toMole
+CsvUtil.writeHeaderIfFileNotExists(new File(diceCsvPath),     Seq("target", "source") ++ regions)
+CsvUtil.writeHeaderIfFileNotExists(new File(jaccCsvPath),     Seq("target", "source") ++ regions)
+CsvUtil.writeHeaderIfFileNotExists(new File(meanDiceCsvPath), Seq("registration")     ++ regions)
+CsvUtil.writeHeaderIfFileNotExists(new File(meanJaccCsvPath), Seq("registration")     ++ regions)
 
-println(mole.capsules)
-println(mole.transitions)
-
-val exec = mole start
+val exec = forEachDof -< warpSeg -- calculateOverlap >- (writeMeanDiceToCsv, writeMeanJaccardToCsv) start
 exec.waitUntilEnded()
