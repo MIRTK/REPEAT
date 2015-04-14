@@ -31,20 +31,27 @@ val outDir = Constants.segODir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
+val outSegPath  = Path.join(outDir, subDir, "${srcId}-${tgtId}" + segSuf).getAbsolutePath
+val diceCsvPath = Path.join(outDir, subDir, "dice.csv").getAbsolutePath
+val jaccCsvPath = Path.join(outDir, subDir, "jaccard.csv").getAbsolutePath
+
 // Variables
-val tgtId  = Val[Int]    // ID of target image
-val srcId  = Val[Int]    // ID of source image
-val tgtSeg = Val[File]   // Target segmentation
-val srcSeg = Val[File]   // Source segmentation
-val outDof = Val[File]   // Transformation from target to source
-val outSeg = Val[File]   // Transformed source segmentation
+val tgtId   = Val[Int]    // ID of target image
+val srcId   = Val[Int]    // ID of source image
+val tgtSeg  = Val[File]   // Target segmentation
+val srcSeg  = Val[File]   // Source segmentation
+val outDof  = Val[File]   // Transformation from target to source
+val outSeg  = Val[File]   // Transformed source segmentation
+val diceCsv = Val[File]   // CSV file with Dice coefficients for each transformation
+val diceRow = Val[String] // Comma-separated Dice coefficients for each ROI of one segmentation
+val jaccCsv = Val[File]   // CSV file with overlap measures for each transformation
+val jaccRow = Val[String] // Comma-separated Jaccard indices for each ROI of one segmentation
 
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
-val idsSampling   = (tgtIdSampling x srcIdSampling).filter("tgtId < srcId")
 val sampling = {
-  (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
+  (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
   (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
   (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
   (outDof in SelectFileDomain(dofDir, "${tgtId},${srcId}" + dofSuf))
@@ -53,8 +60,6 @@ val sampling = {
 val forEachDof = ExplorationTask(sampling)
 
 // Transform source segmentation
-val outSegPath = Path.join(outDir, subDir, "${srcId}-${tgtId}" + segSuf).getAbsolutePath
-
 val warpBegin = EmptyTask() set (
     inputs  += (tgtId, tgtSeg, srcId, srcSeg, outDof),
     outputs += (tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)
@@ -67,32 +72,87 @@ val _warpTask = ScalaTask(
     | val tgt    = new java.io.File(workDir, "$segPre" + tgtId + "$segSuf")
     | val src    = new java.io.File(workDir, "$segPre" + srcId + "$segSuf")
     | val dof    = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
-    | val outSeg = new java.io.File(workDir, "result$segSuf")
+    | val outSeg = new java.io.File(workDir, "$segPre" + srcId + "-" + tgtId + "$segSuf")
     |
     | IRTK.transform(src, outSeg, dofin = dof, interpolation = "NN", target = Some(tgt), matchInputType = true)
   """.stripMargin)
 
-configFile match {
-  case Some(file) => _warpTask.addResource(file)
-  case None =>
-}
-
-val warpTask = _warpTask set (
+val warpTask = (configFile match {
+    case Some(file) => _warpTask.addResource(file)
+    case None => _warpTask
+  }) set (
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId),
     inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, symLnk),
     inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, symLnk),
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
-    outputFiles += ("result" + segSuf, outSeg),
+    outputFiles += (segPre + "${srcId}-${tgtId}" + segSuf, outSeg),
     outputs     += (tgtId, tgtSeg, srcId, srcSeg)
   ) hook CopyFileHook(outSeg, outSegPath) on parEnv
 
-val warpMole = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
+val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
+//val warpSeg = warpBegin -- (warpTask, "outSeg.lastModified() >= outDof.lastModified()")
+//val warpSeg = warpBegin -- warpTask
 
 // Compute overlap measures
+val calculateOverlap = ScalaTask(
+  s"""
+    | GlobalSettings.setConfigDir(workDir)
+    |
+    | val segA    = new java.io.File(workDir, "$segPre" + tgtId + "$segSuf")
+    | val segB    = new java.io.File(workDir, "$segPre" + srcId + "-" + tgtId + "$segSuf")
+    | val regions = Measure.regions
+    |
+    | val overlap = Measure.overlap(segA, segB)
+    | val dice    = Measure.dice(overlap)
+    | val jaccard = Measure.jaccard(overlap)
+    |
+    | val diceRow = tgtId + "," + srcId + "," + regions.map(region => dice   (region)).mkString(",")
+    | val jaccRow = tgtId + "," + srcId + "," + regions.map(region => jaccard(region)).mkString(",")
+  """.stripMargin) set (
+    imports     += "com.andreasschuh.repeat._",
+    usedClasses += (GlobalSettings.getClass, Measure.getClass),
+    inputs      += (tgtId, srcId),
+    inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf),
+    inputFiles  += (outSeg, segPre + "${srcId}-${tgtId}" + segSuf),
+    outputs     += (diceRow, jaccRow)
+  ) on parEnv
 
+// Write overlap to CSV file, one for each measure
+val writeToCsv = ScalaTask(
+  """
+    | GlobalSettings.setConfigDir(workDir)
+    |
+    | val regions = Measure.regions
+    | val header  = "target,source," + regions.mkString(",")
+    |
+    | val diceCsv = new java.io.File(workDir, "dice.csv")
+    | val diceWriter = new java.io.FileWriter(diceCsv, false)
+    | try {
+    |   diceWriter.write(header + '\n')
+    |   diceRow.foreach(row => diceWriter.write(row + '\n'))
+    | }
+    | finally diceWriter.close()
+    |
+    | val jaccCsv = new java.io.File(workDir, "jaccard.csv")
+    | val jaccWriter = new java.io.FileWriter(jaccCsv, false)
+    | try {
+    |   jaccWriter.write(header + '\n')
+    |   jaccRow.foreach(row => jaccWriter.write(row + '\n'))
+    | }
+    | finally jaccWriter.close()
+  """.stripMargin) set (
+    imports     += "com.andreasschuh.repeat._",
+    usedClasses += GlobalSettings.getClass,
+    inputs      += (diceRow.toArray, jaccRow.toArray),
+    outputFiles += ("dice.csv",    diceCsv),
+    outputFiles += ("jaccard.csv", jaccCsv)
+  ) hook (
+    CopyFileHook(diceCsv, diceCsvPath),
+    CopyFileHook(jaccCsv, jaccCsvPath)
+  )
 
 // Run overlap evaluation pipeline for each transformation
-val exec = (forEachDof -< warpMole) start
+val exec = (forEachDof -< warpSeg -- calculateOverlap >- writeToCsv) start
 exec.waitUntilEnded()
