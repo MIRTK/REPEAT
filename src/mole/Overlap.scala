@@ -156,6 +156,27 @@ val writeJaccardToCsv = ScalaTask(
     outputFiles += ("jaccard.csv", jaccCsv)
   ) hook CopyFileHook(jaccCsv, jaccCsvPath)
 
+// Report average overlap
+val avgDice = ScalaTask(
+  s"""
+    | val num = diceRow.size
+    | val sum = diceRow.map( row => row.split(',').drop(2).map(_.toDouble) ).transpose.map(_.sum)
+    | val roi = "$csvHeader".split(',').drop(2)
+    | for (i <- 0 until roi.size) {
+    |   println(f"Average Dice coefficient for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
+    | }
+  """.stripMargin) set (inputs += diceRow.toArray)
+
+val avgJaccard = ScalaTask(
+  s"""
+     | val num = jaccRow.size
+     | val sum = jaccRow.map( row => row.split(',').drop(2).map(_.toDouble) ).transpose.map(_.sum)
+     | val roi = "$csvHeader".split(',').drop(2)
+     | for (i <- 0 until roi.size) {
+     |   println(f"Average Jaccard index for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
+     | }
+  """.stripMargin) set (inputs += jaccRow.toArray)
+
 // Run overlap evaluation pipeline for each transformation
-val exec = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv) start
+val exec = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv, avgDice, avgJaccard) start
 exec.waitUntilEnded()
