@@ -60,10 +60,11 @@ val sampling = {
   (outDof in SelectFileDomain(dofDir, "${tgtId},${srcId}" + dofSuf))
 }
 
-val forEachDof = ExplorationTask(sampling)
+val forEachDof = ExplorationTask(sampling) set (name := "forEachDof")
 
 // Transform source segmentation
 val warpBegin = EmptyTask() set (
+    name    := "warpBegin",
     inputs  += (tgtId, tgtSeg, srcId, srcSeg, outDof),
     outputs += (tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)
   ) source FileSource(outSegPath, outSeg)
@@ -84,6 +85,7 @@ val warpTask = (configFile match {
     case Some(file) => _warpTask.addResource(file)
     case None => _warpTask
   }) set (
+    name        := "warpTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, srcId),
@@ -97,6 +99,7 @@ val warpTask = (configFile match {
 val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
 //val warpSeg = warpBegin -- (warpTask, "outSeg.lastModified() >= outDof.lastModified()")
 //val warpSeg = warpBegin -- warpTask
+//val warpSeg = warpBegin
 
 // Compute overlap measures
 val _calculateOverlap = ScalaTask(
@@ -119,6 +122,7 @@ val calculateOverlap = (configFile match {
     case Some(file) => _calculateOverlap.addResource(file)
     case None => _calculateOverlap
   }) set (
+    name        := "calculateOverlap",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, Measure.getClass),
     inputs      += (tgtId, srcId),
@@ -138,6 +142,7 @@ val writeDiceToCsv = ScalaTask(
     | }
     | finally writer.close()
   """.stripMargin) set (
+    name        := "writeDiceToCsv",
     inputs      += diceRow.toArray,
     outputFiles += ("dice.csv", diceCsv)
   ) hook CopyFileHook(diceCsv, diceCsvPath)
@@ -152,6 +157,7 @@ val writeJaccardToCsv = ScalaTask(
     | }
     | finally writer.close()
   """.stripMargin) set (
+    name        := "writeJaccardToCsv",
     inputs      += jaccRow.toArray,
     outputFiles += ("jaccard.csv", jaccCsv)
   ) hook CopyFileHook(jaccCsv, jaccCsvPath)
@@ -165,7 +171,7 @@ val avgDice = ScalaTask(
     | for (i <- 0 until roi.size) {
     |   println(f"Average Dice coefficient for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
     | }
-  """.stripMargin) set (inputs += diceRow.toArray)
+  """.stripMargin) set (name := "avgDice", inputs += diceRow.toArray)
 
 val avgJaccard = ScalaTask(
   s"""
@@ -175,8 +181,13 @@ val avgJaccard = ScalaTask(
      | for (i <- 0 until roi.size) {
      |   println(f"Average Jaccard index for $${roi(i)} region is $${100 * sum(i) / num}%.2f%%")
      | }
-  """.stripMargin) set (inputs += jaccRow.toArray)
+  """.stripMargin) set (name := "avgJaccard", inputs += jaccRow.toArray)
 
 // Run overlap evaluation pipeline for each transformation
-val exec = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv, avgDice, avgJaccard) start
+val mole = forEachDof -< warpSeg -- calculateOverlap >- (writeDiceToCsv, writeJaccardToCsv, avgDice, avgJaccard) toMole
+
+println(mole.capsules)
+println(mole.transitions)
+
+val exec = mole start
 exec.waitUntilEnded()
