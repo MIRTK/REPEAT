@@ -133,8 +133,8 @@ val writeDiceToCsv = ScalaTask(
     | val diceCsv = new java.io.File(workDir, "dice.csv")
     | val writer  = new java.io.FileWriter(diceCsv, false)
     | try {
-    |   writer.write("$csvHeader\n")
-    |   diceRow.sorted.foreach(row => writer.write(row + '\n'))
+    |   writer.write("$csvHeader\\n")
+    |   diceRow.sorted.foreach(row => writer.write(row + '\\n'))
     | }
     | finally writer.close()
   """.stripMargin) set (
@@ -147,8 +147,8 @@ val writeJaccardToCsv = ScalaTask(
     | val jaccCsv = new java.io.File(workDir, "jaccard.csv")
     | val writer  = new java.io.FileWriter(jaccCsv, false)
     | try {
-    |   writer.write("$csvHeader\n")
-    |   jaccRow.sorted.foreach(row => writer.write(row + '\n'))
+    |   writer.write("$csvHeader\\n")
+    |   jaccRow.sorted.foreach(row => writer.write(row + '\\n'))
     | }
     | finally writer.close()
   """.stripMargin) set (
