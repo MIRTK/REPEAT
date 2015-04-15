@@ -1,20 +1,40 @@
-// =============================================================================
-// Project: Registration Performance Assessment Tool (REPEAT)
-// Module:  OpenMOLE script for IRTK's ireg command
+// =====================================================================================================================
+// Registration Performance Assessment Tool (REPEAT)
+// OpenMOLE script to perform pairwise deformable registrations using ireg (IRTK 3)
 //
-// Copyright (c) 2015, Andreas Schuh.
-// See LICENSE file for license information.
-// =============================================================================
+// Copyright (C) 2015  Andreas Schuh
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU Affero General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU Affero General Public License for more details.
+//
+//   You should have received a copy of the GNU Affero General Public License
+//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+// =====================================================================================================================
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Import packages
 import java.io.File
 import com.andreasschuh.repeat._
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Resources
 val configFile = GlobalSettings().configFile
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute registrations
 val parEnv = Environment.long
 val symLnk = Environment.symLnk
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Constants
 val imgCsv = Constants.imgCsv
 val imgDir = Constants.imgIDir
@@ -25,6 +45,7 @@ val dofDir = Constants.dofDir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Variables
 val tgtId  = Val[Int]    // ID of target image
 val srcId  = Val[Int]    // ID of source image
@@ -40,6 +61,7 @@ val ds     = Val[Double] // Control point spacing
 val be     = Val[Double] // Bending energy weight
 val bch    = Val[Int]    // No. of BCH terms
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
@@ -73,7 +95,8 @@ val numPairwiseRegistrations      = sampling     .build(Context())(new util.Rand
 
 val forEachTuple = ExplorationTask(imageSampling x paramSampling) set (name := "forEachTuple")
 
-// Non-rigid registration mole
+// ---------------------------------------------------------------------------------------------------------------------
+// Non-rigid registration
 val outDofPath = Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf)
 val regLogPath = Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + logSuf)
 
@@ -128,6 +151,7 @@ val iregTask = (configFile match {
 
 val iregMole = iregBegin -- Skip(iregTask, "outDof.lastModified() > iniDof.lastModified()")
 
-// Run non-rigid registration pipeline for each pair of images
+// ---------------------------------------------------------------------------------------------------------------------
+// Run workflow
 val exec = (forEachTuple -< iregMole) start
 exec.waitUntilEnded()

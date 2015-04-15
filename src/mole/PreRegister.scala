@@ -1,20 +1,40 @@
-// =============================================================================
-// Project: Registration Performance Assessment Tool (REPEAT)
-// Module:  OpenMOLE script for affine pre-alignment
+// =====================================================================================================================
+// Registration Performance Assessment Tool (REPEAT)
+// OpenMOLE script to for affine pre-alignment of image pairs
 //
-// Copyright (c) 2015, Andreas Schuh.
-// See LICENSE file for license information.
-// =============================================================================
+// Copyright (C) 2015  Andreas Schuh
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU Affero General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU Affero General Public License for more details.
+//
+//   You should have received a copy of the GNU Affero General Public License
+//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+// =====================================================================================================================
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Import packages
 import java.io.File
 import com.andreasschuh.repeat._
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Resources
 val configFile = GlobalSettings().configFile
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute registrations
 val parEnv = Environment.short
 val symLnk = Environment.symLnk
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Constants
 val refId  = Constants.refId
 val imgCsv = Constants.imgCsv
@@ -26,6 +46,7 @@ val dofDir = Constants.dofDir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Variables
 val tgtId  = Val[Int]
 val srcId  = Val[Int]
@@ -38,6 +59,7 @@ val outDof = Val[File]
 val invDof = Val[File]
 val regLog = Val[File]
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
@@ -50,7 +72,8 @@ val forEachTuple  = ExplorationTask(
     (srcDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${srcId}" + dofSuf))
   ) set (name := "forEachTuple")
 
-// Transformation composition mole
+// ---------------------------------------------------------------------------------------------------------------------
+// Compose transformations from template to subject to get transformation between each pair of images
 val iniDofPath = Path.join(dofDir, "initial", "${tgtId},${srcId}" + dofSuf)
 
 val compBegin = EmptyTask() set (
@@ -86,7 +109,8 @@ val compTask = (configFile match {
 
 val compMole = compBegin -- Skip(compTask, "iniDof.lastModified() >= tgtDof.lastModified() && iniDof.lastModified() >= srcDof.lastModified()")
 
-// Affine registration mole
+// ---------------------------------------------------------------------------------------------------------------------
+// Affine registration
 val outDofPath = Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf)
 val regLogPath = Path.join(logDir, "affine", "${tgtId},${srcId}" + logSuf)
 
@@ -133,6 +157,7 @@ val affineTask = (configFile match {
 
 val affineMole = affineBegin -- Skip(affineTask, "outDof.lastModified() >= iniDof.lastModified()")
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Invert transformation
 val invDofPath = Path.join(dofDir, "affine", "${srcId},${tgtId}" + dofSuf)
 
@@ -166,6 +191,7 @@ val invTask = (configFile match {
 
 val invMole = invBegin -- Skip(invTask, "invDof.lastModified() >= outDof.lastModified()")
 
-// Run affine registration pipeline for each pair of images
+// ---------------------------------------------------------------------------------------------------------------------
+// Run workflow
 val exec = forEachTuple -< compMole -- affineMole -- invMole start
 exec.waitUntilEnded()

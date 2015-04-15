@@ -1,21 +1,40 @@
-// =============================================================================
-// Project: Registration Performance Assessment Tool (REPEAT)
-// Module:  OpenMOLE script for registration overlap assessment
+// =====================================================================================================================
+// Registration Performance Assessment Tool (REPEAT)
+// OpenMOLE script for registration overlap assessment
 //
-// Copyright (c) 2015, Andreas Schuh.
-// See LICENSE file for license information.
-// =============================================================================
+// Copyright (C) 2015  Andreas Schuh
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU Affero General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU Affero General Public License for more details.
+//
+//   You should have received a copy of the GNU Affero General Public License
+//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+// =====================================================================================================================
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Import packages
 import java.io.File
 import com.andreasschuh.repeat._
 
-// Configuration file used by tasks upon execution
+// ---------------------------------------------------------------------------------------------------------------------
+// Resources
 val configFile = GlobalSettings().configFile
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute commands
 val parEnv = Environment.short
 val symLnk = Environment.symLnk
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Constants
 val imgCsv = Constants.imgCsv
 val imgDir = Constants.imgIDir
@@ -39,6 +58,7 @@ val jaccCsvPath     = Path.join(outDir, subDir, "JSI.csv").getAbsolutePath
 val meanDiceCsvPath = Path.join(outDir, "DSC.csv").getAbsolutePath
 val meanJaccCsvPath = Path.join(outDir, "JSI.csv").getAbsolutePath
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Variables
 val tgtId   = Val[Int]    // ID of target image
 val srcId   = Val[Int]    // ID of source image
@@ -55,6 +75,7 @@ val jaccRow = Val[String] // Comma-separated Jaccard indices for each ROI of one
 val jaccAvg = Val[String] // Comma-separated Jaccard indices for each ROI over all segmentations
 val jaccCsv = Val[File]   // CSV file with Jaccard indices for each transformation
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
@@ -67,6 +88,7 @@ val sampling = {
 
 val forEachDof = ExplorationTask(sampling) set (name := "forEachDof")
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Transform source segmentation
 val warpBegin = EmptyTask() set (
     name    := "warpBegin",
@@ -103,6 +125,7 @@ val warpTask = (configFile match {
 
 val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Compute overlap measures
 val _calculateOverlap = ScalaTask(
   s"""

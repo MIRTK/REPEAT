@@ -1,20 +1,40 @@
-// =============================================================================
-// Project: Registration Performance Assessment Tool (REPEAT)
-// Module:  OpenMOLE script for initial spatial normalization to MNI space
+// =====================================================================================================================
+// Registration Performance Assessment Tool (REPEAT)
+// OpenMOLE script for initial spatial normalization to MNI space
 //
-// Copyright (c) 2015, Andreas Schuh.
-// See LICENSE file for license information.
-// =============================================================================
+// Copyright (C) 2015  Andreas Schuh
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU Affero General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU Affero General Public License for more details.
+//
+//   You should have received a copy of the GNU Affero General Public License
+//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+// =====================================================================================================================
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Import packages
 import java.io.File
 import com.andreasschuh.repeat._
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Resources
 val configFile = GlobalSettings().configFile
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute registrations
 val parEnv = Environment.short
 val symLnk = Environment.symLnk
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Constants
 val refId  = Constants.refId
 val imgCsv = Constants.imgCsv
@@ -26,6 +46,7 @@ val dofDir = Constants.dofDir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Variables
 val refIm    = Val[File]
 val srcId    = Val[Int]
@@ -35,6 +56,7 @@ val dof6Log  = Val[File]
 val dof12    = Val[File]
 val dof12Log = Val[File]
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
 val forEachIm = ExplorationTask(
@@ -43,6 +65,7 @@ val forEachIm = ExplorationTask(
     (srcIm in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf))
   ) set (name := "forEachIm")
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Rigid registration mole
 val dof6Path    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
 val dof6LogPath = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
@@ -88,6 +111,7 @@ val rigidReg = (configFile match {
 
 val rigidMole = rigidBegin -- Skip(rigidReg, "dof6.exists()")
 
+// ---------------------------------------------------------------------------------------------------------------------
 // Affine registration mole
 val dof12Path    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
 val dof12LogPath = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
@@ -135,6 +159,7 @@ val affineReg = (configFile match {
 
 val affineMole = affineBegin -- Skip(affineReg, "dof12.lastModified() >= dof6.lastModified()")
 
-// Run spatial normalization pipeline for each input image
+// ---------------------------------------------------------------------------------------------------------------------
+// Run workflow
 val exec = forEachIm -< rigidMole -- affineMole start
 exec.waitUntilEnded()
