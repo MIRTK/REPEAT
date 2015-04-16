@@ -76,7 +76,7 @@ val rigidBegin = EmptyTask() set (
     outputs += (refIm, srcId, srcIm, dof6)
   ) source FileSource(dof6Path, dof6)
 
-val _rigidReg = ScalaTask(
+val rigidReg = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -89,12 +89,7 @@ val _rigidReg = ScalaTask(
     |   "Transformation model" -> "Rigid",
     |   "Background value" -> 0
     | )
-  """.stripMargin)
-
-val rigidReg = (configFile match {
-    case Some(file) => _rigidReg.addResource(file)
-    case None => _rigidReg
-  }) set (
+  """.stripMargin) set (
     name        := "rigidReg",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -103,7 +98,8 @@ val rigidReg = (configFile match {
     inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
     outputFiles += ("result" + dofSuf, dof6),
     outputFiles += ("output" + logSuf, dof6Log),
-    outputs     += (refIm, srcId, srcIm)
+    outputs     += (refIm, srcId, srcIm),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook (
     CopyFileHook(dof6,    dof6Path),
     CopyFileHook(dof6Log, dof6LogPath)
@@ -122,7 +118,7 @@ val affineBegin = EmptyTask() set (
     outputs += (refIm, srcId, srcIm, dof6, dof12)
   ) source FileSource(dof12Path, dof12)
 
-val _affineReg = ScalaTask(
+val affineReg = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -136,12 +132,7 @@ val _affineReg = ScalaTask(
     |   "Transformation model" -> "Affine",
     |   "Padding value" -> 0
     | )
-  """.stripMargin)
-
-val affineReg = (configFile match {
-    case Some(file) => _affineReg.addResource(file)
-    case None => _affineReg
-  }) set (
+  """.stripMargin) set (
     name        := "affineReg",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -151,7 +142,8 @@ val affineReg = (configFile match {
     inputFiles  += (dof6, refId + ",${srcId}" + dofSuf, symLnk),
     outputFiles += ("result" + dofSuf, dof12),
     outputFiles += ("output" + logSuf, dof12Log),
-    outputs     += (refIm, srcId, srcIm)
+    outputs     += (refIm, srcId, srcIm),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook (
     CopyFileHook(dof12,    dof12Path),
     CopyFileHook(dof12Log, dof12LogPath)

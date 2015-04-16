@@ -106,7 +106,7 @@ val iregBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
   ) source FileSource(outDofPath, outDof)
 
-val _iregTask = ScalaTask(
+val iregTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -128,12 +128,7 @@ val _iregTask = ScalaTask(
     |   "Bending energy weight" -> be,
     |   "No. of BCH terms" -> bch
     | )
-  """.stripMargin)
-
-val iregTask = (configFile match {
-    case Some(file) => _iregTask.addResource(file)
-    case None => _iregTask
-  }) set (
+  """.stripMargin) set (
     name        := "iregTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -143,7 +138,8 @@ val iregTask = (configFile match {
     inputFiles  += (iniDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += ("result" + dofSuf, outDof),
     outputFiles += ("output" + logSuf, regLog),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch)
+    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook (
     CopyFileHook(outDof, outDofPath),
     CopyFileHook(regLog, regLogPath)

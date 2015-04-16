@@ -82,7 +82,7 @@ val compBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
   ) source FileSource(iniDofPath, iniDof)
 
-val _compTask = ScalaTask(
+val compTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -91,12 +91,7 @@ val _compTask = ScalaTask(
     | val iniDof = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
     |
     | IRTK.compose(dof1, dof2, iniDof, true, false)
-  """.stripMargin)
-
-val compTask = (configFile match {
-    case Some(file) => _compTask.addResource(file)
-    case None => _compTask
-  }) set (
+  """.stripMargin) set (
     name        := "compTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -104,7 +99,8 @@ val compTask = (configFile match {
     inputFiles  += (tgtDof, refId + ",${tgtId}" + dofSuf, symLnk),
     inputFiles  += (srcDof, refId + ",${srcId}" + dofSuf, symLnk),
     outputs     += (tgtId, tgtIm, srcId, srcIm),
-    outputFiles += ("${tgtId},${srcId}" + dofSuf, iniDof)
+    outputFiles += ("${tgtId},${srcId}" + dofSuf, iniDof),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook CopyFileHook(iniDof, iniDofPath) on parEnv
 
 val compMole = compBegin -- Skip(compTask, "iniDof.lastModified() >= tgtDof.lastModified() && iniDof.lastModified() >= srcDof.lastModified()")
@@ -119,7 +115,7 @@ val affineBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof)
   ) source FileSource(outDofPath, outDof)
 
-val _affineTask = ScalaTask(
+val affineTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -134,12 +130,7 @@ val _affineTask = ScalaTask(
     |   "No. of resolution levels" -> 2,
     |   "Padding value" -> 0
     | )
-  """.stripMargin)
-
-val affineTask = (configFile match {
-    case Some(file) => _affineTask.addResource(file)
-    case None => _affineTask
-  }) set (
+  """.stripMargin) set (
     name        := "affineTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -149,7 +140,8 @@ val affineTask = (configFile match {
     inputFiles  += (iniDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += ("result" + dofSuf, outDof),
     outputFiles += ("output" + logSuf, regLog),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
+    outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook (
     CopyFileHook(outDof, outDofPath),
     CopyFileHook(regLog, regLogPath)
@@ -166,7 +158,7 @@ val invBegin = EmptyTask() set (
     outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
   ) source FileSource(invDofPath, invDof)
 
-val _invTask = ScalaTask(
+val invTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -174,19 +166,15 @@ val _invTask = ScalaTask(
     | val invDof = new java.io.File(workDir, srcId + "," + tgtId + "$dofSuf")
     |
     | IRTK.invert(dof, invDof)
-  """.stripMargin)
-
-val invTask = (configFile match {
-    case Some(file) => _invTask.addResource(file)
-    case None => _invTask
-  }) set (
+  """.stripMargin) set (
     name        += "invTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
     inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += ("${srcId},${tgtId}" + dofSuf, invDof),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, outDof)
+    outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
+    builder => configFile.foreach(builder.addResource(_))
   ) hook CopyFileHook(invDof, invDofPath) on parEnv
 
 val invMole = invBegin -- Skip(invTask, "invDof.lastModified() >= outDof.lastModified()")
