@@ -7,6 +7,12 @@ import java.io.File
  */
 object Path {
 
+  /// Delete file at specified path if it exists
+  def delete(a: String): Unit = {
+    val f = new File(a)
+    if (f.exists) f.delete()
+  }
+
   /// Join two path strings
   def join(a: String, b: String): String = {
     val file = new File(b)
