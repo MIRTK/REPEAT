@@ -97,7 +97,7 @@ val warpBegin = EmptyTask() set (
     outputs += (tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)
   ) source FileSource(outSegPath, outSeg)
 
-val _warpTask = ScalaTask(
+val warpTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -107,12 +107,7 @@ val _warpTask = ScalaTask(
     | val outSeg = new java.io.File(workDir, "$segPre" + srcId + "-" + tgtId + "$segSuf")
     |
     | IRTK.transform(src, outSeg, dofin = dof, interpolation = "NN", target = Some(tgt), matchInputType = true)
-  """.stripMargin)
-
-val warpTask = (configFile match {
-    case Some(file) => _warpTask.addResource(file)
-    case None       => _warpTask
-  }) set (
+  """.stripMargin) set (
     name        := "warpTask",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, IRTK.getClass),
@@ -122,13 +117,18 @@ val warpTask = (configFile match {
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += (segPre + "${srcId}-${tgtId}" + segSuf, outSeg),
     outputs     += (tgtId, tgtSeg, srcId, srcSeg)
-  ) hook CopyFileHook(outSeg, outSegPath) on parEnv
+  )
 
-val warpSeg = warpBegin -- Skip(warpTask, "outSeg.lastModified() >= outDof.lastModified()")
+configFile match {
+  case Some(file) => warpTask.addResource(file)
+  case None =>
+}
+
+val warpSeg = warpBegin -- Skip(warpTask hook CopyFileHook(outSeg, outSegPath) on parEnv, "outSeg.lastModified() >= outDof.lastModified()")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Compute overlap measures
-val _measureOverlap = ScalaTask(
+val measureOverlapTask = ScalaTask(
   s"""
     | GlobalSettings.setConfigDir(workDir)
     |
@@ -142,12 +142,7 @@ val _measureOverlap = ScalaTask(
     |
     | val diceRow = regions.map(region => dice   (region)).toArray
     | val jaccRow = regions.map(region => jaccard(region)).toArray
-  """.stripMargin)
-
-val measureOverlapTask = (configFile match {
-    case Some(file) => _measureOverlap.addResource(file)
-    case None       => _measureOverlap
-  }) set (
+  """.stripMargin) set (
     name        := "measureOverlap",
     imports     += "com.andreasschuh.repeat._",
     usedClasses += (GlobalSettings.getClass, Measure.getClass),
@@ -156,6 +151,11 @@ val measureOverlapTask = (configFile match {
     inputFiles  += (outSeg, segPre + "${srcId}-${tgtId}" + segSuf),
     outputs     += (tgtId, srcId, diceRow, jaccRow)
   )
+
+configFile match {
+  case Some(file) => measureOverlapTask.addResource(file)
+  case None =>
+}
 
 // Note: MUST be a capsule such that the actual task is only run once!
 val measureOverlap = Capsule(measureOverlapTask) on parEnv
