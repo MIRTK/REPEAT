@@ -216,11 +216,8 @@ val writeMeanJaccToCsv = ScalaTask("val jaccAvg = jaccRow.transpose.map(_.sum / 
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Run workflow
-val diceCsvFile = new File(diceCsvPath)
-if (diceCsvFile.exists) diceCsvFile.delete()
-
-val jaccCsvFile = new File(jaccCsvPath)
-if (jaccCsvFile.exists) jaccCsvFile.delete()
+Path.delete(diceCsvPath)
+Path.delete(jaccCsvPath)
 
 val mole1 = forEachDof     -< warpSeg -- measureOverlap -- (writeDiceToCsv, writeJaccToCsv)
 val mole2 = measureOverlap >- (writeMeanDiceToCsv, writeMeanJaccToCsv)
