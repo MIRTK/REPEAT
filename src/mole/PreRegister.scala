@@ -100,7 +100,7 @@ val compTask = ScalaTask(
     inputFiles  += (srcDof, refId + ",${srcId}" + dofSuf, symLnk),
     outputs     += (tgtId, tgtIm, srcId, srcIm),
     outputFiles += ("${tgtId},${srcId}" + dofSuf, iniDof),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook CopyFileHook(iniDof, iniDofPath) on parEnv
 
 val compMole = compBegin -- Skip(compTask, "iniDof.lastModified() >= tgtDof.lastModified() && iniDof.lastModified() >= srcDof.lastModified()")
@@ -141,7 +141,7 @@ val affineTask = ScalaTask(
     outputFiles += ("result" + dofSuf, outDof),
     outputFiles += ("output" + logSuf, regLog),
     outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook (
     CopyFileHook(outDof, outDofPath),
     CopyFileHook(regLog, regLogPath)
@@ -174,7 +174,7 @@ val invTask = ScalaTask(
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += ("${srcId},${tgtId}" + dofSuf, invDof),
     outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook CopyFileHook(invDof, invDofPath) on parEnv
 
 val invMole = invBegin -- Skip(invTask, "invDof.lastModified() >= outDof.lastModified()")

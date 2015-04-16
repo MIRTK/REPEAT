@@ -139,7 +139,7 @@ val iregTask = ScalaTask(
     outputFiles += ("result" + dofSuf, outDof),
     outputFiles += ("output" + logSuf, regLog),
     outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook (
     CopyFileHook(outDof, outDofPath),
     CopyFileHook(regLog, regLogPath)

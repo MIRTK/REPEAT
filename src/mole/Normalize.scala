@@ -99,7 +99,7 @@ val rigidReg = ScalaTask(
     outputFiles += ("result" + dofSuf, dof6),
     outputFiles += ("output" + logSuf, dof6Log),
     outputs     += (refIm, srcId, srcIm),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook (
     CopyFileHook(dof6,    dof6Path),
     CopyFileHook(dof6Log, dof6LogPath)
@@ -143,7 +143,7 @@ val affineReg = ScalaTask(
     outputFiles += ("result" + dofSuf, dof12),
     outputFiles += ("output" + logSuf, dof12Log),
     outputs     += (refIm, srcId, srcIm),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   ) hook (
     CopyFileHook(dof12,    dof12Path),
     CopyFileHook(dof12Log, dof12LogPath)

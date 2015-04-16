@@ -117,8 +117,8 @@ val warpTask = ScalaTask(
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += (segPre + "${srcId}-${tgtId}" + segSuf, outSeg),
     outputs     += (tgtId, tgtSeg, srcId, srcSeg),
-    builder => configFile.foreach(builder.addResource(_))
   )
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
 
 val warpSeg = warpBegin -- Skip(warpTask hook CopyFileHook(outSeg, outSegPath) on parEnv, "outSeg.lastModified() >= outDof.lastModified()")
 
@@ -146,7 +146,7 @@ val measureOverlapTask = ScalaTask(
     inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf),
     inputFiles  += (outSeg, segPre + "${srcId}-${tgtId}" + segSuf),
     outputs     += (tgtId, srcId, diceRow, jaccRow),
-    builder => configFile.foreach(builder.addResource(_))
+    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
   )
 
 // Note: MUST be a capsule such that the actual task is only run once!
