@@ -117,10 +117,10 @@ val warpTask = ScalaTask(
     inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
     outputFiles += (segPre + "${srcId}-${tgtId}" + segSuf, outSeg),
     outputs     += (tgtId, tgtSeg, srcId, srcSeg),
-  )
     taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+  ) hook CopyFileHook(outSeg, outSegPath) on parEnv
 
-val warpSeg = warpBegin -- Skip(warpTask hook CopyFileHook(outSeg, outSegPath) on parEnv, "outSeg.lastModified() >= outDof.lastModified()")
+val warpSeg = warpBegin -- Skip(warpTask "outSeg.lastModified() >= outDof.lastModified()")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Compute overlap measures
