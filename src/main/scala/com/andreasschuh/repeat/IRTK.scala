@@ -18,7 +18,10 @@ object IRTK extends Configurable("irtk") {
   }
 
   /// Maximum number of threads to be used by each command
-  val threads = getIntProperty("threads")
+  val threads = getIntProperty("threads") match {
+    case n if n <= 0 => Runtime.getRuntime.availableProcessors()
+    case n if n >  0 => n
+  }
 
   /// Version information
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
