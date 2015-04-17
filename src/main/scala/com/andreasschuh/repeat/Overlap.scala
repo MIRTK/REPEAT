@@ -41,11 +41,11 @@ object Overlap extends Configurable("overlap") {
    * Union of all label numbers comprising the label groups for which the overlap is computed
    * in the order specified by Label.number (i.e., the "Label Number" column of the input CSV file)
    */
-  lazy val numbers: List[Int] = {
-    val union = Label.groupName.filter(groups.contains(_)).foldLeft(Set[Int]()) {
-      (b, a) => b | Label.group(a)
+  lazy val labels: List[Int] = {
+    val union = Segmentation.groupNames.filter(groups.contains(_)).foldLeft(Set[Int]()) {
+      (b, a) => b | Segmentation.groupLabels(a)
     }
-    Label.number.map(label => if (union.contains(label)) Some(label) else None).flatten.toList
+    Segmentation.labels.map(label => if (union.contains(label)) Some(label) else None).flatten.toList
   }
 
   /**
@@ -80,7 +80,7 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
    * @param which Which overlap measure to extract
    */
   def this(a: File, b: File, which: Overlap.Measure) = {
-    this(IRTK.labelStats(a, b, Some(Overlap.numbers.toSet)))
+    this(IRTK.labelStats(a, b, Some(Overlap.labels.toSet)))
   }
 
   /**
@@ -100,7 +100,7 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
    * Get array containing specified overlap measure values
    * @return Array of overlap measures in the order specified by Label.number
    */
-  def toArray: Array[Double] = Overlap.numbers.map(label => stats(label)(which)).toArray
+  def toArray: Array[Double] = Overlap.labels.map(label => stats(label)(which)).toArray
 
   /**
    * Mean of overlap measure for each label group
@@ -109,7 +109,7 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
   lazy val mean: Map[String, Double] = Overlap.groups.map {
     group => {
       var mean   = .0
-      val labels = if (group.toLowerCase == "all") Overlap.numbers else Label.group(group)
+      val labels = if (group.toLowerCase == "all") Overlap.labels else Segmentation.groupLabels(group)
       labels.foreach( label => mean += stats(label)(which) )
       if (labels.size > 0) mean /= labels.size
       group -> mean

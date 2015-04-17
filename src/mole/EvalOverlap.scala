@@ -127,7 +127,7 @@ val writeDscToCsv = EmptyTask() set (
     outputs += (tgtId, srcId, dscVal, dscGrp)
   ) hook (
     AppendToCSVFileHook(dscValCsvPath, tgtId, srcId, dscVal) set (
-      csvHeader := "Target ID,Source ID," + Overlap.numbers.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.labels.mkString(","),
       singleRow := true
     ),
     AppendToCSVFileHook(dscGrpCsvPath, tgtId, srcId, dscGrp) set (
@@ -142,7 +142,7 @@ val writeJsiToCsv = EmptyTask() set (
     outputs += (tgtId, srcId, jsiVal, jsiGrp)
   ) hook (
     AppendToCSVFileHook(jsiValCsvPath, tgtId, srcId, jsiVal) set (
-      csvHeader := "Target ID,Source ID," + Overlap.numbers.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.labels.mkString(","),
       singleRow := true
     ),
     AppendToCSVFileHook(jsiGrpCsvPath, tgtId, srcId, jsiGrp) set (
