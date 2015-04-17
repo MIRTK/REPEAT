@@ -43,6 +43,9 @@ val imgPre = Constants.imgPre
 val imgSuf = Constants.imgSuf
 val dofSuf = Constants.dofSuf
 val dofDir = Constants.dofDir
+val dofRig = Constants.dofRigid
+val dofIni = Constants.dofInitial
+val dofAff = Constants.dofAffine
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
@@ -58,7 +61,7 @@ val dof12Log = Val[File]
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
-val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
 val forEachIm = ExplorationTask(
     srcIdSampling x
     (refIm in SelectFileDomain(Constants.refIm.getParentFile, Constants.refIm.getName)) x
@@ -67,8 +70,8 @@ val forEachIm = ExplorationTask(
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Rigid registration mole
-val dof6Path    = Path.join(dofDir, "rigid", refId + ",${srcId}" + dofSuf)
-val dof6LogPath = Path.join(logDir, "rigid", refId + ",${srcId}" + logSuf)
+val dof6Path    = Path.join(dofDir, dofRig, refId + ",${srcId}" + dofSuf)
+val dof6LogPath = Path.join(logDir, dofRig, refId + ",${srcId}" + logSuf)
 
 val rigidBegin = EmptyTask() set (
     name    := "rigidBegin",
@@ -109,8 +112,8 @@ val rigidMole = rigidBegin -- Skip(rigidReg, "dof6.exists()")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Affine registration mole
-val dof12Path    = Path.join(dofDir, "affine", refId + ",${srcId}" + dofSuf)
-val dof12LogPath = Path.join(logDir, "affine", refId + ",${srcId}" + logSuf)
+val dof12Path    = Path.join(dofDir, dofAff, refId + ",${srcId}" + dofSuf)
+val dof12LogPath = Path.join(logDir, dofAff, refId + ",${srcId}" + logSuf)
 
 val affineBegin = EmptyTask() set (
     name    := "affineBegin",

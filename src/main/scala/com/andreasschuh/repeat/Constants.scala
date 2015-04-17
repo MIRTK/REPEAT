@@ -41,6 +41,15 @@ object Constants extends Configurable {
   /// Output directory for transformation files
   val dofDir = getFileProperty("dof.dir")
 
+  /// Subdirectory of affine transformation files
+  val dofRigid = getStringProperty("dof.rigid")
+
+  /// Subdirectory of affine transformation files
+  val dofInitial = getStringProperty("dof.initial")
+
+  /// Subdirectory of affine transformation files
+  val dofAffine = getStringProperty("dof.affine")
+
   /// Suffix/extension of output transformation files (e.g., ".dof" or ".dof.gz")
   val dofSuf = getStringProperty("dof.suffix")
 

@@ -45,6 +45,7 @@ val segPre = Constants.segPre
 val segSuf = Constants.segSuf
 val dofSuf = Constants.dofSuf
 val dofDir = Constants.dofDir
+val dofIni = Constants.dofAffine
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
@@ -83,7 +84,7 @@ val imageSampling = {
   (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
   (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
   (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
-  (iniDof in SelectFileDomain(Path.join(dofDir, "affine"), "${tgtId},${srcId}" + dofSuf))
+  (iniDof in SelectFileDomain(Path.join(dofDir, dofIni), "${tgtId},${srcId}" + dofSuf))
 }
 
 val ffdSampling = {

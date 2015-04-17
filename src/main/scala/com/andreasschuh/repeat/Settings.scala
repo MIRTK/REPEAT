@@ -28,8 +28,12 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
       if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath)
       Some(file)
     case None =>
-      val localConfig = new File(configDir, "repeat.conf")
-      if (localConfig.exists()) Some(localConfig.getAbsoluteFile)
+      val localConfig1 = new File(configDir, "repeat.conf")
+      val localConfig2 = new File(configDir, "Config/repeat.conf")
+      val localConfig3 = new File(configDir, "config/repeat.conf")
+      if      (localConfig1.exists()) Some(localConfig1.getAbsoluteFile)
+      else if (localConfig2.exists()) Some(localConfig2.getAbsoluteFile)
+      else if (localConfig3.exists()) Some(localConfig3.getAbsoluteFile)
       else {
         val homeConfig = new File(Path.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
         if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)

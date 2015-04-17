@@ -43,6 +43,8 @@ val imgPre = Constants.imgPre
 val imgSuf = Constants.imgSuf
 val dofSuf = Constants.dofSuf
 val dofDir = Constants.dofDir
+val dofIni = Constants.dofInitial
+val dofAff = Constants.dofAffine
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
@@ -61,20 +63,20 @@ val regLog = Val[File]
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
-val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
-val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
+val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
 
 val forEachTuple  = ExplorationTask(
     (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
     (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
     (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
-    (tgtDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${tgtId}" + dofSuf)) x
-    (srcDof in SelectFileDomain(Path.join(dofDir, "affine"), refId + ",${srcId}" + dofSuf))
+    (tgtDof in SelectFileDomain(Path.join(dofDir, dofAff), refId + ",${tgtId}" + dofSuf)) x
+    (srcDof in SelectFileDomain(Path.join(dofDir, dofAff), refId + ",${srcId}" + dofSuf))
   ) set (name := "forEachTuple")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Compose transformations from template to subject to get transformation between each pair of images
-val iniDofPath = Path.join(dofDir, "initial", "${tgtId},${srcId}" + dofSuf)
+val iniDofPath = Path.join(dofDir, dofIni, "${tgtId},${srcId}" + dofSuf)
 
 val compBegin = EmptyTask() set (
     name    := "compBegin",
@@ -107,8 +109,8 @@ val compMole = compBegin -- Skip(compTask, "iniDof.lastModified() >= tgtDof.last
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Affine registration
-val outDofPath = Path.join(dofDir, "affine", "${tgtId},${srcId}" + dofSuf)
-val regLogPath = Path.join(logDir, "affine", "${tgtId},${srcId}" + logSuf)
+val outDofPath = Path.join(dofDir, dofAff, "${tgtId},${srcId}" + dofSuf)
+val regLogPath = Path.join(logDir, dofAff, "${tgtId},${srcId}" + logSuf)
 
 val affineBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, iniDof),
@@ -151,7 +153,7 @@ val affineMole = affineBegin -- Skip(affineTask, "outDof.lastModified() >= iniDo
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Invert transformation
-val invDofPath = Path.join(dofDir, "affine", "${srcId},${tgtId}" + dofSuf)
+val invDofPath = Path.join(dofDir, dofAff, "${srcId},${tgtId}" + dofSuf)
 
 val invBegin = EmptyTask() set (
     inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),

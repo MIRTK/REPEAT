@@ -27,7 +27,7 @@ import com.andreasschuh.repeat._
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Arguments
-val subDir = getOrElse(args, 0, "affine")
+val subDir = getOrElse(args, 0, Constants.dofAffine)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Resources
@@ -75,8 +75,8 @@ val jsiAvg = Val[Array[Double]] // Mean JSI for each label group
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
-val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
-val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
+val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
 
 val sampling = {
   (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
@@ -127,11 +127,11 @@ val writeDscToCsv = EmptyTask() set (
     outputs += (tgtId, srcId, dscVal, dscGrp)
   ) hook (
     AppendToCSVFileHook(dscValCsvPath, tgtId, srcId, dscVal) set (
-      csvHeader := "target,source," + Overlap.numbers.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.numbers.mkString(","),
       singleRow := true
     ),
     AppendToCSVFileHook(dscGrpCsvPath, tgtId, srcId, dscGrp) set (
-      csvHeader := "target,source," + Overlap.groups.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
       singleRow := true
     )
   )
@@ -142,11 +142,11 @@ val writeJsiToCsv = EmptyTask() set (
     outputs += (tgtId, srcId, jsiVal, jsiGrp)
   ) hook (
     AppendToCSVFileHook(jsiValCsvPath, tgtId, srcId, jsiVal) set (
-      csvHeader := "target,source," + Overlap.numbers.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.numbers.mkString(","),
       singleRow := true
     ),
     AppendToCSVFileHook(jsiGrpCsvPath, tgtId, srcId, jsiGrp) set (
-      csvHeader := "target,source," + Overlap.groups.mkString(","),
+      csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
       singleRow := true
     )
   )
@@ -159,7 +159,7 @@ val writeMeanDscToCsv = ScalaTask("val dscAvg = dscGrp.transpose.map(_.sum / dsc
     outputs += dscAvg
   ) hook (
     AppendToCSVFileHook(dscAvgCsvPath, regName, dscAvg) set (
-      csvHeader := "registration," + Overlap.groups.mkString(","),
+      csvHeader := "Registration," + Overlap.groups.mkString(","),
       singleRow := true,
       inputs    += regName,
       regName   := subDir
@@ -173,7 +173,7 @@ val writeMeanJsiToCsv = ScalaTask("val jsiAvg = jsiGrp.transpose.map(_.sum / jsi
     outputs += jsiAvg
   ) hook (
     AppendToCSVFileHook(jsiAvgCsvPath, regName, jsiAvg) set (
-      csvHeader := "registration," + Overlap.groups.mkString(","),
+      csvHeader := "Registration," + Overlap.groups.mkString(","),
       singleRow := true,
       inputs    += regName,
       regName   := subDir
