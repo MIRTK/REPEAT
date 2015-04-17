@@ -49,11 +49,11 @@ val segPre = Constants.segPre
 val segSuf = Constants.segSuf
 val outDir = Constants.segODir
 
-val dscValCsvPath = Path.join(outDir, subDir, "LabelDSC.csv").getAbsolutePath
+val dscValCsvPath = Path.join(outDir, subDir, "DSC.csv").getAbsolutePath
 val dscGrpCsvPath = Path.join(outDir, subDir, "MeanDSC.csv").getAbsolutePath
 val dscAvgCsvPath = Path.join(outDir, "DSC.csv").getAbsolutePath
 
-val jsiValCsvPath = Path.join(outDir, subDir, "LabelJSI.csv").getAbsolutePath
+val jsiValCsvPath = Path.join(outDir, subDir, "JSI.csv").getAbsolutePath
 val jsiGrpCsvPath = Path.join(outDir, subDir, "MeanJSI.csv").getAbsolutePath
 val jsiAvgCsvPath = Path.join(outDir, "JSI.csv").getAbsolutePath
 
