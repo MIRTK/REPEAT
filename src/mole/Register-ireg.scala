@@ -75,8 +75,8 @@ val bch    = Val[Int]    // No. of BCH terms
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Exploration task which iterates the image IDs and file paths
-val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
-val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
+val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
+val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
 
 val imageSampling = {
   (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
