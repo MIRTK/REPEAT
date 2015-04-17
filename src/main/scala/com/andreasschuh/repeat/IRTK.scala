@@ -108,7 +108,17 @@ object IRTK extends Configurable("irtk") {
     execute("ireg", Seq(target.getAbsolutePath, source.getAbsolutePath, "-threads", threads.toString) ++ din ++ dout ++ opts, log)
   }
 
-  /// Transform/resample image
+  /** Transform/resample image
+    *
+    * @param source Image to be transformed.
+    * @param output Transformed output image.
+    * @param dofin Transformation from target to source.
+    * @param interpolation Interpolation method to use, e.g., "NN", "Linear", "Cubic".
+    * @param target Fixed target image.
+    * @param matchInputType Whether to match the type of the input source instead of the target.
+    *
+    * @return Zero exit code upon success.
+    */
   def transform(source: File, output: File, dofin: File,
                 interpolation: String = "Linear",
                 target: Option[File] = None,
@@ -128,51 +138,29 @@ object IRTK extends Configurable("irtk") {
       "-dofin", dofin.getAbsolutePath) ++ opt1 ++ opt2 ++ opt3)
   }
 
-  /// Compute label overlap statistics
-  ///
-  /// @param a   Segmentation of image A.
-  /// @param b   Segmentation of image B.
-  /// @param roi Label sets (ROIs) for which to compute overlap statistics.
-  ///
-  /// @returns Average number of voxels in a, n(a), number of voxels in b, n(b),
-  ///          average number of voxels in intersection of a and b, n(a^b),
-  ///          average Jaccard index, and average Dice coefficient for each label set.
-  def labelStats(a: File, b: File, roi: Map[String, Set[Int]]): Map[String, (Int, Int, Int, Double, Double)] = {
-    val sum: scala.collection.mutable.Map[String, (Int, Int, Int, Double, Double)] = roi.map {
-      case (name: String, _) => name -> (0, 0, 0, .0, .0)
-    } (scala.collection.breakOut)
+  /**
+   * Compute overlap statistics for each label
+   * @param a Segmentation of image A.
+   * @param b Segmentation of image B.
+   * @param labels Labels for which to compute overlap statistics. If None specified, the overlap is
+   *               computed for all non-zero labels found in the segmentations.
+   * @return A map from label number to overlap measurement vector:
+   *         0: Jaccard similarity index (JSI)
+   *         1: Dice similarity coefficient (DSC)
+   */
+  def labelStats(a: File, b: File, labels: Option[Set[Int]] = None): Map[Int, Array[Double]] = {
+    var label2stats = labels match {
+      case Some(set) => set.map(l => l -> Array.fill(2)(.0)).toMap
+      case None      => scala.collection.mutable.Map[Int, Array[Double]]()
+    }
     Seq("labelStats", a.getAbsolutePath, b.getAbsolutePath).lineStream.foreach(line => {
       val v = line.split(',')
       val l = v(0).toInt
-      roi.foreach{ case (region, labels) => if (labels.contains(l)) {
-        val n = sum(region)
-        sum(region) = (n._1 + v(1).toInt, n._2 + v(2).toInt, n._3 + v(3).toInt, n._4 + v(4).toDouble, n._5 + v(5).toDouble)
-      }}
+      if (labels match {
+        case Some(set) => set.contains(l)
+        case None      => true
+      }) label2stats += l -> Array(v(4).toDouble, v(5).toDouble)
     })
-    sum.map{ case (r: String, n: (Int, Int, Int, Double, Double)) => {
-      val N = roi(r).size
-      if (N > 0) r -> (n._1 / N, n._2 / N, n._3 / N, n._4 / N, n._5 / N)
-      else       r -> (0, 0, 0, .0, .0)
-    }}.toMap
+    label2stats.toMap
   }
-
-  /// Compute label overlap statistics
-  ///
-  /// @param a   Segmentation of image A.
-  /// @param b   Segmentation of image B.
-  /// @param roi Label set (ROI) for which to compute overlap statistics.
-  ///
-  /// @returns Average number of voxels in a, n(a), number of voxels in b, n(b),
-  ///          and average number of voxels in intersection of a and b, n(a^b).
-  def labelStats(a: File, b: File, roi: Set[Int]): (Int, Int, Int, Double, Double) = labelStats(a, b, Map("roi" -> roi))("roi")
-
-  /// Compute label overlap statistics
-  ///
-  /// @param a Segmentation of image A.
-  /// @param b Segmentation of image B.
-  /// @param l Label of segment for which to compute overlap statistics.
-  ///
-  /// @returns Average number of voxels in a, n(a), number of voxels in b, n(b),
-  ///          and average number of voxels in intersection of a and b, n(a^b).
-  def labelStats(a: File, b: File, label: Int): (Int, Int, Int, Double, Double) = labelStats(a, b, Set(label))
 }

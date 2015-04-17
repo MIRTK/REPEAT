@@ -40,10 +40,18 @@ val imgCsv = Constants.imgCsv
 val imgDir = Constants.imgIDir
 val imgPre = Constants.imgPre
 val imgSuf = Constants.imgSuf
+val segDir = Constants.segIDir
+val segPre = Constants.segPre
+val segSuf = Constants.segSuf
 val dofSuf = Constants.dofSuf
 val dofDir = Constants.dofDir
 val logDir = Constants.logDir
 val logSuf = Constants.logSuf
+
+val dofName    = "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}"
+val outDofPath = Path.join(dofDir, dofName, "${tgtId},${srcId}" + dofSuf)
+val regLogPath = Path.join(logDir, dofName, "${tgtId},${srcId}" + logSuf)
+val outSegPath = Path.join(Constants.segODir, dofName, segPre + "${srcId}-${tgtId}" + segSuf)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Variables
@@ -51,8 +59,11 @@ val tgtId  = Val[Int]    // ID of target image
 val srcId  = Val[Int]    // ID of source image
 val tgtIm  = Val[File]   // Target image
 val srcIm  = Val[File]   // Source image
+val tgtSeg = Val[File]   // Target segmentation
+val srcSeg = Val[File]   // Source segmentation
+val outSeg = Val[File]   // Transformed source segmentation
 val iniDof = Val[File]   // Initial guess/input transformation
-val outDof = Val[File]   // Output transformation
+val outDof = Val[File]   // Transformation from target to source
 val regLog = Val[File]   // Registration output file
 
 val model  = Val[String] // Transformation model
@@ -65,10 +76,13 @@ val bch    = Val[Int]    // No. of BCH terms
 // Exploration task which iterates the image IDs and file paths
 val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("ID", tgtId))
 val srcIdSampling = CSVSampling(imgCsv) set (columns += ("ID", srcId))
+
 val imageSampling = {
   (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
   (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
   (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
+  (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
+  (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
   (iniDof in SelectFileDomain(Path.join(dofDir, "affine"), "${tgtId},${srcId}" + dofSuf))
 }
 
@@ -79,6 +93,7 @@ val ffdSampling = {
   (be    in List(.0, .0001, .0005, .001, .005, .01, .05)) x
   (bch   in List(0)) // unused
 }
+
 val svffdSampling = {
   (model in List("SVFFD")) x
   (im    in List("FastSS", "SS", "RKE1", "RK4")) x
@@ -86,6 +101,7 @@ val svffdSampling = {
   (be    in List(.0, .0001, .0005, .001, .005, .01, .05)) x
   (bch   in List(0, 4))
 }
+
 val paramSampling = ffdSampling :: svffdSampling
 val sampling      = imageSampling x paramSampling
 
@@ -93,18 +109,15 @@ import org.openmole.core.workflow.data.Context
 val numConfigurationsPerImagePair = paramSampling.build(Context())(new util.Random()).size
 val numPairwiseRegistrations      = sampling     .build(Context())(new util.Random()).size
 
-val forEachTuple = ExplorationTask(imageSampling x paramSampling) set (name := "forEachTuple")
+val forEachTuple = ExplorationTask(sampling) set (name := "forEachTuple")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Non-rigid registration
-val outDofPath = Path.join(dofDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + dofSuf)
-val regLogPath = Path.join(logDir, "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}", "${tgtId},${srcId}" + logSuf)
-
 val iregBegin = EmptyTask() set (
-    name    := "iregBegin",
-    inputs  += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof),
-    outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
-  ) source FileSource(outDofPath, outDof)
+  name    := "iregBegin",
+  inputs  += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof),
+  outputs += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch, iniDof, outDof)
+) source FileSource(outDofPath, outDof)
 
 val iregTask = ScalaTask(
   s"""
@@ -129,25 +142,58 @@ val iregTask = ScalaTask(
     |   "No. of BCH terms" -> bch
     | )
   """.stripMargin) set (
-    name        := "iregTask",
-    imports     += "com.andreasschuh.repeat._",
-    usedClasses += (GlobalSettings.getClass, IRTK.getClass),
-    inputs      += (tgtId, srcId, model, im, ds, be, bch),
-    inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
-    inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
-    inputFiles  += (iniDof, "${tgtId},${srcId}" + dofSuf, symLnk),
-    outputFiles += ("result" + dofSuf, outDof),
-    outputFiles += ("output" + logSuf, regLog),
-    outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch),
-    taskBuilder => configFile.foreach(taskBuilder.addResource(_))
-  ) hook (
-    CopyFileHook(outDof, outDofPath),
-    CopyFileHook(regLog, regLogPath)
-  ) on parEnv
+  name        := "iregTask",
+  imports     += "com.andreasschuh.repeat._",
+  usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+  inputs      += (tgtId, srcId, model, im, ds, be, bch),
+  inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
+  inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
+  inputFiles  += (iniDof, "${tgtId},${srcId}" + dofSuf, symLnk),
+  outputFiles += ("result" + dofSuf, outDof),
+  outputFiles += ("output" + logSuf, regLog),
+  outputs     += (tgtId, tgtIm, srcId, srcIm, model, im, ds, be, bch),
+  taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+) hook (
+  CopyFileHook(outDof, outDofPath),
+  CopyFileHook(regLog, regLogPath)
+) on parEnv
 
-val iregMole = iregBegin -- Skip(iregTask, "outDof.lastModified() > iniDof.lastModified()")
+val regIms = iregBegin -- Skip(iregTask, "outDof.lastModified() > iniDof.lastModified()")
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Transform source segmentation
+val warpSegBegin = EmptyTask() set (
+  name    := "outSegBegin",
+  inputs  += (tgtId, tgtSeg, srcId, srcSeg, outDof),
+  outputs += (tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)
+) source FileSource(outSegPath, outSeg)
+
+val warpSegTask = ScalaTask(
+  s"""
+     | GlobalSettings.setConfigDir(workDir)
+     |
+     | val tgt    = new java.io.File(workDir, "$segPre" + tgtId + "$segSuf")
+     | val src    = new java.io.File(workDir, "$segPre" + srcId + "$segSuf")
+     | val dof    = new java.io.File(workDir, tgtId + "," + srcId + "$dofSuf")
+     | val outSeg = new java.io.File(workDir, "$segPre" + srcId + "-" + tgtId + "$segSuf")
+     |
+     | IRTK.transform(src, outSeg, dofin = dof, interpolation = "NN", target = Some(tgt), matchInputType = true)
+  """.stripMargin) set (
+  name        := "warpSegTask",
+  imports     += "com.andreasschuh.repeat._",
+  usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+  inputs      += (tgtId, srcId),
+  inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, symLnk),
+  inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, symLnk),
+  inputFiles  += (outDof, "${tgtId},${srcId}" + dofSuf, symLnk),
+  outputFiles += (segPre + "${srcId}-${tgtId}" + segSuf, outSeg),
+  outputs     += (tgtId, tgtSeg, srcId, srcSeg),
+  taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+) hook CopyFileHook(outSeg, outSegPath) on parEnv
+
+val warpSeg = warpSegBegin -- Skip(warpSegTask, "outSeg.lastModified() >= outDof.lastModified()")
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Run workflow
-val exec = (forEachTuple -< iregMole) start
+val exec = (forEachTuple -< regIms -- warpSeg) start
 exec.waitUntilEnded()
