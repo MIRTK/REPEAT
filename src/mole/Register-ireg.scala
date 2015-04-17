@@ -23,7 +23,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 // Import packages
 import java.io.File
-import com.andreasschuh.repeat._
+import com.andreasschuh.repeat.core._
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Resources
@@ -31,8 +31,8 @@ val configFile = GlobalSettings().configFile
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute registrations
-val parEnv = Environment.long
-val symLnk = Environment.symLnk
+val parEnv = DefaultEnvironment.long
+val symLnk = DefaultEnvironment.symLnk
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants

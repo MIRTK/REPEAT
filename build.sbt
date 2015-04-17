@@ -10,7 +10,7 @@ scalacOptions ++= Seq("-optimize", "-feature", "-deprecation")
 
 osgiSettings
 
-OsgiKeys.exportPackage := Seq("com.andreasschuh.*")
+OsgiKeys.exportPackage := Seq("com.andreasschuh.repeat.*")
 
 OsgiKeys.importPackage := Seq("*")
 
@@ -24,14 +24,26 @@ val openMOLEVersion = "5.0-SNAPSHOT"
 
 libraryDependencies += "org.openmole" %% "org-openmole-core-dsl" % openMOLEVersion
 
+libraryDependencies += "org.openmole" %% "org-openmole-core-macros" % openMOLEVersion
+
 libraryDependencies += "org.openmole" %% "org-openmole-core-workspace" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-core-workflow" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-task-scala" % openMOLEVersion
 
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-domain-file" % openMOLEVersion
+
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-environment-condor" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-environment-ssh" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-environment-slurm" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-hook-display" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-hook-file" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-sampling-combine" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-sampling-csv" % openMOLEVersion
