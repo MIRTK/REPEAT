@@ -34,69 +34,58 @@ import org.openmole.plugin.task.scala._
 
 import com.andreasschuh.repeat.core._
 
+
 /**
- * Factory object for registration overlap assessment workflow puzzle
+ * Puzzle to assess segmentation overlap after registration
  */
 object EvaluateOverlap {
-  def apply(regDir: String) = {
-    val workflow = new EvaluateOverlapBuilder(regDir)
-    workflow.puzzle
-  }
-}
+  def apply(regDir: String) {
+    val dscValCsvPath = FileUtil.join(Workspace.outDir, regDir, "DSC.csv").getAbsolutePath
+    val dscGrpCsvPath = FileUtil.join(Workspace.outDir, regDir, "MeanDSC.csv").getAbsolutePath
+    val dscAvgCsvPath = FileUtil.join(Workspace.outDir, "DSC.csv").getAbsolutePath
+    val jsiValCsvPath = FileUtil.join(Workspace.outDir, regDir, "JSI.csv").getAbsolutePath
+    val jsiGrpCsvPath = FileUtil.join(Workspace.outDir, regDir, "MeanJSI.csv").getAbsolutePath
+    val jsiAvgCsvPath = FileUtil.join(Workspace.outDir, "JSI.csv").getAbsolutePath
 
-/**
- * OpenMOLE workflow puzzle for registration overlap assessment
- */
-class EvaluateOverlapBuilder(val regDir: String) {
+    val go     = Val[Boolean]       // Trigger exploration after previous CSV files were deleted
+    val regId  = Val[String]        // Name/ID of registration that computed the transformations (i.e., regDir)
+    val tgtId  = Val[Int]           // ID of target image
+    val srcId  = Val[Int]           // ID of source image
+    val tgtSeg = Val[File]          // Target segmentation
+    val srcSeg = Val[File]          // Transformed source segmentation
 
-  val dscValCsvPath = Path.join(Constants.segODir, regDir, "DSC.csv").getAbsolutePath
-  val dscGrpCsvPath = Path.join(Constants.segODir, regDir, "MeanDSC.csv").getAbsolutePath
-  val dscAvgCsvPath = Path.join(Constants.segODir, "DSC.csv").getAbsolutePath
-  val jsiValCsvPath = Path.join(Constants.segODir, regDir, "JSI.csv").getAbsolutePath
-  val jsiGrpCsvPath = Path.join(Constants.segODir, regDir, "MeanJSI.csv").getAbsolutePath
-  val jsiAvgCsvPath = Path.join(Constants.segODir, "JSI.csv").getAbsolutePath
+    val dscVal = Val[Array[Double]] // Dice similarity coefficient (DSC) for each label and segmentation
+    val dscGrp = Val[Array[Double]] // Mean DSC for each label group and segmentation
+    val dscAvg = Val[Array[Double]] // Mean DSC for each label group
 
-  protected val go     = Val[Boolean]       // Trigger exploration after previous CSV files were deleted
-  protected val regId  = Val[String]        // Name/ID of registration that computed the transformations (i.e., regDir)
-  protected val tgtId  = Val[Int]           // ID of target image
-  protected val srcId  = Val[Int]           // ID of source image
-  protected val tgtSeg = Val[File]          // Target segmentation
-  protected val srcSeg = Val[File]          // Transformed source segmentation
+    val jsiVal = Val[Array[Double]] // Jaccard similarity index (JSI) for each label and segmentation
+    val jsiGrp = Val[Array[Double]] // Mean JSI for each label group and segmentation
+    val jsiAvg = Val[Array[Double]] // Mean JSI for each label group
 
-  protected val dscVal = Val[Array[Double]] // Dice similarity coefficient (DSC) for each label and segmentation
-  protected val dscGrp = Val[Array[Double]] // Mean DSC for each label group and segmentation
-  protected val dscAvg = Val[Array[Double]] // Mean DSC for each label group
+    def parEnv = Environment.short
+    def symLnk = Environment.symLnk
 
-  protected val jsiVal = Val[Array[Double]] // Jaccard similarity index (JSI) for each label and segmentation
-  protected val jsiGrp = Val[Array[Double]] // Mean JSI for each label group and segmentation
-  protected val jsiAvg = Val[Array[Double]] // Mean JSI for each label group
-
-  def puzzle = {
-
-    def parEnv = DefaultEnvironment.short
-    def symLnk = DefaultEnvironment.symLnk
-
-    def imgCsv = Constants.imgCsv
-    def imgDir = Constants.imgIDir
-    def imgPre = Constants.imgPre
-    def imgSuf = Constants.imgSuf
-    def segDir = Constants.segIDir
-    def segPre = Constants.segPre
-    def segSuf = Constants.segSuf
+    def imgCsv = Dataset.imgCsv
+    def imgDir = Dataset.imgDir
+    def imgPre = Dataset.imgPre
+    def imgSuf = Dataset.imgSuf
+    def segDir = Dataset.segDir
+    def segPre = Dataset.segPre
+    def segSuf = Dataset.segSuf
 
     val deleteOldFiles = ScalaTask(
-      s"""
-        | Path.delete("$dscValCsvPath")
-        | Path.delete("$dscGrpCsvPath")
-        | Path.delete("$jsiValCsvPath")
-        | Path.delete("$jsiGrpCsvPath")
-        | val go = true
-      """.stripMargin) set (
-      name    := "deleteOldFiles",
-      imports += "com.andreasschuh.repeat.core.Path"
-    ) set (
-      outputs += go
-    )
+        s"""
+          | FileUtil.delete("$dscValCsvPath")
+          | FileUtil.delete("$dscGrpCsvPath")
+          | FileUtil.delete("$jsiValCsvPath")
+          | FileUtil.delete("$jsiGrpCsvPath")
+          | val go = true
+        """.stripMargin) set (
+        name    := "deleteOldFiles",
+        imports += "com.andreasschuh.repeat.core.FileUtil"
+      ) set (
+        outputs += go
+      )
 
     val forEachSeg = {
       val tgtIdSampling = CSVSampling(imgCsv) set (columns +=("Image ID", tgtId))
@@ -104,7 +93,7 @@ class EvaluateOverlapBuilder(val regDir: String) {
       val sampling = {
         (tgtIdSampling x srcIdSampling).filter("tgtId != srcId") x
         (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
-        (srcSeg in SelectFileDomain(Path.join(Constants.segODir, regDir), segPre + "${srcId}-${tgtId}" + segSuf))
+        (srcSeg in SelectFileDomain(FileUtil.join(Workspace.outDir, regDir), segPre + "${srcId}-${tgtId}" + segSuf))
       }
       ExplorationTask(sampling) set (
         name    := "forEachSeg",
@@ -207,5 +196,4 @@ class EvaluateOverlapBuilder(val regDir: String) {
 
     mole1 + mole2 + mole3
   }
-
 }

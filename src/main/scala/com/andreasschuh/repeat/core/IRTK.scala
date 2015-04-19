@@ -10,7 +10,7 @@ object IRTK extends Configurable("irtk") {
 
   /// Directory containing executable binaries
   val binDir = {
-    val dir = getFileProperty("bindir")
+    val dir = getFileProperty("dir")
     if (!dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
     val ireg = new File(dir, "ireg")
     if (!ireg.exists()) throw new Exception(s"Invalid IRTK version, missing ireg executable: $ireg")
@@ -29,9 +29,27 @@ object IRTK extends Configurable("irtk") {
   /// Git commit SHA
   def revision: String = s"$binDir/ireg -revision".!!.trim
 
+  /** List of used IRTK applications with arguments used for packing them using CARE */
+  private def usedApplications = Seq("ireg", "dofprint", "dofinvert", "dofcombine", "ffdcompose", "transformation", "labelStats").map {
+    name => Cmd(name, "-version")
+  }
+
+  /**
+   * Pack all used IRTK executables into a single archive
+   * @param dir Shared working directory
+   * @return Resource files needed by tasks to execute commands
+   */
+  def resources(dir: File): Seq[File] = Bin.pack(dir, usedApplications: _*)
+
+  /**
+   * Pack all used IRTK executables into a single archive
+   * @return Archive file needed by tasks to execute packed commands
+   */
+  def archive(): File = Bin.pack("IRTK-" + version + "-" + revision, usedApplications: _*)
+
   /// Execute IRTK command
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
-    val cmd = Seq[String](Path.join(binDir, command).getAbsolutePath) ++ args
+    val cmd = Seq[String](FileUtil.join(binDir, command).getAbsolutePath) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     print('\n')
     val returnCode = log match {
@@ -53,7 +71,7 @@ object IRTK extends Configurable("irtk") {
   /// Type of transformation file
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq[String](Path.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
+    Seq[String](FileUtil.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
   }
 
   /// Whether given transformation is linear

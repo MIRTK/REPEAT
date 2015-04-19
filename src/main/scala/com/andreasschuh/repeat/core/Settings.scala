@@ -35,7 +35,7 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
       else if (localConfig2.exists()) Some(localConfig2.getAbsoluteFile)
       else if (localConfig3.exists()) Some(localConfig3.getAbsoluteFile)
       else {
-        val homeConfig = new File(Path.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
+        val homeConfig = new File(FileUtil.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
         if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)
         else None
       }
@@ -70,9 +70,10 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
   /// Get list of string values
   def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
 
-  /// Get absolute path string
-  def getPath(propName: String): String = new File(config.getString(propName)).getAbsolutePath
+  /// Get absolute path as java.io.File
+  def getFile(propName: String) = new File(config.getString(propName)).getAbsoluteFile
 
-  /// Get absolute path
-  def getFile(propName: String): File = new File(config.getString(propName)).getAbsoluteFile
+  /// Get absolute path as java.nio.file.Path
+  def getPath(propName: String) = getFile(propName).toPath
+
 }

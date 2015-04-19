@@ -7,7 +7,7 @@ import scala.sys.process.ProcessLogger
 /**
  * File process logger
  */
-class TaskLogger(log: File) extends Configurable("workflow.log") with ProcessLogger {
+class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessLogger {
 
   /// File writer object
   protected val writer = {
