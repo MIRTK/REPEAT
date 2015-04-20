@@ -71,7 +71,7 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
   def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
 
   /// Get absolute path as java.io.File
-  def getFile(propName: String) = new File(config.getString(propName)).getAbsoluteFile
+  def getFile(propName: String) = FileUtil.normalize(new File(config.getString(propName)).getAbsoluteFile)
 
   /// Get absolute path as java.nio.file.Path
   def getPath(propName: String) = getFile(propName).toPath

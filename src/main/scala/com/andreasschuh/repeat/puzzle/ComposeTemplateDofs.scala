@@ -26,7 +26,6 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-//import org.openmole.plugin.hook.file._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
@@ -55,7 +54,7 @@ object ComposeTemplateDofs {
     import Workspace.{dofIni, dofPre, dofSuf}
 
     val configFile   = GlobalSettings().configFile
-    val iniDofPath   = FileUtil.join(dofIni, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
+    val iniDofPath   = FileUtil.join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
     val iniDofSource = FileSource(iniDofPath, iniDof)
 
     val begin = EmptyTask() set (
@@ -67,16 +66,18 @@ object ComposeTemplateDofs {
     val compose = ScalaTask(
       s"""
         | GlobalSettings.setConfigDir(workDir)
-        | IRTK.compose(tgtDof, srcDof, iniDof, true, false)
+        | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
         imports     += "com.andreasschuh.repeat.core._",
         usedClasses += (GlobalSettings.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm),
+        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
         taskBuilder => configFile.foreach(taskBuilder.addResource(_))
       ) source iniDofSource
 
-    begin -- Skip(compose on Env.short, "iniDof.lastModified() > tgtDof.lastModified() && iniDof.lastModified() > srcDof.lastModified()")
+    val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
+    val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
+    begin -- Skip(compose on Env.short, cond1 + " && " + cond2)
   }
 }

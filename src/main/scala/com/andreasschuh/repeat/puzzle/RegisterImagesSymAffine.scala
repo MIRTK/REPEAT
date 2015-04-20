@@ -37,6 +37,14 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 object RegisterImagesSymAffine {
 
   /**
+   * Performs affine registration between target and source
+   *
+   * At the moment, no real symmetric affine registration is performed. The registration is still biased towards
+   * the chosen target image as only the transformation from target to source is computed. The inverse transformation
+   * is found by simply inverting this transformation. The output transformations are hence inverse consistent.
+   *
+   * @todo Register also source to target and compute average of forward and backward transformation.
+   *
    * @param tgtId[in,out] ID of target image
    * @param tgtIm[in,out] Path of target image
    * @param srcId[in,out] ID of source image
@@ -53,13 +61,12 @@ object RegisterImagesSymAffine {
     import Workspace.{dofAff, dofPre, dofSuf, logDir, logSuf}
 
     val regLog = Val[File]
-    val outDofPath = FileUtil.join(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
-    val invDofPath = FileUtil.join(dofAff, dofPre + "${srcId},${tgtId}" + dofSuf).getAbsolutePath
-    val regLogPath = FileUtil.join(logDir, "affine-reg", "${tgtId},${srcId}" + logSuf).getAbsolutePath
+    val outDofPath = FileUtil.join(dofAff, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val invDofPath = FileUtil.join(dofAff, dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
+    val regLogPath = FileUtil.join(logDir, "affine-reg", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val outDofSource = FileSource(outDofPath, outDof)
     val invDofSource = FileSource(invDofPath, invDof)
-    val regLogSource = FileSource(regLogPath, regLog)
 
     val regBegin = EmptyTask() set (
         name    := "AffineRegImagesSymBegin",
@@ -70,7 +77,8 @@ object RegisterImagesSymAffine {
     val regTask = ScalaTask(
       s"""
         | GlobalSettings.setConfigDir(workDir)
-        | IRTK.ireg(tgtIm, srcIm, Some(iniDof), outDof, Some(regLog),
+        | val regLog = new java.io.File(workDir, "output$logSuf")
+        | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
         |   "No. of resolution levels" -> 2,
         |   "Padding value" -> 0
@@ -80,9 +88,10 @@ object RegisterImagesSymAffine {
         imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
         usedClasses += (GlobalSettings.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, regLog),
+        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
+        outputFiles += ("output" + logSuf, regLog),
         taskBuilder => configFile.foreach(taskBuilder.addResource(_))
-      ) source (outDofSource, regLogSource)
+      ) source outDofSource hook CopyFileHook(regLog, regLogPath)
 
     val invBegin = EmptyTask() set (
         name    := "InvertAffineDofBegin",
@@ -93,7 +102,7 @@ object RegisterImagesSymAffine {
     val invTask = ScalaTask(
       s"""
         | GlobalSettings.setConfigDir(workDir)
-        | IRTK.invert(outDof, invDof)
+        | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
         imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
@@ -103,7 +112,7 @@ object RegisterImagesSymAffine {
         taskBuilder => configFile.foreach(taskBuilder.addResource(_))
       ) source invDofSource
 
-    regBegin -- Skip(regTask on Env.short, "outDof.lastModified() >= iniDof.lastModified()") --
-    invBegin -- Skip(invTask on Env.short, "invDof.lastModified() >= outDof.lastModified()")
+    regBegin -- Skip(regTask on Env.short, s"${outDof.name}.lastModified() >= ${iniDof.name}.lastModified()") --
+    invBegin -- Skip(invTask on Env.short, s"${invDof.name}.lastModified() >= ${outDof.name}.lastModified()")
   }
 }

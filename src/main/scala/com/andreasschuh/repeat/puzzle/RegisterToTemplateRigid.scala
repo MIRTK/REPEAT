@@ -50,8 +50,8 @@ object RegisterToTemplateRigid {
     val configFile = GlobalSettings().configFile
 
     val log = Val[File]
-    val dofPath = FileUtil.join(dofRig,     dofPre + refId + ",${srcId}" + dofSuf).getAbsolutePath
-    val logPath = FileUtil.join(logDir, "rigid-reg", refId + ",${srcId}" + logSuf).getAbsolutePath
+    val dofPath = FileUtil.join(dofRig,     dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logPath = FileUtil.join(logDir, "rigid-reg", refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val dofSource = FileSource(dofPath, dof)
 

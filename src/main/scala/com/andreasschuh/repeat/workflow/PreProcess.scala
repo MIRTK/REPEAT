@@ -59,6 +59,7 @@ object PreProcess {
     val srcDof    = Val[File]
     val iniDof    = Val[File]
     val affDof    = Val[File]
+    val invDof    = Val[File]
 
     // -----------------------------------------------------------------------------------------------------------------
     // Image ID samplings
@@ -81,12 +82,11 @@ object PreProcess {
       )
 
     val regToTemplate =
-      refImSource /*-- CopyFilesTo(Workspace.refDir, refIm)*/ -- forEachIm -< CopyFilesTo(Workspace.imgDir, srcIm) --
+      refImSource -- CopyFilesTo(Workspace.refDir, refIm) -- forEachIm -< CopyFilesTo(Workspace.imgDir, srcIm) --
       RegisterToTemplateRigid (refIm, srcId, srcIm, refRigDof) --
       RegisterToTemplateAffine(refIm, srcId, srcIm, refRigDof, refAffDof)
 
-    /*
-    val regToTemplateEnded = Capsule(EmptyTask() set (name := "regToTemplateEnded", inputs += refAffDof))
+    val regToTemplateEnded = Capsule(EmptyTask() set (name := "regToTemplateEnded", inputs += refAffDof.toArray))
 
     // -----------------------------------------------------------------------------------------------------------------
     // Affine registration of all image pairs
@@ -100,13 +100,10 @@ object PreProcess {
 
     val regAffine = forEachUniquePair -< CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) --
       ComposeTemplateDofs(tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof) --
-      RegisterImagesSymAffine(tgtId, tgtIm, srcId, srcIm, iniDof, affDof)
+      RegisterImagesSymAffine(tgtId, tgtIm, srcId, srcIm, iniDof, affDof, invDof)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete workflow
     (regToTemplate >- regToTemplateEnded) + (regToTemplateEnded -- regAffine)
-    */
-
-    regToTemplate
   }
 }
