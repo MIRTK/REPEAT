@@ -21,7 +21,7 @@ import scala.collection.JavaConverters._
  */
 class Settings(configName: Option[String] = None, configDir: File = new File(System.getProperty("user.dir"))) {
 
-  /// Found (main) configuration file
+  /** Found (main) configuration file */
   val configFile: Option[File] = configName match {
     case Some(name) =>
       val file = new File(configDir, name)
@@ -41,7 +41,7 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
       }
   }
 
-  /// Parsed configuration object
+  /** Parsed configuration object */
   private val config = {
     ConfigFactory.defaultOverrides().withFallback(configFile match {
       case Some(f) => ConfigFactory.parseFile(f)
@@ -52,28 +52,28 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
     }).resolve()
   }
 
-  /// Get set of keys
+  /** Get set of keys */
   def getKeySet(propName: String): Set[String] = config.getObject(propName).keySet.asScala.toSet
 
-  /// Get boolean value
+  /** Get boolean value */
   def getBoolean(propName: String): Boolean = config.getBoolean(propName)
 
-  /// Get integer value
+  /** Get integer value */
   def getInt(propName: String): Int = config.getInt(propName)
 
-  /// Get list of string values
+  /** Get list of string values */
   def getIntList(propName: String): Seq[Int] = config.getIntList(propName).asScala.map(_.intValue)
 
-  /// Get string value
+  /** Get string value */
   def getString(propName: String): String = config.getString(propName)
 
-  /// Get list of string values
+  /** Get list of string values */
   def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
 
-  /// Get absolute path as java.io.File
+  /** Get absolute path as java.io.File */
   def getFile(propName: String) = FileUtil.normalize(new File(config.getString(propName)).getAbsoluteFile)
 
-  /// Get absolute path as java.nio.file.Path
+  /** Get absolute path as java.nio.file.Path */
   def getPath(propName: String) = getFile(propName).toPath
 
 }

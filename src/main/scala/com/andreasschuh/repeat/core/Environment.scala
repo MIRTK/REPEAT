@@ -11,10 +11,10 @@ import org.openmole.plugin.environment.condor.CondorEnvironment
  */
 object Environment extends Configurable("environment") {
 
-  /// Whether to use symbolic links for input files instead of copying them to (remote) working directory
+  /** Whether to use symbolic links for input files instead of copying them to (remote) working directory */
   val symLnk = getBooleanProperty("links")
 
-  /// Get environment for the named task category
+  /** Get environment for the named task category */
   protected def getEnvironmentProperty(propName: String) = {
     getStringProperty(propName).toLowerCase match {
       case "slurm" =>

@@ -36,9 +36,14 @@ import org.openmole.plugin.source.file.FileSource
 
 
 /**
- * Mole for spatial normalization of images to template
+ * Preprocessing steps
+ *
+ * - Register all images to template, first rigid then affine
+ * - Affinely register all pairs of images using composition of template transformation as initialization
  */
 object PreProcess {
+
+  /** Construct OpenMOLE workflow puzzle */
   def apply() = {
 
     // -----------------------------------------------------------------------------------------------------------------
