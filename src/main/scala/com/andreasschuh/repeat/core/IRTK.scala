@@ -31,7 +31,7 @@ object IRTK extends Configurable("irtk") {
 
   /** List of used IRTK applications with arguments used for packing them using CARE */
   private def usedApplications = Seq("ireg", "dofprint", "dofinvert", "dofcombine", "ffdcompose", "transformation", "labelStats").map {
-    name => Cmd(name, "-version")
+    name => Cmd(new File(binDir, name).getAbsolutePath, "-version")
   }
 
   /**
