@@ -31,7 +31,7 @@ object CopyFilesTo {
       s"""  val $name = new File(new File("$dir"), input.$name.getName)"""
     }.mkString("\n") + "\n}"
     val copyFiles  = valNames.map(name => s"copy(input.$name, target.$name)").mkString("\n")
-    val setOutputs = ""//valNames.map(name => s"val $name = target.$name").mkString("\n")
+    val setOutputs = valNames.map(name => s"val $name = target.$name").mkString("\n")
     val task = ScalaTask(defineTargets + "\n" + copyFiles + "\n" + setOutputs) set (
         name        := "CopyFiles",
         imports     += ("java.io.File", "com.andreasschuh.repeat.core.FileUtil.copy"),
@@ -39,7 +39,7 @@ object CopyFilesTo {
       )
     inputFiles.foreach(p => {
       task.addInput (p)
-      //task.addOutput(p)
+      task.addOutput(p)
     })
     Capsule(task, strainer = true) on Env.local
   }
