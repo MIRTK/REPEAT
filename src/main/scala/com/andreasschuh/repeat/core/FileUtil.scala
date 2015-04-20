@@ -39,23 +39,26 @@ object FileUtil {
   /** Get relative file path */
   def relativize(base: File, path: File) = base.toPath.relativize(path.toPath).toFile
 
-  /// Join two path strings
+  /** Normalize/clean up path */
+  def normalize(path: File) = path.toPath.normalize.toFile
+
+  /** Join two path strings */
   def join(a: String, b: String): String = {
     val file = new File(b)
     if (file.isAbsolute) file.getPath()
     else new File(a, b).toString
   }
 
-  /// Join multiple path strings
+  /** Join multiple path strings */
   def join(a: String, b: String, c: String*): String = c.foldLeft(join(a, b))((a, b) => join(a, b))
 
-  /// Join file path and string
+  /** Join file path and string */
   def join(a: File, b: String): File = {
     val file = new File(b)
     if (file.isAbsolute) file
     else new File(a, b)
   }
 
-  /// Join file path and multiple path strings
+  /** Join file path and multiple path strings */
   def join(a: File, b: String, c: String*): File = c.foldLeft(join(a, b))((a, b) => join(a, b))
 }
