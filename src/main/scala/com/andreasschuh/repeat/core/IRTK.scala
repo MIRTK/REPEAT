@@ -8,7 +8,7 @@ import java.io.File
  */
 object IRTK extends Configurable("irtk") {
 
-  /// Directory containing executable binaries
+  /** Directory containing executable binaries */
   val binDir = {
     val dir = getFileProperty("dir")
     if (!dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
@@ -17,16 +17,16 @@ object IRTK extends Configurable("irtk") {
     dir
   }
 
-  /// Maximum number of threads to be used by each command
+  /** Maximum number of threads to be used by each command */
   val threads = getIntProperty("threads") match {
     case n if n <= 0 => Runtime.getRuntime.availableProcessors()
     case n if n >  0 => n
   }
 
-  /// Version information
+  /** Version information */
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
 
-  /// Git commit SHA
+  /** Git commit SHA */
   def revision: String = s"$binDir/ireg -revision".!!.trim
 
   /** List of used IRTK applications with arguments used for packing them using CARE */
@@ -47,7 +47,7 @@ object IRTK extends Configurable("irtk") {
    */
   def archive(): File = Bin.pack("IRTK-" + version + "-" + revision, usedApplications: _*)
 
-  /// Execute IRTK command
+  /** Execute IRTK command */
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
     val cmd = Seq[String](FileUtil.join(binDir, command).getAbsolutePath) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
@@ -68,29 +68,29 @@ object IRTK extends Configurable("irtk") {
     returnCode
   }
 
-  /// Type of transformation file
+  /** Type of transformation file */
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
     Seq[String](FileUtil.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
   }
 
-  /// Whether given transformation is linear
+  /** Whether given transformation is linear */
   def isLinear(dof: File): Boolean = dofType(dof) match {
     case "irtkRigidTransformation" | "irtkAffineTransformation" | "irtkSimilarityTransformation" => true
     case _ => false
   }
 
-  /// Whether given transformation is a FFD
+  /** Whether given transformation is a FFD */
   def isFFD(dof: File): Boolean = !isLinear(dof)
 
-  /// Invert transformation
+  /** Invert transformation */
   def invert(dofIn: File, dofOut: File): Int = {
     if (!dofIn.exists()) throw new Exception(s"Input transformation does not exist: ${dofIn.getAbsolutePath}")
     dofOut.getAbsoluteFile.getParentFile.mkdirs()
     execute(if (isLinear(dofIn)) "dofinvert" else "ffdinvert", Seq(dofIn.getAbsolutePath, dofOut.getAbsolutePath))
   }
 
-  /// Compose transformations: (dof2 o dof1)
+  /** Compose transformations: (dof2 o dof1) */
   def compose(dof1: File, dof2: File, dofOut: File, invert1: Boolean = false, invert2: Boolean = false): Int = {
     if (!dof1.exists()) throw new Exception(s"Input dof1 does not exist: ${dof1.getAbsolutePath}")
     if (!dof2.exists()) throw new Exception(s"Input dof2 does not exist: ${dof2.getAbsolutePath}")
@@ -108,7 +108,7 @@ object IRTK extends Configurable("irtk") {
     }
   }
 
-  /// Compute image transformation using ireg
+  /** Compute image transformation using ireg */
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, log: Option[File], params: (String, Any)*): Int = {
     if (!target.exists) throw new Exception(s"Target image does not exist: ${target.getAbsolutePath}")
     if (!source.exists) throw new Exception(s"Source image does not exist: ${source.getAbsolutePath}")
@@ -129,17 +129,18 @@ object IRTK extends Configurable("irtk") {
     execute("ireg", Seq(target.getAbsolutePath, source.getAbsolutePath, "-threads", threads.toString) ++ din ++ dout ++ opts, log)
   }
 
-  /** Transform/resample image
-    *
-    * @param source Image to be transformed.
-    * @param output Transformed output image.
-    * @param dofin Transformation from target to source.
-    * @param interpolation Interpolation method to use, e.g., "NN", "Linear", "Cubic".
-    * @param target Fixed target image.
-    * @param matchInputType Whether to match the type of the input source instead of the target.
-    *
-    * @return Zero exit code upon success.
-    */
+  /**
+   * Transform/resample image
+   *
+   * @param source Image to be transformed.
+   * @param output Transformed output image.
+   * @param dofin Transformation from target to source.
+   * @param interpolation Interpolation method to use, e.g., "NN", "Linear", "Cubic".
+   * @param target Fixed target image.
+   * @param matchInputType Whether to match the type of the input source instead of the target.
+   *
+   * @return Zero exit code upon success.
+   */
   def transform(source: File, output: File, dofin: File,
                 interpolation: String = "Linear",
                 target: Option[File] = None,
