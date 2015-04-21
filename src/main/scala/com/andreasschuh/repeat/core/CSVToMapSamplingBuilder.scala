@@ -23,20 +23,19 @@ package com.andreasschuh.repeat.core
 
 import java.io.File
 
-import org.openmole.core.workflow.data.{Prototype, Variable, Context}
-import org.openmole.core.workflow.sampling.Sampling
-import scala.util.Random
+import org.openmole.core.workflow.builder.SamplingBuilder
+import org.openmole.core.workflow.data.Prototype
 
 
-object CSVToMapSampling {
+class CSVToMapSamplingBuilder(file: File, p: Prototype[Map[String, String]]) extends SamplingBuilder { builder ⇒
+  private var separator: Option[Char] = None
 
-  def apply(file: File, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
-}
+  def setSeparator(s: Option[Char]) = {
+    separator = s
+    this
+  }
 
-abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
-
-  override def prototypes = List(p)
-
-  override def build(context: ⇒ Context)(implicit rng: Random): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
-
+  def toSampling = new CSVToMapSampling(file, p) {
+    val separator = builder.separator.getOrElse(',')
+  }
 }

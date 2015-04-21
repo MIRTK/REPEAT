@@ -21,22 +21,23 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
+import java.io.{FileReader, File}
 
+import au.com.bytecode.opencsv.CSVReader
 import org.openmole.core.workflow.data.{Prototype, Variable, Context}
-import org.openmole.core.workflow.sampling.Sampling
-import scala.util.Random
 
 
-object CSVToMapSampling {
+trait CSVToMapVariable {
 
-  def apply(file: File, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
-}
+  def separator: Char
 
-abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
-
-  override def prototypes = List(p)
-
-  override def build(context: ⇒ Context)(implicit rng: Random): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
-
+  def toMapVariable(file: File, p: Prototype[Map[String, String]], context: Context): Iterator[Iterable[Variable[_]]] = {
+    val reader = new CSVReader(new FileReader(file), separator)
+    val header = reader.readNext.toArray
+    Iterator.continually(reader.readNext).takeWhile(_ != null).map {
+      line ⇒ List(Variable(p, line.view.zipWithIndex.map {
+        case (value, column) => header(column) -> value
+      }.toMap))
+    }
+  }
 }
