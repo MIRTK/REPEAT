@@ -1,9 +1,60 @@
+/*
+ * Registration Performance Assessment Tool (REPEAT)
+ *
+ * Copyright (C) 2015  Andreas Schuh
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU Affero General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Affero General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Affero General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+ */
+
 package com.andreasschuh.repeat.core
 
 import com.typesafe.config.ConfigFactory
 import java.io.File
 import java.net.URL
 import scala.collection.JavaConverters._
+
+
+/**
+ * Global settings object
+ */
+object Config {
+  private var _dir: File = new File(System.getProperty("user.dir"))
+  private var _name: Option[String] = None
+  private var _config: Option[Config] = None
+
+  /** Change directory in which to look for default configuration file */
+  def dir(dir: File): Unit = {
+    _config = None
+    _dir = dir
+  }
+
+  /** Change configuration file from which global/default settings are read */
+  def name(name: String): Unit = {
+    _config = None
+    _name = Some(name)
+  }
+
+  /** Get global/default settings instance */
+  def apply(): Config = _config match {
+    case None =>
+      _config = Some(new Config(_name, _dir))
+      _config.get
+    case Some(s) => s
+  }
+}
 
 /**
  * Access values in configuration file
@@ -19,10 +70,10 @@ import scala.collection.JavaConverters._
  * - $OPENMOLE is the location of the OpenMOLE installation
  * - $JAR is the root of the OpenMOLE plugin .jar file
  */
-class Settings(configName: Option[String] = None, configDir: File = new File(System.getProperty("user.dir"))) {
+class Config(configName: Option[String] = None, configDir: File = new File(System.getProperty("user.dir"))) {
 
   /** Found (main) configuration file */
-  val configFile: Option[File] = configName match {
+  val file: Option[File] = configName match {
     case Some(name) =>
       val file = new File(configDir, name)
       if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath)
@@ -43,7 +94,7 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
 
   /** Parsed configuration object */
   private val config = {
-    ConfigFactory.defaultOverrides().withFallback(configFile match {
+    ConfigFactory.defaultOverrides().withFallback(file match {
       case Some(f) => ConfigFactory.parseFile(f)
       case None => ConfigFactory.empty()
     }).withFallback(System.getProperty("eclipse.application", "NotOpenMOLE") match {
@@ -51,6 +102,9 @@ class Settings(configName: Option[String] = None, configDir: File = new File(Sys
       case _ => ConfigFactory.defaultReference()
     }).resolve()
   }
+
+  /** Whether value is set */
+  def hasPath(propName: String): Boolean = config.hasPath(propName)
 
   /** Get set of keys */
   def getKeySet(propName: String): Set[String] = config.getObject(propName).keySet.asScala.toSet

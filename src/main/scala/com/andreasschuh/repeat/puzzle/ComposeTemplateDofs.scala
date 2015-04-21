@@ -1,23 +1,23 @@
-// =====================================================================================================================
-// Registration Performance Assessment Tool (REPEAT)
-//
-// Copyright (C) 2015  Andreas Schuh
-//
-//   This program is free software: you can redistribute it and/or modify
-//   it under the terms of the GNU Affero General Public License as published by
-//   the Free Software Foundation, either version 3 of the License, or
-//   (at your option) any later version.
-//
-//   This program is distributed in the hope that it will be useful,
-//   but WITHOUT ANY WARRANTY; without even the implied warranty of
-//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//   GNU Affero General Public License for more details.
-//
-//   You should have received a copy of the GNU Affero General Public License
-//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
-// =====================================================================================================================
+/*
+ * Registration Performance Assessment Tool (REPEAT)
+ *
+ * Copyright (C) 2015  Andreas Schuh
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU Affero General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Affero General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Affero General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+ */
 
 package com.andreasschuh.repeat.puzzle
 
@@ -46,14 +46,14 @@ object ComposeTemplateDofs {
    * @param srcIm[in,out] Path of source image
    * @param srcDof[in]    Path of transformation from template to source
    * @param iniDof[out]   Composite transformation from target to source
-   * @return Puzzle to compute linear transformations from template image to input image
+   *
+   * @return Puzzle piece to compute linear transformations from template image to input image
    */
   def apply(tgtId: Prototype[Int], tgtIm: Prototype[File], tgtDof: Prototype[File],
             srcId: Prototype[Int], srcIm: Prototype[File], srcDof: Prototype[File], iniDof: Prototype[File]) = {
 
     import Workspace.{dofIni, dofPre, dofSuf}
 
-    val configFile   = GlobalSettings().configFile
     val iniDofPath   = FileUtil.join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
     val iniDofSource = FileSource(iniDofPath, iniDof)
 
@@ -65,15 +65,15 @@ object ComposeTemplateDofs {
 
     val compose = ScalaTask(
       s"""
-        | GlobalSettings.setConfigDir(workDir)
+        | Config.dir(workDir)
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core._",
-        usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
-        taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ) source iniDofSource
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"

@@ -1,23 +1,23 @@
-// =====================================================================================================================
-// Registration Performance Assessment Tool (REPEAT)
-//
-// Copyright (C) 2015  Andreas Schuh
-//
-//   This program is free software: you can redistribute it and/or modify
-//   it under the terms of the GNU Affero General Public License as published by
-//   the Free Software Foundation, either version 3 of the License, or
-//   (at your option) any later version.
-//
-//   This program is distributed in the hope that it will be useful,
-//   but WITHOUT ANY WARRANTY; without even the implied warranty of
-//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//   GNU Affero General Public License for more details.
-//
-//   You should have received a copy of the GNU Affero General Public License
-//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
-// =====================================================================================================================
+/*
+ * Registration Performance Assessment Tool (REPEAT)
+ *
+ * Copyright (C) 2015  Andreas Schuh
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU Affero General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Affero General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Affero General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+ */
 
 package com.andreasschuh.repeat.puzzle
 
@@ -34,6 +34,9 @@ import org.openmole.plugin.tool.pattern.Skip
 import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
+/**
+ * Affine pre-registration of image pairs
+ */
 object RegisterImagesSymAffine {
 
   /**
@@ -57,7 +60,7 @@ object RegisterImagesSymAffine {
   def apply(tgtId:  Prototype[Int],  tgtIm:  Prototype[File], srcId:  Prototype[Int], srcIm: Prototype[File],
             iniDof: Prototype[File], outDof: Prototype[File], invDof: Prototype[File]) = {
 
-    val configFile = GlobalSettings().configFile
+    val configFile = Config().file
     import Workspace.{dofAff, dofPre, dofSuf, logDir, logSuf}
 
     val regLog = Val[File]
@@ -76,7 +79,7 @@ object RegisterImagesSymAffine {
 
     val regTask = ScalaTask(
       s"""
-        | GlobalSettings.setConfigDir(workDir)
+        | Config.dir(workDir)
         | val regLog = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
@@ -85,8 +88,8 @@ object RegisterImagesSymAffine {
         | )
       """.stripMargin) set (
         name        := "AffineRegImagesSym",
-        imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
-        usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputFiles += ("output" + logSuf, regLog),
@@ -101,12 +104,12 @@ object RegisterImagesSymAffine {
 
     val invTask = ScalaTask(
       s"""
-        | GlobalSettings.setConfigDir(workDir)
+        | Config.dir(workDir)
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
-        imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
-        usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof),
         taskBuilder => configFile.foreach(taskBuilder.addResource(_))

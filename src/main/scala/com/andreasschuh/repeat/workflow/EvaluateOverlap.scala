@@ -104,7 +104,7 @@ object EvaluateOverlap {
     val evalOverlap = {
       val evalOverlapTask = ScalaTask(
         s"""
-          | GlobalSettings.setConfigDir(workDir)
+          | Config.dir(workDir)
           |
           | val segA = new java.io.File(workDir, "$segPre" + tgtId + "$segSuf")
           | val segB = new java.io.File(workDir, "$segPre" + srcId + "-" + tgtId + "$segSuf")
@@ -121,13 +121,13 @@ object EvaluateOverlap {
           |
         """.stripMargin) set (
         name        := "evalOverlapTask",
-        imports     += "com.andreasschuh.repeat.core._",
-        usedClasses += (GlobalSettings.getClass, Overlap.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
+        usedClasses += (Config.getClass, Overlap.getClass),
         inputs      += (tgtId, srcId),
         inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf,symLnk),
         inputFiles  += (srcSeg, segPre + "${srcId}-${tgtId}" + segSuf, symLnk),
         outputs     += (tgtId, srcId, dscVal, dscGrp, jsiVal, jsiGrp),
-        taskBuilder => GlobalSettings().configFile.foreach(taskBuilder.addResource(_))
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       )
       // MUST be a capsule such that the actual task is only run once!
       Capsule(evalOverlapTask) on parEnv

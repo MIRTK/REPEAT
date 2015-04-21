@@ -1,23 +1,23 @@
-// =====================================================================================================================
-// Registration Performance Assessment Tool (REPEAT)
-//
-// Copyright (C) 2015  Andreas Schuh
-//
-//   This program is free software: you can redistribute it and/or modify
-//   it under the terms of the GNU Affero General Public License as published by
-//   the Free Software Foundation, either version 3 of the License, or
-//   (at your option) any later version.
-//
-//   This program is distributed in the hope that it will be useful,
-//   but WITHOUT ANY WARRANTY; without even the implied warranty of
-//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//   GNU Affero General Public License for more details.
-//
-//   You should have received a copy of the GNU Affero General Public License
-//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-// Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
-// =====================================================================================================================
+/*
+ * Registration Performance Assessment Tool (REPEAT)
+ *
+ * Copyright (C) 2015  Andreas Schuh
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU Affero General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Affero General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Affero General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+ */
 
 package com.andreasschuh.repeat.puzzle
 
@@ -47,7 +47,7 @@ object RegisterToTemplateRigid {
     import Dataset.refId
     import Workspace.{dofPre, dofSuf, dofRig, logDir, logSuf}
 
-    val configFile = GlobalSettings().configFile
+    val configFile = Config().file
 
     val log = Val[File]
     val dofPath = FileUtil.join(dofRig,     dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
@@ -63,7 +63,7 @@ object RegisterToTemplateRigid {
 
     val reg = ScalaTask(
       s"""
-        | GlobalSettings.setConfigDir(workDir)
+        | Config.dir(workDir)
         | val log = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(log),
         |   "Transformation model" -> "Rigid",
@@ -71,8 +71,8 @@ object RegisterToTemplateRigid {
         | )
       """.stripMargin) set (
         name        := "ComputeRigidTemplateDofs",
-        imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
-        usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (refIm, srcId, srcIm),
         outputs     += (refIm, srcId, srcIm, dof),
         outputFiles += ("output" + logSuf, log),

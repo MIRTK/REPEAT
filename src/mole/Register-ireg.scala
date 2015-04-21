@@ -27,12 +27,12 @@ import com.andreasschuh.repeat.core._
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Resources
-val configFile = GlobalSettings().configFile
+val configFile = Config().file
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Environment on which to execute registrations
-val parEnv = DefaultEnvironment.long
-val symLnk = DefaultEnvironment.symLnk
+val parEnv = Environment.long
+val symLnk = Environment.symLnk
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -50,9 +50,9 @@ val logDir = Constants.logDir
 val logSuf = Constants.logSuf
 
 val dofName    = "ireg-${model.toLowerCase()}-im=${im.toLowerCase()}-ds=${ds}-be=${be}-bch=${bch}"
-val outDofPath = Path.join(dofDir, dofName, "${tgtId},${srcId}" + dofSuf)
-val regLogPath = Path.join(logDir, dofName, "${tgtId},${srcId}" + logSuf)
-val outSegPath = Path.join(Constants.segODir, dofName, segPre + "${srcId}-${tgtId}" + segSuf)
+val outDofPath = FileUtil.join(dofDir, dofName, "${tgtId},${srcId}" + dofSuf)
+val regLogPath = FileUtil.join(logDir, dofName, "${tgtId},${srcId}" + logSuf)
+val outSegPath = FileUtil.join(Constants.segODir, dofName, segPre + "${srcId}-${tgtId}" + segSuf)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Variables
@@ -84,7 +84,7 @@ val imageSampling = {
   (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
   (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
   (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
-  (iniDof in SelectFileDomain(Path.join(dofDir, dofIni), "${tgtId},${srcId}" + dofSuf))
+  (iniDof in SelectFileDomain(FileUtil.join(dofDir, dofIni), "${tgtId},${srcId}" + dofSuf))
 }
 
 val ffdSampling = {
@@ -122,7 +122,7 @@ val iregBegin = EmptyTask() set (
 
 val iregTask = ScalaTask(
   s"""
-    | GlobalSettings.setConfigDir(workDir)
+    | Config.dir(workDir)
     |
     | val tgt    = new java.io.File(workDir, "$imgPre" + tgtId + "$imgSuf")
     | val src    = new java.io.File(workDir, "$imgPre" + tgtId + "$imgSuf")
@@ -145,7 +145,7 @@ val iregTask = ScalaTask(
   """.stripMargin) set (
   name        := "iregTask",
   imports     += "com.andreasschuh.repeat._",
-  usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+  usedClasses += (Config.getClass, IRTK.getClass),
   inputs      += (tgtId, srcId, model, im, ds, be, bch),
   inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, symLnk),
   inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, symLnk),
@@ -171,7 +171,7 @@ val warpSegBegin = EmptyTask() set (
 
 val warpSegTask = ScalaTask(
   s"""
-     | GlobalSettings.setConfigDir(workDir)
+     | Config.dir(workDir)
      |
      | val tgt    = new java.io.File(workDir, "$segPre" + tgtId + "$segSuf")
      | val src    = new java.io.File(workDir, "$segPre" + srcId + "$segSuf")
@@ -182,7 +182,7 @@ val warpSegTask = ScalaTask(
   """.stripMargin) set (
   name        := "warpSegTask",
   imports     += "com.andreasschuh.repeat._",
-  usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+  usedClasses += (Config.getClass, IRTK.getClass),
   inputs      += (tgtId, srcId),
   inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, symLnk),
   inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, symLnk),

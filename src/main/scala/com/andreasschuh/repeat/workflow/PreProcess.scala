@@ -78,13 +78,9 @@ object PreProcess {
         outputs += refIm
       ) source FileSource(Dataset.refIm.getAbsolutePath, refIm)
 
-    val forEachIm = ExplorationTask(
+    val forEachIm = Capsule(ExplorationTask(
         srcIdSampling x (srcIm in SelectFileDomain(Dataset.imgDir, imgPre + "${srcId}" + imgSuf))
-      ) set (
-        name    := "forEachIm",
-        inputs  += refIm,
-        outputs += refIm
-      )
+      ) set (name := "forEachIm"), strainer = true)
 
     val regToTemplate =
       refImSource -- CopyFilesTo(Workspace.refDir, refIm) -- forEachIm -< CopyFilesTo(Workspace.imgDir, srcIm) --
@@ -96,12 +92,12 @@ object PreProcess {
     // -----------------------------------------------------------------------------------------------------------------
     // Affine registration of all image pairs
     val forEachUniquePair = ExplorationTask(
-      (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
-      (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
-      (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
-      (tgtDof in SelectFileDomain(dofAff, dofPre + refId + ",${tgtId}" + dofSuf)) x
-      (srcDof in SelectFileDomain(dofAff, dofPre + refId + ",${srcId}" + dofSuf))
-    ) set (name := "forEachUniquePair")
+        (tgtIdSampling x srcIdSampling).filter("tgtId < srcId") x
+        (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
+        (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
+        (tgtDof in SelectFileDomain(dofAff, dofPre + refId + ",${tgtId}" + dofSuf)) x
+        (srcDof in SelectFileDomain(dofAff, dofPre + refId + ",${srcId}" + dofSuf))
+      ) set (name := "forEachUniquePair")
 
     val regAffine = forEachUniquePair -< CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) --
       ComposeTemplateDofs(tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof) --

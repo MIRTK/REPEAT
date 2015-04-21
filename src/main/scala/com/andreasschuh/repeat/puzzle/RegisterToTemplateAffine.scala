@@ -49,7 +49,7 @@ object RegisterToTemplateAffine {
     import Dataset.refId
     import Workspace.{dofPre, dofSuf, dofAff, logDir, logSuf}
 
-    val configFile = GlobalSettings().configFile
+    val configFile = Config().file
 
     val log = Val[File]
     val dofPath = FileUtil.join(dofAff,      dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
@@ -65,7 +65,7 @@ object RegisterToTemplateAffine {
 
     val reg = ScalaTask(
       s"""
-      | GlobalSettings.setConfigDir(workDir)
+      | Config.dir(workDir)
       | val log = new java.io.File(workDir, "output$logSuf")
       | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(log),
       |   "Transformation model" -> "Affine",
@@ -73,8 +73,8 @@ object RegisterToTemplateAffine {
       | )
     """.stripMargin) set (
       name        := "ComputeAffineTemplateDofs",
-      imports     += ("com.andreasschuh.repeat.core.GlobalSettings", "com.andreasschuh.repeat.core.IRTK"),
-      usedClasses += (GlobalSettings.getClass, IRTK.getClass),
+      imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+      usedClasses += (Config.getClass, IRTK.getClass),
       inputs      += (refIm, srcId, srcIm, iniDof),
       outputs     += (refIm, srcId, srcIm, iniDof, dof),
       outputFiles += ("output" + logSuf, log),
