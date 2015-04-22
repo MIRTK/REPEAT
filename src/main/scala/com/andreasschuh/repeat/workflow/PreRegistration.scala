@@ -41,7 +41,7 @@ import org.openmole.plugin.source.file.FileSource
  * - Register all images to template, first rigid then affine
  * - Affinely register all pairs of images using composition of template transformation as initialization
  */
-object PreProcess {
+object PreRegistration {
 
   /** Construct OpenMOLE workflow puzzle */
   def apply() = {
@@ -102,6 +102,9 @@ object PreProcess {
     val regAffine = forEachUniquePair -< CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) --
       ComposeTemplateDofs(tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof) --
       RegisterImagesSymAffine(tgtId, tgtIm, srcId, srcIm, iniDof, affDof, invDof)
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // TODO: Evaluate label overlap after affine alignment
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete workflow

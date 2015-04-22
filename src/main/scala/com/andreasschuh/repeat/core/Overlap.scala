@@ -28,7 +28,7 @@ import scala.language.implicitConversions
 /**
  * Registration evaluation measure
  */
-object Overlap extends Configurable("overlap") {
+object Overlap extends Configurable("evaluation.overlap") {
 
   /**
    * Type of overlap similarity measure "enumeration" values/indices

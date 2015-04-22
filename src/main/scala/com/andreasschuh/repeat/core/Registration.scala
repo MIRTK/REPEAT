@@ -21,6 +21,8 @@
 
 package com.andreasschuh.repeat.core
 
+import java.io.File
+
 
 /**
  * Registration object factory
@@ -40,23 +42,6 @@ object Registration {
  */
 class Registration(val id: String) extends Configurable("registration." + id) {
 
-  /** Split command string into list of arguments */
-  protected def split(args: String): Cmd = """"(\\"|[^"])*?"|[^\s]+""".r.findAllIn(args).toIndexedSeq
-
-  /** Get command string property value */
-  protected def getCmdProperty(propName: String): Cmd = getStringProperty(propName) match {
-    case cmd if cmd.length > 0 => split(cmd)
-    case _ => throw new Exception(s"Property registration.$id.$propName cannot be empty")
-  }
-
-  /** Get optional command string property value */
-  protected def getCmdOptionProperty(propName: String): Option[Cmd] = {
-    getStringOptionProperty(propName) match {
-      case Some(cmd) if cmd.length > 0 => Some(split(cmd))
-      case _ => None
-    }
-  }
-
   /** Whether this registration is symmetric */
   val isSym = getBooleanOptionProperty("symmetric") getOrElse false
 
@@ -64,16 +49,19 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   val parCsv = getFileProperty("params")
 
   /** Output directory */
-  val outDir = FileUtil.join(Workspace.dir, id)
+  val dir = new File(Workspace.outDir, id)
 
   /** Directory of computed transformations */
-  val dofDir = FileUtil.join(outDir, "dofs")
+  val dofDir = new File(dir, getStringProperty(".workspace.output.dofs"))
 
   /** Directory of deformed images */
-  val imgDir = FileUtil.join(outDir, "images")
+  val imgDir = new File(dir, getStringProperty(".workspace.output.images"))
 
   /** Directory of propagated label images */
-  val segDir = FileUtil.join(outDir, "labels")
+  val segDir = new File(dir, getStringProperty(".workspace.output.labels"))
+
+  /** Directory of evaluation results */
+  val resDir = new File(dir, getStringProperty(".workspace.output.results"))
 
   /** File name suffix for converted affine input transformation */
   val affSuf = getStringOptionProperty("aff-suffix") getOrElse Workspace.dofSuf
@@ -82,11 +70,35 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   val phiSuf = getStringOptionProperty("phi-suffix") getOrElse Workspace.dofSuf
 
   /** Optional command used to convert affine transformation from IRTK format to required input format */
-  val dof2aff = getCmdOptionProperty("dof2aff")
+  val dof2affCmd = getCmdOptionProperty("dof2aff")
 
-  /** Registration command */
-  val command = getCmdProperty("command")
+  /** Command to run image registration */
+  val runCmd = getCmdProperty("command")
 
   /** Optional command which can be used to convert output transformation to IRTK format */
-  val phi2dof = getCmdOptionProperty("phi2dof")
+  val phi2dofCmd = getCmdOptionProperty("phi2dof")
+
+  /** File name suffix of (converted) output transformation */
+  val dofSuf = phi2dofCmd match {
+    case Some(_) => Workspace.dofSuf
+    case None => phiSuf
+  }
+
+  /** Command used to deform an image */
+  val deformImageCmd = getCmdOptionProperty("apply") match {
+    case Some(command) => command
+    case None => IRTK.deformImageCmd
+  }
+
+  /** Command used to deform a segmentation image */
+  val deformLabelsCmd = getCmdOptionProperty("apply-nn") match {
+    case Some(command) => command
+    case None => IRTK.deformLabelsCmd
+  }
+
+  /** Command used to compute Jacobian determinant map */
+  val jacCmd = getCmdOptionProperty("jacobian") match {
+    case Some(command) => command
+    case None => IRTK.jacCmd
+  }
 }

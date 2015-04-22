@@ -43,7 +43,8 @@ object RegisterImages {
    * Performs (deformable) registration between target and source
    *
    * @param reg[in]        Registration info
-   * @param parVal[in,out] Map of registration parameters
+   * @param parId[in,out]  ID of parameter set
+   * @param parVal[in,out] Registration parameters
    * @param tgtId[in,out]  ID of target image
    * @param tgtIm[in,out]  Path of target image
    * @param srcId[in,out]  ID of source image
@@ -53,18 +54,18 @@ object RegisterImages {
    *
    * @return Puzzle piece to compute transformation from target to source
    */
-  def apply(reg: Registration, parVal: Prototype[Map[String, String]],
+  def apply(reg: Registration, parId: Prototype[Int], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File],
             srcId: Prototype[Int], srcIm: Prototype[File],
             affDof: Prototype[File], phiDof: Prototype[File]) = {
-    val configFile = Config().file
     import Workspace.{dofPre, logDir, logSuf}
+    import FileUtil.join
 
     val regCmd = Val[Cmd]
     val regLog = Val[File]
 
-    val phiDofPath = FileUtil.join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
-    val regLogPath = FileUtil.join(logDir, reg.id, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
+    val phiDofPath = join(reg.dofDir, "${parId}", dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
+    val regLogPath = join(logDir, reg.id, "${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val phiDofSource = FileSource(phiDofPath, phiDof)
 
@@ -75,7 +76,7 @@ object RegisterImages {
 
     val run = Capsule(ScalaTask(
       s"""
-        | DefaultConfig.dir(workDir)
+        | Config.dir(workDir)
         | val args = ${parVal.name} ++ Map(
         |   "target" -> ${tgtIm.name}.getAbsolutePath,
         |   "source" -> ${srcIm.name}.getAbsolutePath,
@@ -92,13 +93,13 @@ object RegisterImages {
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
-        imports     += ("com.andreasschuh.repeat.core._", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.{Config,Registration,FileUtil,TaskLogger}", "scala.sys.process._"),
         usedClasses += Config.getClass,
         inputs      += (tgtIm, srcIm, affDof, regCmd, parVal),
         outputs     += (tgtIm, srcIm, phiDof),
         outputFiles += ("output" + logSuf, regLog),
-        regCmd      := reg.command,
-        taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+        regCmd      := reg.runCmd,
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source phiDofSource hook CopyFileHook(regLog, regLogPath)
 
     begin -- Skip(run on Env.long, s"${phiDof.name}.lastModified() >= ${affDof.name}.lastModified()")

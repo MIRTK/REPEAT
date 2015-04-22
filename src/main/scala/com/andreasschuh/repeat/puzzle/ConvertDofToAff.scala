@@ -58,14 +58,17 @@ object ConvertDofToAff {
         outputs += affDof
       ), strainer = true) source affDofSource
 
-    val dof2aff = reg.dof2aff match {
+    val dof2aff = reg.dof2affCmd match {
       case Some(command) =>
         val template = Val[Cmd]
         val task = ScalaTask(
           s"""
             | val args = Map(
+            |   "in"    -> ${iniDof.name}.getPath,
+            |   "dof"   -> ${iniDof.name}.getPath,
             |   "dofin" -> ${iniDof.name}.getPath,
-            |   "aff"   -> ${affDof.name}.getPath
+            |   "aff"   -> ${affDof.name}.getPath,
+            |   "out"   -> ${affDof.name}.getPath
             | )
             | val cmd = Registration.command(template, args)
             | val ret = cmd.!

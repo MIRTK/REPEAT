@@ -32,18 +32,19 @@ import org.openmole.plugin.task.scala._
 
 
 /**
- * Workflow puzzle piece used to copy files from the local dataset to the shared workspace
+ * Copy files from the local dataset to the shared workspace
  */
 object CopyFilesTo {
 
   /**
-   * Construct OpenMOLE workflow puzzle piece
+   * Puzzle piece to copy files to directory
    *
    * Note that the files are only being copied if newer than any existing file in the destination.
    *
-   * @param dstDir Destination directory
-   * @param inputFiles Files in workflow which should be copied
-   * @return Puzzle piece to copy files
+   * @param dstDir             Destination directory
+   * @param inputFiles[in,out] Files in workflow which should be copied
+   *
+   * @return Puzzle piece to copy files to target directory
    */
   def apply(dstDir: File, inputFiles: Prototype[File]*) = {
     val dir = dstDir.getAbsolutePath

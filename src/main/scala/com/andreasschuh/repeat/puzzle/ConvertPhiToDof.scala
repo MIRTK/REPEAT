@@ -40,6 +40,7 @@ object ConvertPhiToDof {
 
   /**
    * @param reg    Registration info
+   * @param parId  ID of parameter set
    * @param phiDof Output transformation ("<phi>") of registration.
    *               If no phi2dof conversion is provided, tools for applying the transformation and computing
    *               evaluation measures such as the Jacobian determinant must be provided instead.
@@ -48,11 +49,12 @@ object ConvertPhiToDof {
    *
    * @return Puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, phiDof: Prototype[File], outDof: Prototype[File]) = {
+  def apply(reg: Registration, parId: Prototype[Int], phiDof: Prototype[File], outDof: Prototype[File]) = {
 
     import Workspace.dofSuf
+    import FileUtil.join
 
-    val outDofPath   = FileUtil.join(reg.dofDir, s"$${${phiDof.name}.getName.dropRight(${reg.phiSuf.length}}$dofSuf").getAbsolutePath
+    val outDofPath   = join(reg.dofDir, "${parId}", s"$${${phiDof.name}.getName.dropRight(${reg.phiSuf.length}}$dofSuf").getAbsolutePath
     val outDofSource = FileSource(outDofPath, outDof)
 
     val begin = Capsule(EmptyTask() set (
@@ -60,24 +62,29 @@ object ConvertPhiToDof {
         outputs += outDof
       ), strainer = true) source outDofSource
 
-    val phi2dof = reg.phi2dof match {
+    val phi2dof = reg.phi2dofCmd match {
       case Some(command) =>
         val template = Val[Cmd]
         val task = ScalaTask(
           s"""
-             | val args = Map(
-             |   "phi"    -> ${phiDof.name}.getPath
-             |   "dofout" -> ${outDof.name}.getPath,
-             | )
-             | val cmd = Registration.command(template, args)
-             | val ret = cmd.!
-             | if (ret != 0) throw new Exception("Failed to convert output transformation")
+            | Config.dir(workDir)
+            | val args = Map(
+            |   "in"     -> ${phiDof.name}.getPath,
+            |   "phi"    -> ${phiDof.name}.getPath,
+            |   "dof"    -> ${outDof.name}.getPath,
+            |   "out"    -> ${outDof.name}.getPath,
+            |   "dofout" -> ${outDof.name}.getPath
+            | )
+            | val cmd = Registration.command(template, args)
+            | val ret = cmd.!
+            | if (ret != 0) throw new Exception("Failed to convert output transformation")
           """.stripMargin) set(
             name     := s"${reg.id}-phi2dof",
-            imports  += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+            imports  += ("com.andreasschuh.repeat.core.{Config,Registration}", "scala.sys.process._"),
             inputs   += (phiDof, template),
             outputs  += outDof,
-            template := command
+            template := command,
+            taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
           )
         Capsule(task, strainer = true) source outDofSource
       case None =>

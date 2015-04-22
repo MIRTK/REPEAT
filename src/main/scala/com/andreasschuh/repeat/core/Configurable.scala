@@ -73,4 +73,21 @@ abstract class Configurable(val propGroup: String = "") {
 
   /** Get absolute path of property in this group */
   protected def getFileProperty(propName: String) = Config().getFile(getPropPath(propName))
+
+  /** Split command string into list of arguments */
+  protected def split(args: String): Cmd = """"(\\"|[^"])*?"|[^\s]+""".r.findAllIn(args).toIndexedSeq
+
+  /** Get command string property value */
+  protected def getCmdProperty(propName: String): Cmd = getStringProperty(propName) match {
+    case cmd if cmd.length > 0 => split(cmd)
+    case _ => throw new Exception(s"Property $propName cannot be an empty string")
+  }
+
+  /** Get optional command string property value */
+  protected def getCmdOptionProperty(propName: String): Option[Cmd] = {
+    getStringOptionProperty(propName) match {
+      case Some(cmd) if cmd.length > 0 => Some(split(cmd))
+      case _ => None
+    }
+  }
 }

@@ -39,11 +39,35 @@ object IRTK extends Configurable("irtk") {
     dir
   }
 
+  /** Absolute path of binary IRTK executable */
+  def binPath(name: String): String = new File(binDir, name).getPath
+
+  /** Get IRTK command property */
+  override def getCmdProperty(propName: String) = {
+    val cmd = getCmdProperty(propName)
+    Cmd(binPath(cmd.head)) ++ cmd.tail
+  }
+
+  /** Get IRTK command property */
+  override def getCmdOptionProperty(propName: String) = getCmdOptionProperty(propName) match {
+    case Some(cmd) => Some(Cmd(binPath(cmd.head)) ++ cmd.tail)
+    case None => None
+  }
+
   /** Maximum number of threads to be used by each command */
   val threads = getIntProperty("threads") match {
     case n if n <= 0 => Runtime.getRuntime.availableProcessors()
     case n if n >  0 => n
   }
+
+  /** Default command to use for deforming images */
+  val deformImageCmd = getCmdProperty("apply")
+
+  /** Default command to use for deforming segmentation images */
+  val deformLabelsCmd = getCmdProperty("apply-nn")
+
+  /** Default command to use for computing Jacobian determinant */
+  val jacCmd = getCmdProperty("jacobian")
 
   /** Version information */
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")

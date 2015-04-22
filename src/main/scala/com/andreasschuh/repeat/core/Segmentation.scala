@@ -25,9 +25,9 @@ package com.andreasschuh.repeat.core
 /**
  * Contains information about segmentation labels and groups
  */
-object Segmentation extends Configurable("segmentation") {
+object Segmentation {
 
-  protected val info  = Csv.fromFile(getFileProperty("csv"))
+  protected val info  = Csv.fromFile(Dataset.segCsv)
   protected val nrows = info("Label Number").length
 
   /** All label numbers */

@@ -39,14 +39,20 @@ import org.openmole.plugin.source.file.FileSource
  * Run registration with different parameters and store results for evaluation
  */
 object RunRegistration {
-  def apply(regId: String) = {
+
+  /**
+   * @param reg Registration info
+   *
+   * @return Workflow puzzle for running the registration and generating the results needed for quality assessment
+   */
+  def apply(reg: Registration) = {
 
     import Dataset._
     import Workspace.{dofAff, dofPre, dofSuf}
 
-    val reg = Registration(regId)
-
-    val parId  = Val[Int]                 // Parameter set ID (column index)
+    // -----------------------------------------------------------------------------------------------------------------
+    // Variables
+    val parId  = Val[Int]  // Parameter set ID (column index)
     val parVal = Val[Map[String, String]] // Map from parameter name to value
     val tgtId  = Val[Int]
     val tgtIm  = Val[File]
@@ -55,29 +61,61 @@ object RunRegistration {
     val srcIm  = Val[File]
     val srcSeg = Val[File]
     val iniDof = Val[File] // Pre-computed affine transformation
+    val preDof = Val[File] // Affine transformation converted to input format
     val affDof = Val[File] // Affine transformation converted to input format
     val phiDof = Val[File] // Output transformation of registration
     val outDof = Val[File] // Output transformation converted to IRTK format
+    val outIm  = Val[File] // Deformed source image
+    val outSeg = Val[File] // Deformed source segmentation
+    val outJac = Val[File] // Jacobian determinant map
 
-    val forEachImPair = {
-      val paramSampling = CSVToMapSampling(reg.parCsv, parVal) zipWithIndex parId
-      val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
-      val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
-      val imageSampling = {
-        (tgtIdSampling x srcIdSampling).filter(if (reg.isSym) "tgtId < srcId" else "tgtId != srcId") x
+    // -----------------------------------------------------------------------------------------------------------------
+    // Samplings
+    val paramSampling = CSVToMapSampling(reg.parCsv, parVal) zipWithIndex parId
+    val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
+    val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
+    val imageSampling = (tgtIdSampling x srcIdSampling) filter (if (reg.isSym) "tgtId < srcId" else "tgtId != srcId")
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Pre-registration steps
+    val forEachImPair = ExplorationTask(
+      imageSampling x
         (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
         (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
         (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
         (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
         (iniDof in SelectFileDomain(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf))
-      }
-      ExplorationTask(imageSampling x paramSampling) set (name := "forEachImPair")
-    }
+    ) set (name := "forEachImPair")
 
-    val regAll = forEachImPair -<
+    val pre = forEachImPair -<
       CopyFilesTo(Workspace.imgDir, tgtIm, tgtSeg, srcIm, srcSeg) --
-      ConvertDofToAff(reg, iniDof, affDof) --
-      RegisterImages (reg, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof) --
-      ConvertPhiToDof(reg, phiDof, outDof)
+      ConvertDofToAff(reg, iniDof, preDof)
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Pairwise registration
+    val forEachImPairAndPar = ExplorationTask(
+      imageSampling x paramSampling x
+        (tgtIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${tgtId}" + imgSuf)) x
+        (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf)) x
+        (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
+        (srcSeg in SelectFileDomain(Workspace.segDir, segPre + "${srcId}" + segSuf)) x
+        (affDof in SelectFileDomain(reg.dofDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
+    ) set (name := "forEachImPairAndPar")
+
+    val run = forEachImPairAndPar -<
+      RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof) --
+      ConvertPhiToDof(reg, parId, phiDof, outDof)
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Post-registration steps
+    val post =
+      DeformImage(reg, parId, tgtId, tgtIm, srcId, srcIm, outDof, outIm) +
+      DeformLabels(reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg) +
+      ComputeJacobian(reg, parId, tgtId, srcId, outDof, outJac)
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Complete registration workflow
+    val preEnd = Capsule(EmptyTask() set (inputs += preDof.toArray))
+    (pre >- preEnd) + (preEnd -- run -- post)
   }
 }
