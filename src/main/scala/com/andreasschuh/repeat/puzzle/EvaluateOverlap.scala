@@ -88,8 +88,8 @@ object EvaluateOverlap {
     val forEachImPairAndPar = ExplorationTask(
       imageSampling x paramSampling x
         (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
-        (outSeg in SelectFileDomain(new File(reg.dofDir, "${parId}"), segPre + "${srcId}-${tgtId}" + segSuf)) x
-        (outDof in SelectFileDomain(new File(reg.dofDir, "${parId}"), dofPre + "${tgtId},${srcId}" + reg.dofSuf))
+        (outSeg in SelectFileDomain(reg.dofDir, segPre + "${srcId}-${tgtId}" + segSuf)) x
+        (outDof in SelectFileDomain(reg.dofDir, dofPre + "${tgtId},${srcId}" + reg.dofSuf))
     ) set (name := "forEachImPairAndPar")
 
     // -----------------------------------------------------------------------------------------------------------------

@@ -64,7 +64,6 @@ object Workspace extends Configurable("workspace") {
   val dofPre = getStringProperty("dofs.prefix")
   val dofSuf = getStringProperty("dofs.suffix")
   val outDir = new File(rootFS, getStringProperty("output.dir"))
-  val resDir = new File(rootFS, getStringProperty("results.dir"))
   val logDir = new File(rootFS, getStringProperty("logs.dir"))
   val logSuf = getStringProperty("logs.suffix")
 }

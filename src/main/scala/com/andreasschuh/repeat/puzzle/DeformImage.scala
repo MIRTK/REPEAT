@@ -93,6 +93,6 @@ object DeformImage {
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source outImSource
 
-    begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() >= ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

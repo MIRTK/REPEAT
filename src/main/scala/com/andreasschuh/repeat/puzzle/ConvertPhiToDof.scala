@@ -49,12 +49,14 @@ object ConvertPhiToDof {
    *
    * @return Puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, parId: Prototype[Int], phiDof: Prototype[File], outDof: Prototype[File]) = {
+  def apply(reg: Registration, parId: Prototype[Int],
+            tgtId: Prototype[Int], srcId: Prototype[Int],
+            phiDof: Prototype[File], outDof: Prototype[File]) = {
 
-    import Workspace.dofSuf
+    import Workspace.{dofPre, dofSuf}
     import FileUtil.join
 
-    val outDofPath   = join(reg.dofDir, "${parId}", s"$${${phiDof.name}.getName.dropRight(${reg.phiSuf.length}}$dofSuf").getAbsolutePath
+    val outDofPath   = join(reg.dofDir, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
     val outDofSource = FileSource(outDofPath, outDof)
 
     val begin = Capsule(EmptyTask() set (

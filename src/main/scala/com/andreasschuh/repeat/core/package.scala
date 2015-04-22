@@ -34,12 +34,12 @@ package object core {
     def apply(name: String, args: String*): Cmd = Seq(name) ++ args.toSeq
   }
 
-  /** Replace occurrences of #{name} in s by v("name") */
+  /** Replace occurrences of ${name} in s by v("name") */
   def interpolate(s: String, v: Map[String, _]): String = {
     val getGroup = (_: scala.util.matching.Regex.Match) group 1
-    "<([^}]*)>".r.replaceSomeIn(s, getGroup andThen v.lift andThen (_ map (_.toString)))
+    "\\$\\{([^}]*)\\}".r.replaceSomeIn(s, getGroup andThen v.lift andThen (_ map (_.toString)))
   }
 
-  /** Replace occurrences of #{name} in s by v("name") */
+  /** Replace occurrences of ${name} in s by v("name") */
   def interpolate(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => interpolate(s, v))
 }

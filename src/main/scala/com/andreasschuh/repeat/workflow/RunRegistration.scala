@@ -88,8 +88,11 @@ object RunRegistration {
     ) set (name := "forEachImPair")
 
     val pre = forEachImPair -<
-      CopyFilesTo(Workspace.imgDir, tgtIm, tgtSeg, srcIm, srcSeg) --
-      ConvertDofToAff(reg, iniDof, preDof)
+      CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) --
+      CopyFilesTo(Workspace.segDir, tgtSeg, srcSeg) --
+      ConvertDofToAff(reg, tgtId, srcId, iniDof, preDof)
+
+    val preEnd = Capsule(EmptyTask() set (name := "preEnd", inputs += preDof.toArray))
 
     // -----------------------------------------------------------------------------------------------------------------
     // Pairwise registration
@@ -99,23 +102,24 @@ object RunRegistration {
         (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf)) x
         (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
         (srcSeg in SelectFileDomain(Workspace.segDir, segPre + "${srcId}" + segSuf)) x
-        (affDof in SelectFileDomain(reg.dofDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
+        (affDof in SelectFileDomain(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
     ) set (name := "forEachImPairAndPar")
 
     val run = forEachImPairAndPar -<
       RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof) --
-      ConvertPhiToDof(reg, parId, phiDof, outDof)
+      ConvertPhiToDof(reg, parId, tgtId, srcId, phiDof, outDof)
+
+    val runEnd = Capsule(EmptyTask() set (name := "runEnd", inputs += outDof), strainer = true)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Post-registration steps
     val post =
-      DeformImage(reg, parId, tgtId, tgtIm, srcId, srcIm, outDof, outIm) +
-      DeformLabels(reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg) +
-      ComputeJacobian(reg, parId, tgtId, srcId, outDof, outJac)
+      (runEnd -- DeformImage(reg, parId, tgtId, tgtIm, srcId, srcIm, outDof, outIm)) +
+      (runEnd -- DeformLabels(reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)) +
+      (runEnd -- ComputeJacobian(reg, parId, tgtId, srcId, outDof, outJac))
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow
-    val preEnd = Capsule(EmptyTask() set (inputs += preDof.toArray))
-    (pre >- preEnd) + (preEnd -- run -- post)
+    (pre >- preEnd) + (preEnd -- run -- runEnd) + post
   }
 }

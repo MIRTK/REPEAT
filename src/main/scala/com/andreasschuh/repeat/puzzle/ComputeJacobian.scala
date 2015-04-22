@@ -89,6 +89,6 @@ object ComputeJacobian {
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source outJacSource
 
-    begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() >= ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

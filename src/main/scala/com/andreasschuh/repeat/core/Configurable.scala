@@ -75,7 +75,9 @@ abstract class Configurable(val propGroup: String = "") {
   protected def getFileProperty(propName: String) = Config().getFile(getPropPath(propName))
 
   /** Split command string into list of arguments */
-  protected def split(args: String): Cmd = """"(\\"|[^"])*?"|[^\s]+""".r.findAllIn(args).toIndexedSeq
+  protected def split(args: String): Cmd = """"(\\"|[^"])*?"|[^\s]+""".r.findAllIn(args).map(
+    s => if (s.head == '\"' && s.last == '\"') s.drop(1).dropRight(1) else s
+  ).toIndexedSeq
 
   /** Get command string property value */
   protected def getCmdProperty(propName: String): Cmd = getStringProperty(propName) match {

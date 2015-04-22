@@ -40,17 +40,19 @@ object ConvertDofToAff {
 
   /**
    * @param reg    Registration info
+   * @param tgtId  ID of target
+   * @param srcId  ID of source
    * @param iniDof Affine IRTK transformation
    * @param affDof Input transformation ("<aff>") for registration.
    *               If no dof2aff conversion is provided, the IRTK transformation is used directly.
    *
    * @return Puzzle puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, iniDof: Prototype[File], affDof: Prototype[File]) = {
+  def apply(reg: Registration, tgtId: Prototype[Int], srcId: Prototype[Int], iniDof: Prototype[File], affDof: Prototype[File]) = {
 
-    import Workspace.{dofAff, dofSuf}
+    import Workspace.dofPre
 
-    val affDofPath   = FileUtil.join(dofAff, s"$${${iniDof.name}.getName.dropRight(${dofSuf.length}}${reg.affSuf}").getAbsolutePath
+    val affDofPath   = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
     val affDofSource = FileSource(affDofPath, affDof)
 
     val begin = Capsule(EmptyTask() set (
@@ -71,11 +73,12 @@ object ConvertDofToAff {
             |   "out"   -> ${affDof.name}.getPath
             | )
             | val cmd = Registration.command(template, args)
+            | FileUtil.mkdirs(${affDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert affine transformation")
           """.stripMargin) set(
             name     := s"${reg.id}-dof2aff",
-            imports  += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+            imports  += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
             inputs   += iniDof,
             outputs  += affDof,
             template := command

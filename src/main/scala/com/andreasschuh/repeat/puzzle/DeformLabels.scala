@@ -93,6 +93,6 @@ object DeformLabels {
        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source outSegSource
 
-    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() >= ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

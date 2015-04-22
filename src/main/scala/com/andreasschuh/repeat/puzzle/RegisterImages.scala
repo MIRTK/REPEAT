@@ -64,7 +64,7 @@ object RegisterImages {
     val regCmd = Val[Cmd]
     val regLog = Val[File]
 
-    val phiDofPath = join(reg.dofDir, "${parId}", dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
+    val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id, "${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val phiDofSource = FileSource(phiDofPath, phiDof)
@@ -83,9 +83,10 @@ object RegisterImages {
         |   "aff"    -> ${affDof.name}.getAbsolutePath,
         |   "phi"    -> ${phiDof.name}.getAbsolutePath
         | )
+        | val regLog = new java.io.File(workDir, "output$logSuf")
         | val cmd = Registration.command(${regCmd.name}, args)
-        | val log = new TaskLogger(new java.io.File(workDir, "output$logSuf"))
-        | val str = cmd.mkString("> \"", "\" \"", "\"\n")
+        | val log = new TaskLogger(regLog)
+        | val str = cmd.mkString("> \\"", "\\" \\"", "\\"\\n")
         | if (!log.tee) println(str)
         | log.out(str)
         | FileUtil.mkdirs(${phiDof.name})
@@ -102,6 +103,6 @@ object RegisterImages {
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source phiDofSource hook CopyFileHook(regLog, regLogPath)
 
-    begin -- Skip(run on Env.long, s"${phiDof.name}.lastModified() >= ${affDof.name}.lastModified()")
+    begin -- Skip(run on Env.long, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
   }
 }

@@ -44,12 +44,12 @@ object IRTK extends Configurable("irtk") {
 
   /** Get IRTK command property */
   override def getCmdProperty(propName: String) = {
-    val cmd = getCmdProperty(propName)
+    val cmd = super.getCmdProperty(propName)
     Cmd(binPath(cmd.head)) ++ cmd.tail
   }
 
   /** Get IRTK command property */
-  override def getCmdOptionProperty(propName: String) = getCmdOptionProperty(propName) match {
+  override def getCmdOptionProperty(propName: String) = super.getCmdOptionProperty(propName) match {
     case Some(cmd) => Some(Cmd(binPath(cmd.head)) ++ cmd.tail)
     case None => None
   }

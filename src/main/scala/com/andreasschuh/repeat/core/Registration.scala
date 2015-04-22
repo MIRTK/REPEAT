@@ -28,14 +28,14 @@ import java.io.File
  * Registration object factory
  */
 object Registration {
+
+  /** Create info object for named registration */
   def apply(name: String) = new Registration(name)
 
-  /** Substitute <name> placeholder arguments by args("name") */
-  def command(template: Cmd, args: Map[String, String]) = template.map(arg => arg match {
-    case arg if arg.length > 2 && arg.head == '<' && arg.last == '>' => args(arg.tail.dropRight(1))
-    case arg => arg
-  })
+  /** Substitute placeholder arguments by args("name") */
+  def command(template: Cmd, args: Map[String, String]) = interpolate(template, args)
 }
+
 
 /**
  * Configuration of registration command whose performance is to be assessed
@@ -50,6 +50,15 @@ class Registration(val id: String) extends Configurable("registration." + id) {
 
   /** Output directory */
   val dir = new File(Workspace.outDir, id)
+
+  /** Optional command used to convert affine transformation from IRTK format to required input format */
+  val dof2affCmd = getCmdOptionProperty("dof2aff")
+
+  /** Directory of converted affine input transformations */
+  val affDir = dof2affCmd match {
+    case Some(_) => new File(dir, getStringProperty(".workspace.output.affs"))
+    case None => Workspace.dofAff
+  }
 
   /** Directory of computed transformations */
   val dofDir = new File(dir, getStringProperty(".workspace.output.dofs"))
@@ -68,9 +77,6 @@ class Registration(val id: String) extends Configurable("registration." + id) {
 
   /** File name suffix for output transformation */
   val phiSuf = getStringOptionProperty("phi-suffix") getOrElse Workspace.dofSuf
-
-  /** Optional command used to convert affine transformation from IRTK format to required input format */
-  val dof2affCmd = getCmdOptionProperty("dof2aff")
 
   /** Command to run image registration */
   val runCmd = getCmdProperty("command")
