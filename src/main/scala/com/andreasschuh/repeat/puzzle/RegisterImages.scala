@@ -51,13 +51,15 @@ object RegisterImages {
    * @param srcIm[in,out]  Path of source image
    * @param affDof[out]    Initial affine guess of transformation from target to source
    * @param phiDof[out]    Output transformation from target to source
+   * @param runTime[out]   Runtime of registration command in seconds
    *
    * @return Puzzle piece to compute transformation from target to source
    */
   def apply(reg: Registration, parId: Prototype[Int], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File],
             srcId: Prototype[Int], srcIm: Prototype[File],
-            affDof: Prototype[File], phiDof: Prototype[File]) = {
+            affDof: Prototype[File], phiDof: Prototype[File],
+            runTime: Prototype[Double]) = {
     import Workspace.{dofPre, logDir, logSuf}
     import FileUtil.join
 
@@ -92,14 +94,16 @@ object RegisterImages {
         | if (!log.tee) print(str)
         | log.out(str)
         | FileUtil.mkdirs(${phiDof.name})
+        | val startTime = System.nanoTime
         | val ret = cmd ! log
+        | val runTime = (System.nanoTime - startTime) / 1e-9
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
         imports     += ("com.andreasschuh.repeat.core.{Config,Registration,FileUtil,TaskLogger}", "scala.sys.process._"),
         usedClasses += Config.getClass,
         inputs      += (tgtIm, srcIm, affDof, regCmd, parId, parVal),
-        outputs     += (tgtIm, srcIm, phiDof),
+        outputs     += (tgtIm, srcIm, phiDof, runTime),
         outputFiles += ("output" + logSuf, regLog),
         regCmd      := reg.runCmd,
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))

@@ -91,6 +91,8 @@ object ComputeJacobian {
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ), strainer = true) source outJacSource
 
+    // TODO: Compute statistics of Jacobian determinant and store these in CSV file
+
     begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

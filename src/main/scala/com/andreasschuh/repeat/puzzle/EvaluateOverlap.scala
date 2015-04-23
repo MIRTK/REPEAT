@@ -187,7 +187,7 @@ object EvaluateOverlap {
       )
 
     // -----------------------------------------------------------------------------------------------------------------
-    // TODO: Print maximum overlap for each label group
+    // TODO: Print overlap for each label group of registration with parameters which overall resulted in best mean overlap
     /*
     val printMaxDsc = ScalaTask() set (
         name    := s"${reg.id}-PrintMaxDsc",

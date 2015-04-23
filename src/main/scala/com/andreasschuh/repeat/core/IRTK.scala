@@ -33,7 +33,7 @@ object IRTK extends Configurable("irtk") {
   /** Directory containing executable binaries */
   val dir = {
     val _dir = getFileProperty("dir")
-    if (!_dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
+    if (!_dir.exists()) throw new Exception(s"IRTK bin directory does not exist: ${_dir}")
     val ireg = new File(_dir, "ireg")
     if (!ireg.exists()) throw new Exception(s"Invalid IRTK version, missing ireg executable: $ireg")
     _dir

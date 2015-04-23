@@ -53,23 +53,24 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val regId  = Val[String] // ID/name of registration
-    val parId  = Val[Int]    // Parameter set ID (column index)
-    val parVal = Val[Map[String, String]] // Map from parameter name to value
-    val tgtId  = Val[Int]
-    val tgtIm  = Val[File]
-    val tgtSeg = Val[File]
-    val srcId  = Val[Int]
-    val srcIm  = Val[File]
-    val srcSeg = Val[File]
-    val iniDof = Val[File] // Pre-computed affine transformation
-    val preDof = Val[File] // Affine transformation converted to input format
-    val affDof = Val[File] // Affine transformation converted to input format
-    val phiDof = Val[File] // Output transformation of registration
-    val outDof = Val[File] // Output transformation converted to IRTK format
-    val outIm  = Val[File] // Deformed source image
-    val outSeg = Val[File] // Deformed source segmentation
-    val outJac = Val[File] // Jacobian determinant map
+    val regId   = Val[String] // ID/name of registration
+    val parId   = Val[Int]    // Parameter set ID (column index)
+    val parVal  = Val[Map[String, String]] // Map from parameter name to value
+    val tgtId   = Val[Int]
+    val tgtIm   = Val[File]
+    val tgtSeg  = Val[File]
+    val srcId   = Val[Int]
+    val srcIm   = Val[File]
+    val srcSeg  = Val[File]
+    val iniDof  = Val[File]   // Pre-computed affine transformation
+    val preDof  = Val[File]   // Affine transformation converted to input format
+    val affDof  = Val[File]   // Affine transformation converted to input format
+    val phiDof  = Val[File]   // Output transformation of registration
+    val outDof  = Val[File]   // Output transformation converted to IRTK format
+    val outIm   = Val[File]   // Deformed source image
+    val outSeg  = Val[File]   // Deformed source segmentation
+    val outJac  = Val[File]   // Jacobian determinant map
+    val runTime = Val[Double] // Runtime of registration command
 
     val setRegId = ScalaTask(s"""val regId = "${reg.id}"""") set (name := "setRegId", outputs += regId)
 
@@ -110,7 +111,7 @@ object RunRegistration {
     ) set (name := "forEachImPairAndPar", inputs += regId, outputs += regId)
 
     val run = setRegId -- forEachImPairAndPar -<
-      RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof) --
+      RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
       ConvertPhiToDof(reg, parId, tgtId, srcId, phiDof, outDof)
 
     val runEnd = Capsule(EmptyTask() set (name := "runEnd", inputs += outDof), strainer = true)
@@ -121,6 +122,8 @@ object RunRegistration {
       (runEnd -- DeformImage    (reg, parId, tgtId, tgtIm,  srcId, srcIm,  outDof, outIm )) +
       (runEnd -- DeformLabels   (reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)) +
       (runEnd -- ComputeJacobian(reg, parId, tgtId, tgtIm,  srcId,         outDof, outJac))
+
+    // TODO: Compute mean runtime for each parameter set and store it in CSV file
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow
