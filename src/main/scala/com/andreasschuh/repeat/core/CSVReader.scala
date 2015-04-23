@@ -28,7 +28,7 @@ import scala.io.Source
 /**
  * CSV helpers
  */
-object Csv {
+object CSVReader {
 
   /**
    * Read CSV file header

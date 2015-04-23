@@ -21,6 +21,8 @@
 
 package com.andreasschuh.repeat.core
 
+import FileUtil.{join, normalize}
+
 
 /**
  * Information about input dataset used for evaluation
@@ -30,11 +32,14 @@ object Dataset extends Configurable("dataset") {
   /** Whether the files in the dataset are readable by remote compute nodes */
   val shared = getBooleanProperty("shared") || Environment.localOnly
 
+  /** Top-level directory of dataset */
+  val dir = getFileProperty("dir")
+
   /** CSV file listing subject IDs of images */
-  val imgCsv = getFileProperty("images.csv")
+  val imgCsv = normalize(join(dir, getStringProperty("images.csv")))
 
   /** Directory containing the images */
-  val imgDir = getFileProperty("images.dir")
+  val imgDir = normalize(join(dir, getStringProperty("images.dir")))
 
   /** Image file name prefix (before subject ID) */
   val imgPre = getStringProperty("images.prefix")
@@ -43,10 +48,10 @@ object Dataset extends Configurable("dataset") {
   val imgSuf = getStringProperty("images.suffix")
 
   /** CSV file listing segmentation label numbers and names */
-  val segCsv = getFileProperty("labels.csv")
+  val segCsv = normalize(join(dir, getStringProperty("labels.csv")))
 
   /** Directory containing ground truth segmentation images */
-  val segDir = getFileProperty("labels.dir")
+  val segDir = normalize(join(dir, getStringProperty("labels.dir")))
 
   /** Segmentation image file name prefix (before subject ID) */
   val segPre = getStringProperty("labels.prefix")
@@ -58,13 +63,17 @@ object Dataset extends Configurable("dataset") {
   val refId  = getStringProperty("template.id")
 
   /** Template image used for spatial normalization */
-  val refIm  = getFileProperty("template.image")
+  val refIm  = normalize(join(dir, getStringProperty("template.image")))
 
   /** Directory of template image */
   val refDir = refIm.getParentFile
 
+  /** Name of template image (incl. extension) */
   val refName = refIm.getName
 
   /** File name extension of template image */
   val refSuf = FileUtil.getExtension(refIm)
+
+  /** Background intensity */
+  val bgVal = getIntProperty("images.bgvalue")
 }

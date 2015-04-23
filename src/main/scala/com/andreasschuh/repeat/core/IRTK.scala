@@ -66,8 +66,11 @@ object IRTK extends Configurable("irtk") {
   /** Default command to use for deforming segmentation images */
   val deformLabelsCmd = getCmdProperty("apply-nn")
 
-  /** Default command to use for computing Jacobian determinant */
+  /** Default command to use for computing Jacobian determinant map */
   val jacCmd = getCmdProperty("jacobian")
+
+  /** Default file name suffix/extension for Jacobian determinant map */
+  val jacSuf = getStringProperty("jac-suffix")
 
   /** Version information */
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")

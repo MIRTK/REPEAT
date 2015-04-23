@@ -60,7 +60,7 @@ object ConvertPhiToDof {
     val outDofSource = FileSource(outDofPath, outDof)
 
     val begin = Capsule(EmptyTask() set (
-        name    := s"${reg.id}-phi2dofBegin",
+        name    := s"${reg.id}-ConvertPhiToDofBegin",
         outputs += outDof
       ), strainer = true) source outDofSource
 
@@ -71,6 +71,8 @@ object ConvertPhiToDof {
           s"""
             | Config.dir(workDir)
             | val args = Map(
+            |   "regId"  -> "${reg.id}",
+            |   "parId"  -> ${parId.name}.toString,
             |   "in"     -> ${phiDof.name}.getPath,
             |   "phi"    -> ${phiDof.name}.getPath,
             |   "dof"    -> ${outDof.name}.getPath,
@@ -78,12 +80,14 @@ object ConvertPhiToDof {
             |   "dofout" -> ${outDof.name}.getPath
             | )
             | val cmd = Registration.command(template, args)
+            | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+            | print(str)
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert output transformation")
           """.stripMargin) set(
-            name     := s"${reg.id}-phi2dof",
+            name     := s"${reg.id}-ConvertPhiToDof",
             imports  += ("com.andreasschuh.repeat.core.{Config,Registration}", "scala.sys.process._"),
-            inputs   += (phiDof, template),
+            inputs   += (parId, phiDof, template),
             outputs  += outDof,
             template := command,
             taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
@@ -91,7 +95,7 @@ object ConvertPhiToDof {
         Capsule(task, strainer = true) source outDofSource
       case None =>
         val task = ScalaTask(s"val ${outDof.name} = ${phiDof.name}") set (
-            name    := s"${reg.id}-phi2dof",
+            name    := s"${reg.id}-UsePhiAsDof",
             inputs  += phiDof,
             outputs += outDof
           )

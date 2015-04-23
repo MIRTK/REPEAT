@@ -65,7 +65,7 @@ object RegisterImages {
     val regLog = Val[File]
 
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
-    val regLogPath = join(logDir, reg.id, "${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
+    val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val phiDofSource = FileSource(phiDofPath, phiDof)
 
@@ -78,16 +78,18 @@ object RegisterImages {
       s"""
         | Config.dir(workDir)
         | val args = ${parVal.name} ++ Map(
-        |   "target" -> ${tgtIm.name}.getAbsolutePath,
-        |   "source" -> ${srcIm.name}.getAbsolutePath,
-        |   "aff"    -> ${affDof.name}.getAbsolutePath,
-        |   "phi"    -> ${phiDof.name}.getAbsolutePath
+        |   "regId"  -> "${reg.id}",
+        |   "parId"  -> ${parId.name}.toString,
+        |   "target" -> ${tgtIm.name}.getPath,
+        |   "source" -> ${srcIm.name}.getPath,
+        |   "aff"    -> ${affDof.name}.getPath,
+        |   "phi"    -> ${phiDof.name}.getPath
         | )
         | val regLog = new java.io.File(workDir, "output$logSuf")
         | val cmd = Registration.command(${regCmd.name}, args)
         | val log = new TaskLogger(regLog)
-        | val str = cmd.mkString("> \\"", "\\" \\"", "\\"\\n")
-        | if (!log.tee) println(str)
+        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+        | if (!log.tee) print(str)
         | log.out(str)
         | FileUtil.mkdirs(${phiDof.name})
         | val ret = cmd ! log
@@ -96,7 +98,7 @@ object RegisterImages {
         name        := s"${reg.id}-RegisterImages",
         imports     += ("com.andreasschuh.repeat.core.{Config,Registration,FileUtil,TaskLogger}", "scala.sys.process._"),
         usedClasses += Config.getClass,
-        inputs      += (tgtIm, srcIm, affDof, regCmd, parVal),
+        inputs      += (tgtIm, srcIm, affDof, regCmd, parId, parVal),
         outputs     += (tgtIm, srcIm, phiDof),
         outputFiles += ("output" + logSuf, regLog),
         regCmd      := reg.runCmd,

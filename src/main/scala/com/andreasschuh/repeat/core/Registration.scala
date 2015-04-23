@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
+import FileUtil.{join, normalize}
 
 
 /**
@@ -48,29 +48,29 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** CSV file with command parameters */
   val parCsv = getFileProperty("params")
 
-  /** Output directory */
-  val dir = new File(Workspace.outDir, id)
-
   /** Optional command used to convert affine transformation from IRTK format to required input format */
   val dof2affCmd = getCmdOptionProperty("dof2aff")
 
   /** Directory of converted affine input transformations */
   val affDir = dof2affCmd match {
-    case Some(_) => new File(dir, getStringProperty(".workspace.output.affs"))
+    case Some(_) => normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.affs")))
     case None => Workspace.dofAff
   }
 
   /** Directory of computed transformations */
-  val dofDir = new File(dir, getStringProperty(".workspace.output.dofs"))
+  val dofDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.dofs")))
 
   /** Directory of deformed images */
-  val imgDir = new File(dir, getStringProperty(".workspace.output.images"))
+  val imgDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.images")))
 
   /** Directory of propagated label images */
-  val segDir = new File(dir, getStringProperty(".workspace.output.labels"))
+  val segDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.labels")))
 
   /** Directory of evaluation results */
-  val resDir = new File(dir, getStringProperty(".workspace.output.results"))
+  val resDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.results")))
+
+  /** File name suffix for Jacobian determinant map */
+  val jacSuf = getStringOptionProperty("jac-suffix") getOrElse IRTK.jacSuf
 
   /** File name suffix for converted affine input transformation */
   val affSuf = getStringOptionProperty("aff-suffix") getOrElse Workspace.dofSuf

@@ -61,7 +61,7 @@ object DeformLabels {
     import Dataset.{segPre, segSuf}
     import FileUtil.join
 
-    val outSegPath   = join(reg.segDir, s"$${${parId.name}}", segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
+    val outSegPath   = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
     val outSegSource = FileSource(outSegPath, outSeg)
 
     val begin = Capsule(EmptyTask() set (
@@ -80,6 +80,8 @@ object DeformLabels {
         |   "phi"    -> ${phiDof.name}.getPath
         | )
         | val cmd = Registration.command(${command.name}, args)
+        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+        | print(str)
         | FileUtil.mkdirs(${outSeg.name})
         | val ret = cmd.!
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")

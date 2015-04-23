@@ -44,14 +44,13 @@ object RegisterToTemplateRigid {
    * @return Puzzle to compute linear transformations from template image to input image
    */
   def apply(refIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File], dof: Prototype[File]) = {
-    import Dataset.refId
+
+    import Dataset.{refId, bgVal}
     import Workspace.{dofPre, dofSuf, dofRig, logDir, logSuf}
 
-    val configFile = Config().file
-
     val log = Val[File]
-    val dofPath = FileUtil.join(dofRig,     dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logPath = FileUtil.join(logDir, "rigid-reg", refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
+    val dofPath = FileUtil.join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logPath = FileUtil.join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val dofSource = FileSource(dofPath, dof)
 
@@ -67,7 +66,7 @@ object RegisterToTemplateRigid {
         | val log = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(log),
         |   "Transformation model" -> "Rigid",
-        |   "Background value" -> 0
+        |   "Background value" -> $bgVal
         | )
       """.stripMargin) set (
         name        := "ComputeRigidTemplateDofs",
@@ -76,7 +75,7 @@ object RegisterToTemplateRigid {
         inputs      += (refIm, srcId, srcIm),
         outputs     += (refIm, srcId, srcIm, dof),
         outputFiles += ("output" + logSuf, log),
-        taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ) source dofSource hook CopyFileHook(log, logPath)
 
     val cond1 = s"${dof.name}.lastModified() > ${refIm.name}.lastModified()"

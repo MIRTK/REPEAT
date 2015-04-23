@@ -56,7 +56,7 @@ object ConvertDofToAff {
     val affDofSource = FileSource(affDofPath, affDof)
 
     val begin = Capsule(EmptyTask() set (
-        name    := s"${reg.id}-dof2affBegin",
+        name    := s"${reg.id}-ConvertDofToAffBegin",
         outputs += affDof
       ), strainer = true) source affDofSource
 
@@ -66,6 +66,7 @@ object ConvertDofToAff {
         val task = ScalaTask(
           s"""
             | val args = Map(
+            |   "regId" -> "${reg.id}",
             |   "in"    -> ${iniDof.name}.getPath,
             |   "dof"   -> ${iniDof.name}.getPath,
             |   "dofin" -> ${iniDof.name}.getPath,
@@ -73,11 +74,13 @@ object ConvertDofToAff {
             |   "out"   -> ${affDof.name}.getPath
             | )
             | val cmd = Registration.command(template, args)
+            | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+            | print(str)
             | FileUtil.mkdirs(${affDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert affine transformation")
           """.stripMargin) set(
-            name     := s"${reg.id}-dof2aff",
+            name     := s"${reg.id}-ConvertDofToAff",
             imports  += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
             inputs   += iniDof,
             outputs  += affDof,
@@ -86,7 +89,7 @@ object ConvertDofToAff {
         Capsule(task, strainer = true) source affDofSource
       case None =>
         val task = ScalaTask(s"val ${affDof.name} = ${iniDof.name}") set (
-            name    := s"${reg.id}-dof2aff",
+            name    := s"${reg.id}-UseDofAsAff",
             inputs  += iniDof,
             outputs += affDof
           )

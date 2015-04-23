@@ -25,6 +25,7 @@ import com.typesafe.config.ConfigFactory
 import java.io.File
 import java.net.URL
 import scala.collection.JavaConverters._
+import FileUtil.normalize
 
 
 /**
@@ -124,10 +125,10 @@ class Config(configName: Option[String] = None, configDir: File = new File(Syste
   /** Get list of string values */
   def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
 
-  /** Get absolute path as java.io.File */
-  def getFile(propName: String) = FileUtil.normalize(new File(config.getString(propName)).getAbsoluteFile)
+  /** Get file path as java.io.File */
+  def getFile(propName: String): File = normalize(new File(config.getString(propName)).getAbsoluteFile)
 
-  /** Get absolute path as java.nio.file.Path */
+  /** Get file path as java.nio.file.Path */
   def getPath(propName: String) = getFile(propName).toPath
 
 }

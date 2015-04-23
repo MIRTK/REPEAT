@@ -33,6 +33,7 @@ import org.openmole.plugin.domain.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.source.file.FileSource
+import org.openmole.plugin.task.scala._
 
 
 /**
@@ -52,7 +53,8 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val parId  = Val[Int]  // Parameter set ID (column index)
+    val regId  = Val[String] // ID/name of registration
+    val parId  = Val[Int]    // Parameter set ID (column index)
     val parVal = Val[Map[String, String]] // Map from parameter name to value
     val tgtId  = Val[Int]
     val tgtIm  = Val[File]
@@ -68,6 +70,8 @@ object RunRegistration {
     val outIm  = Val[File] // Deformed source image
     val outSeg = Val[File] // Deformed source segmentation
     val outJac = Val[File] // Jacobian determinant map
+
+    val setRegId = ScalaTask(s"""val regId = "${reg.id}"""") set (name := "setRegId", outputs += regId)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
@@ -85,10 +89,10 @@ object RunRegistration {
         (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
         (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
         (iniDof in SelectFileDomain(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf))
-    ) set (name := "forEachImPair")
+    ) set (name := "forEachImPair", inputs += regId, outputs += regId)
 
-    val pre = forEachImPair -<
-      CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) --
+    val pre = setRegId -- forEachImPair -<
+      CopyFilesTo(Workspace.imgDir, tgtIm,  srcIm) --
       CopyFilesTo(Workspace.segDir, tgtSeg, srcSeg) --
       ConvertDofToAff(reg, tgtId, srcId, iniDof, preDof)
 
@@ -103,9 +107,9 @@ object RunRegistration {
         (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
         (srcSeg in SelectFileDomain(Workspace.segDir, segPre + "${srcId}" + segSuf)) x
         (affDof in SelectFileDomain(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
-    ) set (name := "forEachImPairAndPar")
+    ) set (name := "forEachImPairAndPar", inputs += regId, outputs += regId)
 
-    val run = forEachImPairAndPar -<
+    val run = setRegId -- forEachImPairAndPar -<
       RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof) --
       ConvertPhiToDof(reg, parId, tgtId, srcId, phiDof, outDof)
 
@@ -114,9 +118,9 @@ object RunRegistration {
     // -----------------------------------------------------------------------------------------------------------------
     // Post-registration steps
     val post =
-      (runEnd -- DeformImage(reg, parId, tgtId, tgtIm, srcId, srcIm, outDof, outIm)) +
-      (runEnd -- DeformLabels(reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)) +
-      (runEnd -- ComputeJacobian(reg, parId, tgtId, srcId, outDof, outJac))
+      (runEnd -- DeformImage    (reg, parId, tgtId, tgtIm,  srcId, srcIm,  outDof, outIm )) +
+      (runEnd -- DeformLabels   (reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)) +
+      (runEnd -- ComputeJacobian(reg, parId, tgtId, tgtIm,  srcId,         outDof, outJac))
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow

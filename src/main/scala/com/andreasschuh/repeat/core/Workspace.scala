@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
+import FileUtil.{join, normalize}
 
 
 /**
@@ -40,30 +40,37 @@ object Workspace extends Configurable("workspace") {
    *
    * This directory is used as root of file system used by PRoot if workspace is shared.
    */
-  val rootFS = new File(dir, "rootfs")
+  val rootFS = join(dir, "rootfs")
 
   /** Whether dataset files have to be copied to workspace */
   def copyDataset = shared && !Dataset.shared && Bin.shared
 
   /** Local directory containing input images of dataset */
-  val imgDir = if (copyDataset) new File(rootFS, getStringProperty("images.dir")) else Dataset.imgDir
+  val imgDir = if (copyDataset) {
+    normalize(join(rootFS, getStringProperty("images.dir")))
+  } else {
+    Dataset.imgDir
+  }
 
   /** Local directory containing input label images of dataset */
-  val segDir = if (copyDataset) new File(rootFS, getStringProperty("labels.dir")) else Dataset.segDir
+  val segDir = if (copyDataset) {
+    normalize(join(rootFS, getStringProperty("labels.dir")))
+  } else {
+    Dataset.segDir
+  }
 
   /** Local directory containing input template image */
   val refDir = if (copyDataset) imgDir else Dataset.refIm.getParentFile
 
   /** Local path of input template image */
-  val refIm  = new File(refDir, Dataset.refIm.getName)
+  val refIm  = join(refDir, Dataset.refIm.getName)
 
-  val dofDir = new File(rootFS, getStringProperty("dofs.dir"))
-  val dofRig = new File(rootFS, getStringProperty("dofs.rigid"))
-  val dofIni = new File(rootFS, getStringProperty("dofs.initial"))
-  val dofAff = new File(rootFS, getStringProperty("dofs.affine"))
+  val dofDir = normalize(join(rootFS, getStringProperty("dofs.dir")))
+  val dofRig = normalize(join(dofDir, getStringProperty("dofs.rigid")))
+  val dofIni = normalize(join(dofDir, getStringProperty("dofs.initial")))
+  val dofAff = normalize(join(dofDir, getStringProperty("dofs.affine")))
   val dofPre = getStringProperty("dofs.prefix")
   val dofSuf = getStringProperty("dofs.suffix")
-  val outDir = new File(rootFS, getStringProperty("output.dir"))
-  val logDir = new File(rootFS, getStringProperty("logs.dir"))
+  val logDir = normalize(join(rootFS, getStringProperty("logs.dir")))
   val logSuf = getStringProperty("logs.suffix")
 }

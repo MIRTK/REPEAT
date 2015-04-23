@@ -46,14 +46,13 @@ object RegisterToTemplateAffine {
    */
   def apply(refIm:  Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
             iniDof: Prototype[File], dof:   Prototype[File]) = {
-    import Dataset.refId
+
+    import Dataset.{refId, bgVal}
     import Workspace.{dofPre, dofSuf, dofAff, logDir, logSuf}
 
-    val configFile = Config().file
-
     val log = Val[File]
-    val dofPath = FileUtil.join(dofAff,      dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logPath = FileUtil.join(logDir, "affine-reg", refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
+    val dofPath = FileUtil.join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logPath = FileUtil.join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val dofSource = FileSource(dofPath, dof)
 
@@ -69,7 +68,7 @@ object RegisterToTemplateAffine {
       | val log = new java.io.File(workDir, "output$logSuf")
       | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(log),
       |   "Transformation model" -> "Affine",
-      |   "Padding value" -> 0
+      |   "Padding value" -> $bgVal
       | )
     """.stripMargin) set (
       name        := "ComputeAffineTemplateDofs",
@@ -78,7 +77,7 @@ object RegisterToTemplateAffine {
       inputs      += (refIm, srcId, srcIm, iniDof),
       outputs     += (refIm, srcId, srcIm, iniDof, dof),
       outputFiles += ("output" + logSuf, log),
-      taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+      taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
     ) source dofSource hook CopyFileHook(log, logPath)
 
     begin -- Skip(reg on Env.short, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")

@@ -53,18 +53,18 @@ object PreRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val refIm     = Val[File]
-    val refRigDof = Val[File]
-    val refAffDof = Val[File]
-    val tgtId     = Val[Int]
-    val tgtIm     = Val[File]
-    val tgtDof    = Val[File]
-    val srcId     = Val[Int]
-    val srcIm     = Val[File]
-    val srcDof    = Val[File]
-    val iniDof    = Val[File]
-    val affDof    = Val[File]
-    val invDof    = Val[File]
+    val refIm     = Val[File] // Template image
+    val refRigDof = Val[File] // Rigid template to image transformation
+    val refAffDof = Val[File] // Affine template to image transformation
+    val tgtId     = Val[Int]  // Target image ID
+    val tgtIm     = Val[File] // Target image
+    val tgtDof    = Val[File] // Template to target transformation
+    val srcId     = Val[Int]  // Source image ID
+    val srcIm     = Val[File] // Source image
+    val srcDof    = Val[File] // Template to source transformation
+    val iniDof    = Val[File] // Composition: inv(srcDof) o tgtDof
+    val affDof    = Val[File] // Affine target to source transformation
+    val invDof    = Val[File] // Affine source to target transformation
 
     // -----------------------------------------------------------------------------------------------------------------
     // Image ID samplings

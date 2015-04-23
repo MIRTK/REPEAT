@@ -61,7 +61,7 @@ object DeformImage {
     import Dataset.{imgPre, imgSuf}
     import FileUtil.join
 
-    val outImPath   = join(reg.imgDir, s"$${${parId.name}}", imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
+    val outImPath   = join(reg.imgDir, imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
     val outImSource = FileSource(outImPath, outIm)
 
     val begin = Capsule(EmptyTask() set (
@@ -80,6 +80,8 @@ object DeformImage {
          |   "phi"    -> ${phiDof.name}.getPath
          | )
          | val cmd = Registration.command(${command.name}, args)
+         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+         | print(str)
          | FileUtil.mkdirs(${outIm.name})
          | val ret = cmd.!
          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")

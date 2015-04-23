@@ -53,13 +53,12 @@ object ComputeJacobian {
    * @return Puzzle piece to compute Jacobian determinant map
    */
   def apply(reg: Registration, parId: Prototype[Int],
-            tgtId: Prototype[Int], srcId: Prototype[Int],
+            tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int],
             phiDof: Prototype[File], outJac: Prototype[File]) = {
-    import Dataset.imgSuf
     import Workspace.dofPre
     import FileUtil.join
 
-    val outJacPath   = join(reg.dofDir, s"$${${parId.name}}", dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + imgSuf).getAbsolutePath
+    val outJacPath   = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.jacSuf).getAbsolutePath
     val outJacSource = FileSource(outJacPath, outJac)
 
     val begin = Capsule(EmptyTask() set (
@@ -72,10 +71,13 @@ object ComputeJacobian {
       s"""
          | Config.dir(workDir)
          | val args = Map(
-         |   "phi" -> ${phiDof.name}.getPath,
-         |   "out" -> ${outJac.name}.getPath
+         |   "target" -> ${tgtIm.name}.getPath,
+         |   "phi"    -> ${phiDof.name}.getPath,
+         |   "out"    -> ${outJac.name}.getPath
          | )
          | val cmd = Registration.command(${command.name}, args)
+         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+         | print(str)
          | FileUtil.mkdirs(${outJac.name})
          | val ret = cmd.!
          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
@@ -83,7 +85,7 @@ object ComputeJacobian {
         name        := s"${reg.id}-ComputeJacobian",
         imports     += ("com.andreasschuh.repeat.core.{Config,FileUtil,Registration}", "scala.sys.process._"),
         usedClasses += Config.getClass,
-        inputs      += (phiDof, command),
+        inputs      += (tgtIm, phiDof, command),
         outputs     += (phiDof, outJac),
         command     := reg.jacCmd,
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))

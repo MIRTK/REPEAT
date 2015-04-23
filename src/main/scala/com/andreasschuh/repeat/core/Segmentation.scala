@@ -27,7 +27,7 @@ package com.andreasschuh.repeat.core
  */
 object Segmentation {
 
-  protected val info  = Csv.fromFile(Dataset.segCsv)
+  protected val info  = CSVReader.fromFile(Dataset.segCsv)
   protected val nrows = info("Label Number").length
 
   /** All label numbers */

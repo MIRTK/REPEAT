@@ -60,13 +60,13 @@ object RegisterImagesSymAffine {
   def apply(tgtId:  Prototype[Int],  tgtIm:  Prototype[File], srcId:  Prototype[Int], srcIm: Prototype[File],
             iniDof: Prototype[File], outDof: Prototype[File], invDof: Prototype[File]) = {
 
-    val configFile = Config().file
+    import Dataset.bgVal
     import Workspace.{dofAff, dofPre, dofSuf, logDir, logSuf}
 
     val regLog = Val[File]
-    val outDofPath = FileUtil.join(dofAff, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val invDofPath = FileUtil.join(dofAff, dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
-    val regLogPath = FileUtil.join(logDir, "affine-reg", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
+    val invDofPath = FileUtil.join(dofAff,        dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
+    val outDofPath = FileUtil.join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val regLogPath = FileUtil.join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val outDofSource = FileSource(outDofPath, outDof)
     val invDofSource = FileSource(invDofPath, invDof)
@@ -84,7 +84,7 @@ object RegisterImagesSymAffine {
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
         |   "No. of resolution levels" -> 2,
-        |   "Padding value" -> 0
+        |   "Padding value" -> $bgVal
         | )
       """.stripMargin) set (
         name        := "AffineRegImagesSym",
@@ -93,7 +93,7 @@ object RegisterImagesSymAffine {
         inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputFiles += ("output" + logSuf, regLog),
-        taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ) source outDofSource hook CopyFileHook(regLog, regLogPath)
 
     val invBegin = EmptyTask() set (
@@ -112,7 +112,7 @@ object RegisterImagesSymAffine {
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof),
-        taskBuilder => configFile.foreach(taskBuilder.addResource(_))
+        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       ) source invDofSource
 
     regBegin -- Skip(regTask on Env.short, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --

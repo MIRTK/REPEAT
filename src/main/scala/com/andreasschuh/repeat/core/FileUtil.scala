@@ -71,7 +71,7 @@ object FileUtil {
   /** Join two path strings */
   def join(a: String, b: String): String = {
     val file = new File(b)
-    if (file.isAbsolute) file.getPath()
+    if (file.isAbsolute) file.getPath
     else new File(a, b).toString
   }
 

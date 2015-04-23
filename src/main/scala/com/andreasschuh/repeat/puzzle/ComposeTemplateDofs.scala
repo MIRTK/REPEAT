@@ -69,7 +69,7 @@ object ComposeTemplateDofs {
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        imports     += "com.andreasschuh.repeat.core.{Config,IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
