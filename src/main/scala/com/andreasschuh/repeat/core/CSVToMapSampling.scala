@@ -23,30 +23,20 @@ package com.andreasschuh.repeat.core
 
 import java.io.File
 
+import org.openmole.core.workflow.data.{Prototype, Variable, Context}
+import org.openmole.core.workflow.sampling.Sampling
+import scala.util.Random
 
-/**
- * SLURM related settings
- */
-object SLURM extends Configurable("environment.slurm") {
 
-  /** Hostname of SLURM head node */
-  val host = getStringProperty("host")
+object CSVToMapSampling {
 
-  /** SLURM user name */
-  val user = getStringProperty("user")
+  def apply(file: File, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
+}
 
-  /** Name of specified queue (e.g., "long" or "short") */
-  def queue(name: String): String = getStringProperty(s"queue.$name")
+abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
 
-  /** Authentication token for SLURM head node, e.g., name of SSH key file or password */
-  val auth = getStringProperty("auth")
+  override def prototypes = List(p)
 
-  /** SSH key file if specified as authentication token */
-  val sshKey: Option[File] = auth match {
-    case "id_dsa" | "id_rsa" =>
-      val sshDir = new File(System.getProperty("user.home"), ".ssh")
-      if (sshDir.exists()) Some[File](new File(sshDir, auth))
-      else None
-    case _ => None
-  }
+  override def build(context: ⇒ Context)(implicit rng: Random): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
+
 }

@@ -19,34 +19,36 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.workflow
 
 import java.io.File
+import scala.language.postfixOps
+import scala.language.reflectiveCalls
+
+import com.andreasschuh.repeat.core._
+import com.andreasschuh.repeat.puzzle._
+
+import org.openmole.core.dsl._
+import org.openmole.plugin.domain.file._
+import org.openmole.plugin.sampling.combine._
+import org.openmole.plugin.sampling.csv._
+import org.openmole.plugin.source.file.FileSource
 
 
 /**
- * SLURM related settings
+ * Assess quality of registration results
  */
-object SLURM extends Configurable("environment.slurm") {
+object EvalRegistration {
 
-  /** Hostname of SLURM head node */
-  val host = getStringProperty("host")
+  /**
+   * @param reg Registration info
+   *
+   * @return Workflow puzzle for evaluating the registration results
+   */
+  def apply(reg: Registration) = {
 
-  /** SLURM user name */
-  val user = getStringProperty("user")
-
-  /** Name of specified queue (e.g., "long" or "short") */
-  def queue(name: String): String = getStringProperty(s"queue.$name")
-
-  /** Authentication token for SLURM head node, e.g., name of SSH key file or password */
-  val auth = getStringProperty("auth")
-
-  /** SSH key file if specified as authentication token */
-  val sshKey: Option[File] = auth match {
-    case "id_dsa" | "id_rsa" =>
-      val sshDir = new File(System.getProperty("user.home"), ".ssh")
-      if (sshDir.exists()) Some[File](new File(sshDir, auth))
-      else None
-    case _ => None
+    // -----------------------------------------------------------------------------------------------------------------
+    // Assess label overlap
+    EvaluateOverlap(reg)
   }
 }

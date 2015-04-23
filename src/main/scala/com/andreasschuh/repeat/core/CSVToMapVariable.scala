@@ -21,32 +21,23 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
+import java.io.{FileReader, File}
+
+import au.com.bytecode.opencsv.CSVReader
+import org.openmole.core.workflow.data.{Prototype, Variable, Context}
 
 
-/**
- * SLURM related settings
- */
-object SLURM extends Configurable("environment.slurm") {
+trait CSVToMapVariable {
 
-  /** Hostname of SLURM head node */
-  val host = getStringProperty("host")
+  def separator: Char
 
-  /** SLURM user name */
-  val user = getStringProperty("user")
-
-  /** Name of specified queue (e.g., "long" or "short") */
-  def queue(name: String): String = getStringProperty(s"queue.$name")
-
-  /** Authentication token for SLURM head node, e.g., name of SSH key file or password */
-  val auth = getStringProperty("auth")
-
-  /** SSH key file if specified as authentication token */
-  val sshKey: Option[File] = auth match {
-    case "id_dsa" | "id_rsa" =>
-      val sshDir = new File(System.getProperty("user.home"), ".ssh")
-      if (sshDir.exists()) Some[File](new File(sshDir, auth))
-      else None
-    case _ => None
+  def toMapVariable(file: File, p: Prototype[Map[String, String]], context: Context): Iterator[Iterable[Variable[_]]] = {
+    val reader = new CSVReader(new FileReader(file), separator)
+    val header = reader.readNext.toArray
+    Iterator.continually(reader.readNext).takeWhile(_ != null).map {
+      line ⇒ List(Variable(p, line.view.zipWithIndex.map {
+        case (value, column) => header(column) -> value
+      }.toMap))
+    }
   }
 }

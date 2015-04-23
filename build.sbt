@@ -47,3 +47,7 @@ libraryDependencies += "org.openmole" %% "org-openmole-plugin-hook-file" % openM
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-sampling-combine" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-sampling-csv" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-source-file" % openMOLEVersion
+
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-tool-pattern" % openMOLEVersion

@@ -1,37 +1,104 @@
+/*
+ * Registration Performance Assessment Tool (REPEAT)
+ *
+ * Copyright (C) 2015  Andreas Schuh
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU Affero General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Affero General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Affero General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
+ */
+
 package com.andreasschuh.repeat.core
 
 import scala.sys.process._
 import java.io.File
+
 
 /**
  * Interface to IRTK executables
  */
 object IRTK extends Configurable("irtk") {
 
-  /// Directory containing executable binaries
-  val binDir = {
-    val dir = getFileProperty("bindir")
-    if (!dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
-    val ireg = new File(dir, "ireg")
+  /** Directory containing executable binaries */
+  val dir = {
+    val _dir = getFileProperty("dir")
+    if (!_dir.exists()) throw new Exception(s"IRTK bin directory does not exist: ${_dir}")
+    val ireg = new File(_dir, "ireg")
     if (!ireg.exists()) throw new Exception(s"Invalid IRTK version, missing ireg executable: $ireg")
-    dir
+    _dir
   }
 
-  /// Maximum number of threads to be used by each command
+  /** Absolute path of binary IRTK executable */
+  def binPath(name: String): String = new File(dir, name).getPath
+
+  /** Get IRTK command property */
+  override def getCmdProperty(propName: String) = {
+    val cmd = super.getCmdProperty(propName)
+    Cmd(binPath(cmd.head)) ++ cmd.tail
+  }
+
+  /** Get IRTK command property */
+  override def getCmdOptionProperty(propName: String) = super.getCmdOptionProperty(propName) match {
+    case Some(cmd) => Some(Cmd(binPath(cmd.head)) ++ cmd.tail)
+    case None => None
+  }
+
+  /** Maximum number of threads to be used by each command */
   val threads = getIntProperty("threads") match {
     case n if n <= 0 => Runtime.getRuntime.availableProcessors()
     case n if n >  0 => n
   }
 
-  /// Version information
-  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
+  /** Default command to use for deforming images */
+  val deformImageCmd = getCmdProperty("apply")
 
-  /// Git commit SHA
-  def revision: String = s"$binDir/ireg -revision".!!.trim
+  /** Default command to use for deforming segmentation images */
+  val deformLabelsCmd = getCmdProperty("apply-nn")
 
-  /// Execute IRTK command
+  /** Default command to use for computing Jacobian determinant map */
+  val jacCmd = getCmdProperty("jacobian")
+
+  /** Default file name suffix/extension for Jacobian determinant map */
+  val jacSuf = getStringProperty("jac-suffix")
+
+  /** Version information */
+  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$dir/ireg -version".!!).getOrElse("1.0")
+
+  /** Git commit SHA */
+  def revision: String = s"$dir/ireg -revision".!!.trim
+
+  /** List of used IRTK applications with arguments used for packing them using CARE */
+  private def usedApplications = Seq("ireg", "dofprint", "dofinvert", "dofcombine", "ffdcompose", "transformation", "labelStats").map {
+    name => Cmd(new File(dir, name).getAbsolutePath, "-version")
+  }
+
+  /**
+   * Pack all used IRTK executables into a single archive
+   * @param dir Shared working directory
+   * @return Resource files needed by tasks to execute commands
+   */
+  def resources(dir: File): Seq[File] = Bin.pack(dir, usedApplications: _*)
+
+  /**
+   * Pack all used IRTK executables into a single archive
+   * @return Archive file needed by tasks to execute packed commands
+   */
+  def archive(): File = Bin.pack("IRTK-" + version + "-" + revision, usedApplications: _*)
+
+  /** Execute IRTK command */
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
-    val cmd = Seq[String](Path.join(binDir, command).getAbsolutePath) ++ args
+    val cmd = Seq[String](FileUtil.join(dir, command).getAbsolutePath) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     print('\n')
     val returnCode = log match {
@@ -50,29 +117,29 @@ object IRTK extends Configurable("irtk") {
     returnCode
   }
 
-  /// Type of transformation file
+  /** Type of transformation file */
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq[String](Path.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
+    Seq[String](FileUtil.join(dir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
   }
 
-  /// Whether given transformation is linear
+  /** Whether given transformation is linear */
   def isLinear(dof: File): Boolean = dofType(dof) match {
     case "irtkRigidTransformation" | "irtkAffineTransformation" | "irtkSimilarityTransformation" => true
     case _ => false
   }
 
-  /// Whether given transformation is a FFD
+  /** Whether given transformation is a FFD */
   def isFFD(dof: File): Boolean = !isLinear(dof)
 
-  /// Invert transformation
+  /** Invert transformation */
   def invert(dofIn: File, dofOut: File): Int = {
     if (!dofIn.exists()) throw new Exception(s"Input transformation does not exist: ${dofIn.getAbsolutePath}")
     dofOut.getAbsoluteFile.getParentFile.mkdirs()
     execute(if (isLinear(dofIn)) "dofinvert" else "ffdinvert", Seq(dofIn.getAbsolutePath, dofOut.getAbsolutePath))
   }
 
-  /// Compose transformations: (dof2 o dof1)
+  /** Compose transformations: (dof2 o dof1) */
   def compose(dof1: File, dof2: File, dofOut: File, invert1: Boolean = false, invert2: Boolean = false): Int = {
     if (!dof1.exists()) throw new Exception(s"Input dof1 does not exist: ${dof1.getAbsolutePath}")
     if (!dof2.exists()) throw new Exception(s"Input dof2 does not exist: ${dof2.getAbsolutePath}")
@@ -90,7 +157,7 @@ object IRTK extends Configurable("irtk") {
     }
   }
 
-  /// Compute image transformation using ireg
+  /** Compute image transformation using ireg */
   def ireg(target: File, source: File, dofin: Option[File], dofout: File, log: Option[File], params: (String, Any)*): Int = {
     if (!target.exists) throw new Exception(s"Target image does not exist: ${target.getAbsolutePath}")
     if (!source.exists) throw new Exception(s"Source image does not exist: ${source.getAbsolutePath}")
@@ -111,17 +178,18 @@ object IRTK extends Configurable("irtk") {
     execute("ireg", Seq(target.getAbsolutePath, source.getAbsolutePath, "-threads", threads.toString) ++ din ++ dout ++ opts, log)
   }
 
-  /** Transform/resample image
-    *
-    * @param source Image to be transformed.
-    * @param output Transformed output image.
-    * @param dofin Transformation from target to source.
-    * @param interpolation Interpolation method to use, e.g., "NN", "Linear", "Cubic".
-    * @param target Fixed target image.
-    * @param matchInputType Whether to match the type of the input source instead of the target.
-    *
-    * @return Zero exit code upon success.
-    */
+  /**
+   * Transform/resample image
+   *
+   * @param source Image to be transformed.
+   * @param output Transformed output image.
+   * @param dofin Transformation from target to source.
+   * @param interpolation Interpolation method to use, e.g., "NN", "Linear", "Cubic".
+   * @param target Fixed target image.
+   * @param matchInputType Whether to match the type of the input source instead of the target.
+   *
+   * @return Zero exit code upon success.
+   */
   def transform(source: File, output: File, dofin: File,
                 interpolation: String = "Linear",
                 target: Option[File] = None,

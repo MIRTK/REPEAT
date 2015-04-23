@@ -19,35 +19,23 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.app
+val csvFile = new java.io.File("Config/ireg-ffd.csv")
 
-import scala.sys.process.ProcessLogger
-
-
-/**
- * OpenMOLE console output logger
- */
-class Logger extends ProcessLogger {
-
-  /**
-   * Ignore all output to STDOUT until OpenMOLE console is started up
-   * (in particular, don't print ASCII art OpenMOLE splash screen)
-   */
-  protected var startedUp: Boolean = false
-
-  /** Process STDOUT line */
-  def out(s: => String): Unit = {
-    startedUp = startedUp || s.startsWith("OpenMOLE>")
-    val ignore = !startedUp || s.contains("feature warning") ||
-      "OpenMOLE>|import |[a-zA-Z_][a-zA-Z0-9_]*: ".r.findPrefixOf(s) != None
-    if (!ignore) println(s)
-  }
-
-  /** Process STDERR line */
-  def err(s: => String): Unit = {
-    println(s)
-  }
-
-  /** Wrap process execution */
-  def buffer[T](f: => T): T = f
+if (csvFile.exists) {
+  csvFile.delete()
+} else {
+  val csvDir = csvFile.getParentFile
+  if (csvDir != null) csvDir.mkdirs()
 }
+
+val ds = Val[Double] // Control point spacing
+val be = Val[Double] // Bending energy weight
+
+val params = {
+  (ds in List(2.5)) x
+  (be in List(.0, .0001, .0005, .001, .005, .01, .05))
+}
+
+val write = Capsule(EmptyTask(), strainer = true) hook AppendToCSVFileHook(csvFile, ds, be)
+val exec  = ExplorationTask(params) -< write start
+exec.waitUntilEnded

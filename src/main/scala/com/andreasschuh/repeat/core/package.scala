@@ -19,34 +19,27 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
-
-import java.io.File
-
+package com.andreasschuh.repeat
 
 /**
- * SLURM related settings
+ * The core of the REPEAT package
  */
-object SLURM extends Configurable("environment.slurm") {
+package object core {
 
-  /** Hostname of SLURM head node */
-  val host = getStringProperty("host")
+  /** Type used for sequence of command name/path and arguments to be executed */
+  type Cmd = Seq[String]
 
-  /** SLURM user name */
-  val user = getStringProperty("user")
-
-  /** Name of specified queue (e.g., "long" or "short") */
-  def queue(name: String): String = getStringProperty(s"queue.$name")
-
-  /** Authentication token for SLURM head node, e.g., name of SSH key file or password */
-  val auth = getStringProperty("auth")
-
-  /** SSH key file if specified as authentication token */
-  val sshKey: Option[File] = auth match {
-    case "id_dsa" | "id_rsa" =>
-      val sshDir = new File(System.getProperty("user.home"), ".ssh")
-      if (sshDir.exists()) Some[File](new File(sshDir, auth))
-      else None
-    case _ => None
+  /** Construct command name and arguments sequence */
+  object Cmd {
+    def apply(name: String, args: String*): Cmd = Seq(name) ++ args.toSeq
   }
+
+  /** Replace occurrences of ${name} in s by v("name") */
+  def interpolate(s: String, v: Map[String, _]): String = {
+    val getGroup = (_: scala.util.matching.Regex.Match) group 1
+    "\\$\\{([^}]*)\\}".r.replaceSomeIn(s, getGroup andThen v.lift andThen (_ map (_.toString)))
+  }
+
+  /** Replace occurrences of ${name} in s by v("name") */
+  def interpolate(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => interpolate(s, v))
 }
