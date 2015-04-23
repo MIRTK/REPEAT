@@ -31,16 +31,16 @@ import java.io.File
 object IRTK extends Configurable("irtk") {
 
   /** Directory containing executable binaries */
-  val binDir = {
-    val dir = getFileProperty("dir")
-    if (!dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
-    val ireg = new File(dir, "ireg")
+  val dir = {
+    val _dir = getFileProperty("dir")
+    if (!_dir.exists()) throw new Exception(s"IRTK bin directory does not exist: $dir")
+    val ireg = new File(_dir, "ireg")
     if (!ireg.exists()) throw new Exception(s"Invalid IRTK version, missing ireg executable: $ireg")
-    dir
+    _dir
   }
 
   /** Absolute path of binary IRTK executable */
-  def binPath(name: String): String = new File(binDir, name).getPath
+  def binPath(name: String): String = new File(dir, name).getPath
 
   /** Get IRTK command property */
   override def getCmdProperty(propName: String) = {
@@ -73,14 +73,14 @@ object IRTK extends Configurable("irtk") {
   val jacSuf = getStringProperty("jac-suffix")
 
   /** Version information */
-  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$binDir/ireg -version".!!).getOrElse("1.0")
+  def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$dir/ireg -version".!!).getOrElse("1.0")
 
   /** Git commit SHA */
-  def revision: String = s"$binDir/ireg -revision".!!.trim
+  def revision: String = s"$dir/ireg -revision".!!.trim
 
   /** List of used IRTK applications with arguments used for packing them using CARE */
   private def usedApplications = Seq("ireg", "dofprint", "dofinvert", "dofcombine", "ffdcompose", "transformation", "labelStats").map {
-    name => Cmd(new File(binDir, name).getAbsolutePath, "-version")
+    name => Cmd(new File(dir, name).getAbsolutePath, "-version")
   }
 
   /**
@@ -98,7 +98,7 @@ object IRTK extends Configurable("irtk") {
 
   /** Execute IRTK command */
   protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
-    val cmd = Seq[String](FileUtil.join(binDir, command).getAbsolutePath) ++ args
+    val cmd = Seq[String](FileUtil.join(dir, command).getAbsolutePath) ++ args
     val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
     print('\n')
     val returnCode = log match {
@@ -120,7 +120,7 @@ object IRTK extends Configurable("irtk") {
   /** Type of transformation file */
   def dofType(dof: File): String = {
     if (!dof.exists()) throw new Exception(s"Tranformation does not exist: ${dof.getAbsolutePath}")
-    Seq[String](FileUtil.join(binDir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
+    Seq[String](FileUtil.join(dir, "dofprint").getAbsolutePath, dof.getAbsolutePath, "-type").!!.trim
   }
 
   /** Whether given transformation is linear */
