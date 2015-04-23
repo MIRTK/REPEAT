@@ -38,6 +38,7 @@ object Main extends App {
   val script =
     """
       | import com.andreasschuh.repeat.workflow._
+      | import com.andreasschuh.repeat.core.Registration
       | val reg = Registration(args(0))
       | PreRegistration ()   .start.waitUntilEnded
       | RunRegistration (reg).start.waitUntilEnded

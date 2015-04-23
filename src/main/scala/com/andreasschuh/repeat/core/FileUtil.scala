@@ -56,6 +56,30 @@ object FileUtil {
     case _ => ""
   }
 
+  /** Backup file if it exists */
+  def backup(f: File, rm: Boolean = false): Unit = {
+    if (f.exists) {
+      val ext  = getExtension(f)
+      val base = f.getPath.dropRight(ext.length)
+      var idx  = 1
+      val max  = 100
+      var bak  = new File(s"$base-$idx$ext")
+      while (bak.exists && idx < max) {
+        idx = idx + 1
+        bak = new File(s"$base-$idx$ext")
+      }
+      if (idx == max) {
+        idx = 1
+        bak = new File(s"$base-$idx$ext")
+      }
+      copy(f, bak)
+      if (rm) f.delete()
+    }
+  }
+
+  /** Backup file if it exists */
+  def backup(f: String, rm: Boolean): Unit = backup(new File(f), rm)
+
   /** Make parent directories (of file) */
   def mkdirs(file: File) = {
     val parent = file.getParentFile

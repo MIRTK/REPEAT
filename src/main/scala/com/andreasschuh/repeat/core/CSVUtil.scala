@@ -21,14 +21,14 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
+import java.io.{PrintWriter, File}
 import scala.io.Source
 
 
 /**
  * CSV helpers
  */
-object CSVReader {
+object CSVUtil {
 
   /**
    * Read CSV file header
@@ -52,8 +52,22 @@ object CSVReader {
     val src = Source.fromFile(file)
     try {
       src.getLines().map(_.split(",")).toArray.transpose.map(row => row.head -> row.tail).toMap
-    } finally {
-      src.close()
-    }
+    } finally src.close()
+  }
+
+  /**
+   * Write Table to CSV file
+   * @param file
+   * @param table
+   */
+  def writeFile(file: File, table: Array[Array[Double]], header: Option[Array[String]]): Unit = {
+    val res = new PrintWriter(file)
+    try {
+      header match {
+        case Some(hdr) => res.write(hdr.mkString(",") + "\n")
+        case None =>
+      }
+      table.foreach(row => res.write(row.mkString(",") + "\n"))
+    } finally res.close()
   }
 }

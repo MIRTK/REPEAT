@@ -49,8 +49,6 @@ object EvalRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Assess label overlap
-    val evalOverlap = EvaluateOverlap(reg)
-
-    evalOverlap
+    EvaluateOverlap(reg)
   }
 }
