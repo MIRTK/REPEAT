@@ -45,6 +45,25 @@ object Main extends App {
       | EvalRegistration(reg).start.waitUntilEnded
     """.stripMargin
 
+  // Check arguments
+  if (args.length != 1) {
+    System.err.println(
+      """
+        | Required arguments:
+        |   reg   Name of registration whose performance should be assessed.
+        |         Must correspond to a "registrations" entry in the repeat.conf file.
+      """.stripMargin.trim)
+    System.exit(1)
+  }
+  try {
+    val reg = Registration(args(0))
+  } catch {
+    case e: Exception => {
+      System.err.println("Unknown registration: " + args(0))
+      System.exit(1)
+    }
+  }
+
   // Execute workflow script in OpenMOLE console
   val istream = new ByteArrayInputStream(script.getBytes("UTF-8"))
   val logger  = new Logger
