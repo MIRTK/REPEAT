@@ -60,14 +60,14 @@ object CSVUtil {
    * @param file
    * @param table
    */
-  def writeFile(file: File, table: Array[_ <: Array[_]], header: Option[Array[String]], append: Boolean = false): Unit = {
+  def writeFile(file: File, table: Array[Array[_]], header: Option[Array[String]], append: Boolean = false): Unit = {
     val res = new FileWriter(file, append)
     try {
       header match {
         case Some(hdr) => res.write(hdr.mkString(",") + "\n")
         case None =>
       }
-      table.foreach(row => res.write(row.mkString(",") + "\n"))
+      table.foreach(row =>  row.mkString(",") + "\n")
     } finally res.close()
   }
 }

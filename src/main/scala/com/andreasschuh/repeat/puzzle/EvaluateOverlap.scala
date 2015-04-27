@@ -233,34 +233,58 @@ object EvaluateOverlap {
 
     val writeMeanDscToCsv = ScalaTask(
       s"""
-        | val regId  = input.regId.head
-        | val dscAvg = (dscGrp zip parId).groupBy(_._2).map {
+        | val regId         = input.regId.head
+        | val dscAvgCsvFile = new java.io.File(s"$dscAvgCsvPath")
+        | val dscAvg        = (dscGrp zip parId).groupBy(_._2).map {
         |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size)
-        | }.toArray.sortBy(_._1).map(_._2)
-        | writeFile(new java.io.File(s"$dscAvgCsvPath"), dscAvg, Some(header), append = ${Overlap.append})
+        | }.toArray.sortBy(_._1)
+        | if (!dscAvgCsvFile.exists) {
+        |   val res = new java.io.FileWriter(dscAvgCsvFile)
+        |   try {
+        |     if (${Overlap.append}) res.write("Registration,")
+        |     res.write(header.mkString(",") + "\\n")
+        |   } finally res.close()
+        | }
+        | val res = new java.io.FileWriter(dscAvgCsvFile, ${Overlap.append})
+        | try {
+        |   dscAvg.foreach {
+        |     case (id, v) =>
+        |       if (${Overlap.append}) res.write(s"$$regId-$$id,")
+        |       res.write(v.mkString(",") + "\\n")
+        |   }
+        | } finally res.close()
       """.stripMargin) set (
         name        := s"${reg.id}-WriteMeanDscToCsv",
-        imports     += "com.andreasschuh.repeat.core.CSVUtil.writeFile",
-        usedClasses += CSVUtil.getClass,
         inputs      += (regId.toArray, parId.toArray, dscGrp.toArray, header),
-        outputs     += (regId, dscAvg),
         header      := Overlap.groups.toArray,
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       )
 
     val writeMeanJsiToCsv = ScalaTask(
       s"""
-       | val regId  = input.regId.head
-       | val jsiAvg = (jsiGrp zip parId).groupBy(_._2).map {
-       |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size.toDouble)
-       | }.toArray.sortBy(_._1).map(_._2)
-       | writeFile(new java.io.File(s"$jsiAvgCsvPath"), jsiAvg, Some(header), append = ${Overlap.append})
+        | val regId         = input.regId.head
+        | val jsiAvgCsvFile = new java.io.File(s"$jsiAvgCsvPath")
+        | val jsiAvg        = (jsiGrp zip parId).groupBy(_._2).map {
+        |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size.toDouble)
+        | }.toArray.sortBy(_._1)
+        | if (!jsiAvgCsvFile.exists) {
+        |   val res = new java.io.FileWriter(jsiAvgCsvFile)
+        |   try {
+        |     if (${Overlap.append}) res.write("Registration,")
+        |     res.write(header.mkString(",") + "\\n")
+        |   } finally res.close()
+        | }
+        | val res = new java.io.FileWriter(jsiAvgCsvFile, ${Overlap.append})
+        | try {
+        |   jsiAvg.foreach {
+        |     case (id, v) =>
+        |       if (${Overlap.append}) res.write(s"$$regId-$$id,")
+        |       res.write(v.mkString(",") + "\\n")
+        |   }
+        | } finally res.close()
       """.stripMargin) set (
         name        := s"${reg.id}-WriteMeanJsiToCsv",
-        imports     += "com.andreasschuh.repeat.core.CSVUtil.writeFile",
-        usedClasses += CSVUtil.getClass,
         inputs      += (regId.toArray, parId.toArray, jsiGrp.toArray, header),
-        outputs     += (regId, jsiAvg),
         header      := Overlap.groups.toArray,
         taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
       )
