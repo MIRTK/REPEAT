@@ -69,6 +69,12 @@ object Overlap extends Configurable("evaluation.overlap") {
     Segmentation.labels.map(label => if (union.contains(label)) Some(label) else None).flatten.toList
   }
 
+  /** Name of CSV file for mean overlap evaluation results */
+  val summary = getStringProperty("summary")
+
+  /** Whether to append results to existing summary */
+  val append = getBooleanProperty("append")
+
   /**
    * Compute overlap measures for each label
    * @param a Segmentation a.

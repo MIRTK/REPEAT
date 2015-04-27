@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.{PrintWriter, File}
+import java.io.{FileWriter, File}
 import scala.io.Source
 
 
@@ -60,8 +60,8 @@ object CSVUtil {
    * @param file
    * @param table
    */
-  def writeFile(file: File, table: Array[Array[Double]], header: Option[Array[String]]): Unit = {
-    val res = new PrintWriter(file)
+  def writeFile(file: File, table: Array[_ <: Array[_]], header: Option[Array[String]], append: Boolean = false): Unit = {
+    val res = new FileWriter(file, append)
     try {
       header match {
         case Some(hdr) => res.write(hdr.mkString(",") + "\n")

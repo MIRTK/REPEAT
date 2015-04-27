@@ -52,12 +52,15 @@ object EvaluateOverlap {
     import Dataset.{imgCsv, segPre, segSuf}
     import Workspace.dofPre
 
+    val dscAvgCsvName = Overlap.summary.replace("${measure}", "DSC")
+    val jsiAvgCsvName = Overlap.summary.replace("${measure}", "JSI")
+
     val dscValCsvPath = FileUtil.join(reg.resDir, "DSC.csv").getAbsolutePath
     val dscGrpCsvPath = FileUtil.join(reg.resDir, "MeanDSC.csv").getAbsolutePath
-    val dscAvgCsvPath = FileUtil.join(reg.sumDir, "${regId}-DSC.csv").getAbsolutePath
+    val dscAvgCsvPath = FileUtil.join(reg.sumDir, dscAvgCsvName).getAbsolutePath
     val jsiValCsvPath = FileUtil.join(reg.resDir, "JSI.csv").getAbsolutePath
     val jsiGrpCsvPath = FileUtil.join(reg.resDir, "MeanJSI.csv").getAbsolutePath
-    val jsiAvgCsvPath = FileUtil.join(reg.sumDir, "${regId}-JSI.csv").getAbsolutePath
+    val jsiAvgCsvPath = FileUtil.join(reg.sumDir, jsiAvgCsvName).getAbsolutePath
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
@@ -119,16 +122,17 @@ object EvaluateOverlap {
       )
 
     val backupResults = if (reg.doBak) {
-      ScalaTask(
+      val script =
         s"""
           | backup(s"$dscValCsvPath", true)
           | backup(s"$dscGrpCsvPath", true)
-          | backup(s"$dscAvgCsvPath", true)
           | backup(s"$jsiValCsvPath", true)
           | backup(s"$jsiGrpCsvPath", true)
+        """ + (if (Overlap.append) s"""
+          | backup(s"$dscAvgCsvPath", true)
           | backup(s"$jsiAvgCsvPath", true)
-          | val parBakDone = true
-        """.stripMargin) set (
+        """ else "")
+      ScalaTask(script.stripMargin + "val parBakDone = true") set (
           name        := s"${reg.id}-BackupResults",
           imports     += "com.andreasschuh.repeat.core.FileUtil.backup",
           usedClasses += FileUtil.getClass,
@@ -137,17 +141,18 @@ object EvaluateOverlap {
           taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
         )
     } else {
-      ScalaTask(
+      val script =
         s"""
-           | delete(s"$dscValCsvPath")
-           | delete(s"$dscGrpCsvPath")
-           | delete(s"$dscAvgCsvPath")
-           | delete(s"$jsiValCsvPath")
-           | delete(s"$jsiGrpCsvPath")
-           | delete(s"$jsiAvgCsvPath")
-           | val parBakDone = true
-        """.stripMargin) set (
-          name        := s"${reg.id}-BackupResults",
+          | delete(s"$dscValCsvPath")
+          | delete(s"$dscGrpCsvPath")
+          | delete(s"$jsiValCsvPath")
+          | delete(s"$jsiGrpCsvPath")
+        """ + (if (Overlap.append) s"""
+          | delete(s"$jsiAvgCsvPath")
+          | delete(s"$jsiAvgCsvPath")
+        """ else "")
+        ScalaTask(script.stripMargin + "val parBakDone = true") set (
+          name        := s"${reg.id}-DeleteResults",
           imports     += "com.andreasschuh.repeat.core.FileUtil.delete",
           usedClasses += FileUtil.getClass,
           inputs      += (regId, parId),
@@ -232,7 +237,7 @@ object EvaluateOverlap {
         | val dscAvg = (dscGrp zip parId).groupBy(_._2).map {
         |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size)
         | }.toArray.sortBy(_._1).map(_._2)
-        | writeFile(new java.io.File(s"$dscAvgCsvPath"), dscAvg, Some(header))
+        | writeFile(new java.io.File(s"$dscAvgCsvPath"), dscAvg, Some(header), append = ${Overlap.append})
       """.stripMargin) set (
         name        := s"${reg.id}-WriteMeanDscToCsv",
         imports     += "com.andreasschuh.repeat.core.CSVUtil.writeFile",
@@ -249,7 +254,7 @@ object EvaluateOverlap {
        | val jsiAvg = (jsiGrp zip parId).groupBy(_._2).map {
        |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size.toDouble)
        | }.toArray.sortBy(_._1).map(_._2)
-       | writeFile(new java.io.File(s"$jsiAvgCsvPath"), jsiAvg, Some(header))
+       | writeFile(new java.io.File(s"$jsiAvgCsvPath"), jsiAvg, Some(header), append = ${Overlap.append})
       """.stripMargin) set (
         name        := s"${reg.id}-WriteMeanJsiToCsv",
         imports     += "com.andreasschuh.repeat.core.CSVUtil.writeFile",
