@@ -36,14 +36,13 @@ object Overlap extends Configurable("evaluation.overlap") {
    */
   sealed abstract class Measure(i: Int) { def toInt: Int = i }
 
-  /**
-   * Jaccard similarity index
-   */
+  /** Invalid overlap measure */
+  case object Invalid extends Measure(-1)
+
+  /** Jaccard similarity index */
   case object JSI extends Measure(0)
 
-  /**
-   * Dice similarity coefficient
-   */
+  /** Dice similarity coefficient */
   case object DSC extends Measure(1)
 
   /**
@@ -52,6 +51,13 @@ object Overlap extends Configurable("evaluation.overlap") {
    * @return IRTK.labelStats array index
    */
   implicit def measureToInt(m: Measure): Int = m.toInt
+
+  /** Convert string to overlap measure case object */
+  def measureFromString(s: String): Measure = s match {
+    case "DSC" | "Dice" => DSC
+    case "JSI" | "Jaccard" => JSI
+    case _ => Invalid
+  }
 
   /**
    * Names of label groups for which the overlap measures are computed
@@ -68,6 +74,9 @@ object Overlap extends Configurable("evaluation.overlap") {
     }
     Segmentation.labels.map(label => if (union.contains(label)) Some(label) else None).flatten.toList
   }
+
+  /** Set of overlap measures to calculate */
+  val measures = getStringListProperty("measure").map(s => measureFromString(s)).toSet
 
   /** Name of CSV file for mean overlap evaluation results */
   val summary = getStringProperty("summary")
@@ -144,10 +153,32 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
   }.toMap
 
   /**
+   * Standard deviation of overlap measure for each label group
+   * @return Map from label group name to standard deviation of overlap measure
+   */
+  lazy val sigma: Map[String, Double] = Overlap.groups.map {
+    group => {
+      var mean2  = .0
+      val labels = if (group.toLowerCase == "all") Overlap.labels else Segmentation.groupLabels(group)
+      labels.foreach( label => mean2 += math.pow(stats(label)(which), 2))
+      if (labels.size > 0) mean2 /= labels.size
+      group -> math.sqrt(mean2 - math.pow(mean(group), 2))
+    }
+  }.toMap
+
+  /**
    * Compute mean of overlap measure for each label group
    * @return Array of mean overlap measure for each label group in the order of Overlap.groups
    */
   def getMeanValues: Array[Double] = {
     Overlap.groups.map(group => mean(group)).toArray
+  }
+
+  /**
+   * Compute standard deviation of overlap measure for each label group
+   * @return Array of standard deviation of overlap measure for each label group in the order of Overlap.groups
+   */
+  def getSigmaValues: Array[Double] = {
+    Overlap.groups.map(group => sigma(group)).toArray
   }
 }
