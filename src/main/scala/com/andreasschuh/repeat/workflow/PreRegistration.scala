@@ -73,7 +73,7 @@ object PreRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Affine registration of images to template
-    val refImSource  = EmptyTask() set (
+    val refImSource = EmptyTask() set (
         name    := "refImSource",
         outputs += refIm
       ) source FileSource(Dataset.refIm.getAbsolutePath, refIm)
