@@ -19,7 +19,7 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-val csvFile = new java.io.File("Config/ireg-svffd.csv")
+val csvFile = new java.io.File(if (args.length > 0) args(0) else "Config/ireg-svffd.csv")
 
 if (csvFile.exists) {
   csvFile.delete()
@@ -33,28 +33,13 @@ val ds  = Val[Double] // Control point spacing
 val be  = Val[Double] // Bending energy weight
 val bch = Val[Int]    // No. of BCH terms
 
-val sampling = {
+val params = {
   (im  in List("FastSS", "SS", "RKE1", "RK4")) x
   (ds  in List(2.5)) x
   (be  in List(.0, .0001, .0005, .001, .005, .01, .05)) x
   (bch in List(0, 4))
 }
 
-val args = Val[String]
-val writeArgsToCsv = ScalaTask(
-  s"""
-    |val args = s\"\"\"
-    |-par "Integration method = $$im"
-    |-par "Control point spacing = $$ds"
-    |-par "Bending energy weight = $$be"
-    |-par "No. of BCH terms = $$bch"
-    |\"\"\".replaceAll("\\n", " ").trim
-  """.stripMargin) set (
-    inputs  += (im, ds, be, bch),
-    outputs += args
-  ) hook (
-    AppendToCSVFileHook(argsCsvPath, args) set (csvHeader := "Command Arguments")
-  )
-
-val exec = ExplorationTask(sampling) -< writeArgsToCsv start
+val write = Capsule(EmptyTask(), strainer = true) hook AppendToCSVFileHook(csvFile, im, ds, be, bch)
+val exec  = ExplorationTask(params) -< write start
 exec.waitUntilEnded
