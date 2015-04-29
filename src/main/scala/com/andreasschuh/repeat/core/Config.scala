@@ -38,10 +38,10 @@ object Config {
   private var _config: Option[Config] = None
 
   /** Change directory in which to look for default configuration file */
-  def dir(dir: File, base: Option[File] = None): Unit = {
+  def dir(dir: File, base: String = ""): Unit = {
     _config = None
     _dir = dir
-    _base = base
+    _base = if (base.isEmpty) None else Some(new File(base))
   }
 
   /** Change configuration file from which global/default settings are read */
