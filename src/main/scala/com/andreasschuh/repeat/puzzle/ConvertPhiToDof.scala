@@ -69,7 +69,6 @@ object ConvertPhiToDof {
         val template = Val[Cmd]
         val task = ScalaTask(
           s"""
-            | Config.dir(workDir)
             | val args = Map(
             |   "regId"  -> "${reg.id}",
             |   "parId"  -> ${parId.name}.toString,
@@ -82,15 +81,15 @@ object ConvertPhiToDof {
             | val cmd = Registration.command(template, args)
             | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
             | print(str)
+            | FileUtil.mkdirs(${phiDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert output transformation")
           """.stripMargin) set(
             name     := s"${reg.id}-ConvertPhiToDof",
-            imports  += ("com.andreasschuh.repeat.core.{Config,Registration}", "scala.sys.process._"),
+            imports  += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
             inputs   += (parId, phiDof, template),
             outputs  += outDof,
-            template := command,
-            taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+            template := command
           )
         Capsule(task, strainer = true) source outDofSource
       case None =>

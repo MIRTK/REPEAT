@@ -64,7 +64,7 @@ object RegisterToTemplateAffine {
 
     val reg = ScalaTask(
       s"""
-      | Config.dir(workDir)
+      | Config.dir(workDir, "${Config().base}")
       | val log = new java.io.File(workDir, "output$logSuf")
       | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(log),
       |   "Transformation model" -> "Affine",

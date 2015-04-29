@@ -181,7 +181,7 @@ object EvaluateOverlap {
     val evalOverlap = {
       val task = ScalaTask(
         s"""
-          | Config.dir(workDir)
+          | Config.dir(workDir, "${Config().base}")
           |
           | val stats = IRTK.labelStats(${tgtSeg.name}, ${outSeg.name}, Some(Overlap.labels.toSet))
           |
@@ -301,10 +301,9 @@ object EvaluateOverlap {
         |   }
         | } finally res.close()
       """.stripMargin) set (
-        name        := s"${reg.id}-WriteMeanDsc",
-        inputs      += (regId.toArray, parId.toArray, dscGrpAvg.toArray, header),
-        header      := Overlap.groups.toArray,
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        name   := s"${reg.id}-WriteMeanDsc",
+        inputs += (regId.toArray, parId.toArray, dscGrpAvg.toArray, header),
+        header := Overlap.groups.toArray
       )
 
     val writeMeanJsi = ScalaTask(
@@ -330,10 +329,9 @@ object EvaluateOverlap {
         |   }
         | } finally res.close()
       """.stripMargin) set (
-        name        := s"${reg.id}-WriteMeanJsi",
-        inputs      += (regId.toArray, parId.toArray, jsiGrpAvg.toArray, header),
-        header      := Overlap.groups.toArray,
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        name   := s"${reg.id}-WriteMeanJsi",
+        inputs += (regId.toArray, parId.toArray, jsiGrpAvg.toArray, header),
+        header := Overlap.groups.toArray
       )
 
     if (dscEnabled && jsiEnabled)

@@ -69,7 +69,7 @@ object ComputeJacobian {
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
-         | Config.dir(workDir)
+         | Config.dir(workDir, "${Config().base}")
          | val args = Map(
          |   "target" -> ${tgtIm.name}.getPath,
          |   "phi"    -> ${phiDof.name}.getPath,

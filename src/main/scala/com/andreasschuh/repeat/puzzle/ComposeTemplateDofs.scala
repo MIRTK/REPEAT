@@ -65,7 +65,7 @@ object ComposeTemplateDofs {
 
     val compose = ScalaTask(
       s"""
-        | Config.dir(workDir)
+        | Config.dir(workDir, "${Config().base}")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",

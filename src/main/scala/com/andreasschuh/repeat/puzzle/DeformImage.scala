@@ -72,7 +72,6 @@ object DeformImage {
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
-         | Config.dir(workDir)
          | val args = Map(
          |   "target" -> ${tgtIm.name}.getPath,
          |   "source" -> ${srcIm.name}.getPath,
@@ -87,12 +86,11 @@ object DeformImage {
          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-DeformImage",
-        imports     += ("com.andreasschuh.repeat.core.{Config,FileUtil,Registration}", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
         usedClasses += Config.getClass,
         inputs      += (tgtIm, srcIm, phiDof, command),
         outputs     += (tgtIm, srcIm, phiDof, outIm),
-        command     := reg.deformImageCmd,
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        command     := reg.deformImageCmd
       ), strainer = true) source outImSource
 
     begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")

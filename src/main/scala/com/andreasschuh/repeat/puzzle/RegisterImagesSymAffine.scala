@@ -79,7 +79,7 @@ object RegisterImagesSymAffine {
 
     val regTask = ScalaTask(
       s"""
-        | Config.dir(workDir)
+        | Config.dir(workDir, "${Config().base}")
         | val regLog = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
@@ -104,7 +104,7 @@ object RegisterImagesSymAffine {
 
     val invTask = ScalaTask(
       s"""
-        | Config.dir(workDir)
+        | Config.dir(workDir, "${Config().base}")
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",

@@ -72,7 +72,6 @@ object DeformLabels {
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
-        | Config.dir(workDir)
         | val args = Map(
         |   "target" -> ${tgtSeg.name}.getPath,
         |   "source" -> ${srcSeg.name}.getPath,
@@ -87,12 +86,11 @@ object DeformLabels {
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
        name        := s"${reg.id}-DeformLabels",
-       imports     += ("com.andreasschuh.repeat.core.{Config,FileUtil,Registration}", "scala.sys.process._"),
+       imports     += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
        usedClasses += Config.getClass,
        inputs      += (tgtSeg, srcSeg, phiDof, command),
        outputs     += (tgtSeg, srcSeg, phiDof, outSeg),
-       command     := reg.deformLabelsCmd,
-       taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+       command     := reg.deformLabelsCmd
       ), strainer = true) source outSegSource
 
     begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")

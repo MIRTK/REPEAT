@@ -78,7 +78,7 @@ object RegisterImages {
 
     val run = Capsule(ScalaTask(
       s"""
-        | Config.dir(workDir)
+        | Config.dir(workDir, "${Config().base}")
         | val args = ${parVal.name} ++ Map(
         |   "regId"  -> "${reg.id}",
         |   "parId"  -> ${parId.name}.toString,

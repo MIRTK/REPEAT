@@ -33,13 +33,15 @@ import FileUtil.normalize
  */
 object Config {
   private var _dir: File = new File(System.getProperty("user.dir"))
+  private var _base: Option[File] = None
   private var _name: Option[String] = None
   private var _config: Option[Config] = None
 
   /** Change directory in which to look for default configuration file */
-  def dir(dir: File): Unit = {
+  def dir(dir: File, base: Option[File] = None): Unit = {
     _config = None
     _dir = dir
+    _base = base
   }
 
   /** Change configuration file from which global/default settings are read */
@@ -51,7 +53,7 @@ object Config {
   /** Get global/default settings instance */
   def apply(): Config = _config match {
     case None =>
-      _config = Some(new Config(_name, _dir))
+      _config = Some(new Config(_name, _dir, _base))
       _config.get
     case Some(s) => s
   }
@@ -61,7 +63,7 @@ object Config {
  * Access values in configuration file
  *
  * This object reads the configuration from the following HOCON files:
- * 1. /repeat.conf
+ * 1. $PWD/repeat.conf
  * 2. $HOME/.openmole/repeat.conf
  * 3. $OPENMOLE/configuration/repeat.conf
  * 4. $JAR/reference.conf
@@ -71,7 +73,9 @@ object Config {
  * - $OPENMOLE is the location of the OpenMOLE installation
  * - $JAR is the root of the OpenMOLE plugin .jar file
  */
-class Config(configName: Option[String] = None, configDir: File = new File(System.getProperty("user.dir"))) {
+class Config(configName: Option[String] = None,
+             configDir: File = new File(System.getProperty("user.dir")),
+             baseDir: Option[File] = None) {
 
   /** Found (main) configuration file */
   val file: Option[File] = configName match {
@@ -92,6 +96,9 @@ class Config(configName: Option[String] = None, configDir: File = new File(Syste
         else None
       }
   }
+
+  /** Directory used to make relative file paths absolute */
+  val base: File = baseDir.getOrElse(configDir).getAbsoluteFile
 
   /** Parsed configuration object */
   private val config = {
@@ -126,7 +133,10 @@ class Config(configName: Option[String] = None, configDir: File = new File(Syste
   def getStringList(propName: String): Seq[String] = config.getStringList(propName).asScala
 
   /** Get file path as java.io.File */
-  def getFile(propName: String): File = normalize(new File(config.getString(propName)).getAbsoluteFile)
+  def getFile(propName: String): File = {
+    val f = new File(config.getString(propName))
+    normalize(if (f.isAbsolute) f else new File(base, f.getPath))
+  }
 
   /** Get file path as java.nio.file.Path */
   def getPath(propName: String) = getFile(propName).toPath
