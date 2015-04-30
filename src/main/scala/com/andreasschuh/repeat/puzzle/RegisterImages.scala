@@ -78,7 +78,7 @@ object RegisterImages {
 
     val run = Capsule(ScalaTask(
       s"""
-        | Config.dir(workDir, "${Config().base}")
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | val args = ${parVal.name} ++ Map(
         |   "regId"  -> "${reg.id}",
         |   "parId"  -> ${parId.name}.toString,
@@ -105,8 +105,7 @@ object RegisterImages {
         inputs      += (tgtIm, srcIm, affDof, regCmd, parId, parVal),
         outputs     += (tgtIm, srcIm, phiDof, runTime),
         outputFiles += ("output" + logSuf, regLog),
-        regCmd      := reg.runCmd,
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        regCmd      := reg.runCmd
       ), strainer = true) source phiDofSource hook CopyFileHook(regLog, regLogPath)
 
     begin -- Skip(run on Env.long, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")

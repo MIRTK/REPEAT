@@ -64,7 +64,7 @@ object RegisterToTemplateAffine {
 
     val reg = ScalaTask(
       s"""
-      | Config.dir(workDir, "${Config().base}")
+      | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
       | val log = new java.io.File(workDir, "output$logSuf")
       | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(log),
       |   "Transformation model" -> "Affine",
@@ -76,8 +76,7 @@ object RegisterToTemplateAffine {
       usedClasses += (Config.getClass, IRTK.getClass),
       inputs      += (refIm, srcId, srcIm, iniDof),
       outputs     += (refIm, srcId, srcIm, iniDof, dof),
-      outputFiles += ("output" + logSuf, log),
-      taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+      outputFiles += ("output" + logSuf, log)
     ) source dofSource hook CopyFileHook(log, logPath)
 
     begin -- Skip(reg on Env.short, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")

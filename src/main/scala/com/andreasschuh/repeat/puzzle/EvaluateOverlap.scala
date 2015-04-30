@@ -140,8 +140,7 @@ object EvaluateOverlap {
           imports     += "com.andreasschuh.repeat.core.FileUtil.backup",
           usedClasses += FileUtil.getClass,
           inputs      += (regId, parId),
-          outputs     += parBakDone,
-          taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+          outputs     += parBakDone
         )
     } else {
       val script =
@@ -165,8 +164,7 @@ object EvaluateOverlap {
           imports     += "com.andreasschuh.repeat.core.FileUtil.delete",
           usedClasses += FileUtil.getClass,
           inputs      += (regId, parId),
-          outputs     += parBakDone,
-          taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+          outputs     += parBakDone
         )
     }
 
@@ -181,7 +179,7 @@ object EvaluateOverlap {
     val evalOverlap = {
       val task = ScalaTask(
         s"""
-          | Config.dir(workDir, "${Config().base}")
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
           |
           | val stats = IRTK.labelStats(${tgtSeg.name}, ${outSeg.name}, Some(Overlap.labels.toSet))
           |
@@ -200,8 +198,7 @@ object EvaluateOverlap {
           imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
           usedClasses += (Config.getClass, Overlap.getClass),
           inputs      += (parId, tgtId, tgtSeg, srcId, outSeg),
-          outputs     += (parId, tgtId, srcId, dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd),
-          taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+          outputs     += (parId, tgtId, srcId, dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd)
         )
       Capsule(task, strainer = true)
     }

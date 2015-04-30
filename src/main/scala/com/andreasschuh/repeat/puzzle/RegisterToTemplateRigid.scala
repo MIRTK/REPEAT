@@ -62,7 +62,7 @@ object RegisterToTemplateRigid {
 
     val reg = ScalaTask(
       s"""
-        | Config.dir(workDir, "${Config().base}")
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | val log = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(log),
         |   "Transformation model" -> "Rigid",
@@ -74,8 +74,7 @@ object RegisterToTemplateRigid {
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (refIm, srcId, srcIm),
         outputs     += (refIm, srcId, srcIm, dof),
-        outputFiles += ("output" + logSuf, log),
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        outputFiles += ("output" + logSuf, log)
       ) source dofSource hook CopyFileHook(log, logPath)
 
     val cond1 = s"${dof.name}.lastModified() > ${refIm.name}.lastModified()"

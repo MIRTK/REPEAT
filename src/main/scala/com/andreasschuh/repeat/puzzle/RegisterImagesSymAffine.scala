@@ -79,7 +79,7 @@ object RegisterImagesSymAffine {
 
     val regTask = ScalaTask(
       s"""
-        | Config.dir(workDir, "${Config().base}")
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | val regLog = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
@@ -92,8 +92,7 @@ object RegisterImagesSymAffine {
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof),
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
-        outputFiles += ("output" + logSuf, regLog),
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        outputFiles += ("output" + logSuf, regLog)
       ) source outDofSource hook CopyFileHook(regLog, regLogPath)
 
     val invBegin = EmptyTask() set (
@@ -104,15 +103,14 @@ object RegisterImagesSymAffine {
 
     val invTask = ScalaTask(
       s"""
-        | Config.dir(workDir, "${Config().base}")
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
         imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof),
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
       ) source invDofSource
 
     regBegin -- Skip(regTask on Env.short, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --

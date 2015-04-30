@@ -69,7 +69,7 @@ object ComputeJacobian {
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
-         | Config.dir(workDir, "${Config().base}")
+         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
          | val args = Map(
          |   "target" -> ${tgtIm.name}.getPath,
          |   "phi"    -> ${phiDof.name}.getPath,
@@ -87,8 +87,7 @@ object ComputeJacobian {
         usedClasses += Config.getClass,
         inputs      += (tgtIm, phiDof, command),
         outputs     += (phiDof, outJac),
-        command     := reg.jacCmd,
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        command     := reg.jacCmd
       ), strainer = true) source outJacSource
 
     // TODO: Compute statistics of Jacobian determinant and store these in CSV file

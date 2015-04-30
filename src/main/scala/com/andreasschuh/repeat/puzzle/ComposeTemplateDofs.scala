@@ -65,15 +65,14 @@ object ComposeTemplateDofs {
 
     val compose = ScalaTask(
       s"""
-        | Config.dir(workDir, "${Config().base}")
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
         imports     += "com.andreasschuh.repeat.core.{Config,IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof),
-        taskBuilder => Config().file.foreach(taskBuilder.addResource(_))
+        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
       ) source iniDofSource
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"

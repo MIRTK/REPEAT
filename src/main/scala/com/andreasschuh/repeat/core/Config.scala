@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.core
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, Config => _Config, ConfigRenderOptions}
 import java.io.File
 import java.net.URL
 import scala.collection.JavaConverters._
@@ -33,83 +33,89 @@ import FileUtil.normalize
  */
 object Config {
   private var _dir: File = new File(System.getProperty("user.dir"))
-  private var _base: Option[File] = None
-  private var _name: Option[String] = None
+  private var _file: Option[File] = None
   private var _config: Option[Config] = None
 
   /** Change directory in which to look for default configuration file */
-  def dir(dir: File, base: String = ""): Unit = {
+  def dir(dir: File): Unit = {
     _config = None
     _dir = dir
-    _base = if (base.isEmpty) None else Some(new File(base))
   }
 
-  /** Change configuration file from which global/default settings are read */
-  def name(name: String): Unit = {
-    _config = None
-    _name = Some(name)
-  }
+  /** Local configuration file from which global configuration was loaded */
+  def file = _file
 
-  /** Get global/default settings instance */
+  /** Get global configuration object */
   def apply(): Config = _config match {
-    case None =>
-      _config = Some(new Config(_name, _dir, _base))
-      _config.get
+    case None => load()
     case Some(s) => s
+  }
+
+  /**
+   * Load global configuration, merging optional local HOCON file with reference
+   *
+   * This object reads the configuration from the following HOCON files:
+   * 1. $PWD/@p name
+   * 2. $HOME/.openmole/@p name
+   * 3. $OPENMOLE/configuration/@p name
+   * 4. $JAR/reference.conf
+   * where:
+   * - $PWD is the current working directory
+   * - $HOME is the home directory of the user
+   * - $OPENMOLE is the location of the OpenMOLE installation
+   * - $JAR is the root of the OpenMOLE plugin .jar file
+   *
+   * @param name Name of local configuration file
+   * @return Global configuration object
+   */
+  def load(name: String = "repeat.conf"): Config = {
+    // User defined configuration file
+    _file = {
+      val localConfig1 = new File(_dir, name)
+      val localConfig2 = new File(_dir, new File("Config", name).getPath)
+      val localConfig3 = new File(_dir, new File("config", name).getPath)
+      if      (localConfig1.exists()) Some(localConfig1.getAbsoluteFile)
+      else if (localConfig2.exists()) Some(localConfig2.getAbsoluteFile)
+      else if (localConfig3.exists()) Some(localConfig3.getAbsoluteFile)
+      else {
+        val homeConfig = new File(FileUtil.join(System.getProperty("user.home"), ".openmole", name))
+        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)
+        else None
+      }
+    }
+    // Parsed configuration object
+    _config = Some(new Config(
+      // Merge configuration with reference configuration
+      ConfigFactory.defaultOverrides().withFallback(_file match {
+        case Some(f) => ConfigFactory.parseFile(f)
+        case None => ConfigFactory.empty()
+      }).withFallback(ConfigFactory.defaultReference(getClass.getClassLoader)).resolve(),
+      // Directory used to make relative paths in configuration absolute
+      _dir.getAbsoluteFile
+    ))
+    _config.get
+  }
+
+  /**
+   * Create global configuration from HOCON string
+   * @param conf HOCON configuration string
+   * @param base Path used to make relative paths in configuration absolute
+   * @return Global configuration object
+   */
+  def parse(conf: String, base: String): Config = {
+    _file = None
+    _config = Some(new Config(ConfigFactory.parseString(conf).resolve(), new File(base).getAbsoluteFile))
+    _config.get
   }
 }
 
 /**
  * Access values in configuration file
- *
- * This object reads the configuration from the following HOCON files:
- * 1. $PWD/repeat.conf
- * 2. $HOME/.openmole/repeat.conf
- * 3. $OPENMOLE/configuration/repeat.conf
- * 4. $JAR/reference.conf
- * where:
- * - $PWD is the current working directory
- * - $HOME is the home directory of the user
- * - $OPENMOLE is the location of the OpenMOLE installation
- * - $JAR is the root of the OpenMOLE plugin .jar file
  */
-class Config(configName: Option[String] = None,
-             configDir: File = new File(System.getProperty("user.dir")),
-             baseDir: Option[File] = None) {
+class Config(val config: _Config, val base: File) {
 
-  /** Found (main) configuration file */
-  val file: Option[File] = configName match {
-    case Some(name) =>
-      val file = new File(configDir, name)
-      if (!file.exists()) throw new Exception("Configuration file does not exist: " + file.getAbsolutePath)
-      Some(file)
-    case None =>
-      val localConfig1 = new File(configDir, "repeat.conf")
-      val localConfig2 = new File(configDir, "Config/repeat.conf")
-      val localConfig3 = new File(configDir, "config/repeat.conf")
-      if      (localConfig1.exists()) Some(localConfig1.getAbsoluteFile)
-      else if (localConfig2.exists()) Some(localConfig2.getAbsoluteFile)
-      else if (localConfig3.exists()) Some(localConfig3.getAbsoluteFile)
-      else {
-        val homeConfig = new File(FileUtil.join(System.getProperty("user.home"), ".openmole", "repeat.conf"))
-        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)
-        else None
-      }
-  }
-
-  /** Directory used to make relative file paths absolute */
-  val base: File = baseDir.getOrElse(configDir).getAbsoluteFile
-
-  /** Parsed configuration object */
-  private val config = {
-    ConfigFactory.defaultOverrides().withFallback(file match {
-      case Some(f) => ConfigFactory.parseFile(f)
-      case None => ConfigFactory.empty()
-    }).withFallback(System.getProperty("eclipse.application", "NotOpenMOLE") match {
-      case "org.openmole.ui" => ConfigFactory.parseURL(new URL("platform:/plugin/com.andreasschuh.repeat/reference.conf"))
-      case _ => ConfigFactory.defaultReference()
-    }).resolve()
-  }
+  /** Get configuration as HOCON string */
+  override def toString = config.root().render(ConfigRenderOptions.concise())
 
   /** Whether value is set */
   def hasPath(propName: String): Boolean = config.hasPath(propName)
