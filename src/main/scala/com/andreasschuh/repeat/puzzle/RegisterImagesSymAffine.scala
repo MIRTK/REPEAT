@@ -61,27 +61,31 @@ object RegisterImagesSymAffine {
   def apply(tgtId:  Prototype[Int],  tgtIm:  Prototype[File], srcId:  Prototype[Int], srcIm: Prototype[File],
             iniDof: Prototype[File], outDof: Prototype[File], invDof: Prototype[File]) = {
 
-    import Dataset.bgVal
+    import Dataset.{imgPre, imgSuf, bgVal}
     import Workspace.{dofAff, dofPre, dofSuf, logDir, logSuf}
+    import FileUtil.{join, relativize}
 
     val regLog = Val[File]
-    val invDofPath = FileUtil.join(dofAff,        dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
-    val outDofPath = FileUtil.join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val regLogPath = FileUtil.join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val outDofSource = FileSource(outDofPath, outDof)
-    val invDofSource = FileSource(invDofPath, invDof)
+    val invDofPath = join(dofAff,        dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
+    val outDofPath = join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val regLogPath = join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
+
+    val invDofRelPath = relativize(Workspace.rootFS, invDofPath)
+    val outDofRelPath = relativize(Workspace.rootFS, outDofPath)
+    val regLogRelPath = relativize(Workspace.rootFS, regLogPath)
 
     val regBegin = EmptyTask() set (
         name    := "AffineRegImagesSymBegin",
         inputs  += (tgtId, tgtIm, srcId, srcIm, iniDof),
         outputs += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof)
-      ) source outDofSource
+      ) source FileSource(outDofPath, outDof)
 
     val regTask = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val regLog = new java.io.File(workDir, "output$logSuf")
+        | val ${outDof.name} = FileUtil.join(workDir, "rootfs", s"$outDofRelPath")
+        | val ${regLog.name} = FileUtil.join(workDir, "rootfs", s"$regLogRelPath")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
         |   "No. of resolution levels" -> 2,
@@ -89,32 +93,60 @@ object RegisterImagesSymAffine {
         | )
       """.stripMargin) set (
         name        := "AffineRegImagesSym",
-        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (tgtId, tgtIm, srcId, srcIm, iniDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof),
-        outputFiles += ("output" + logSuf, regLog)
-      ) source outDofSource hook CopyFileHook(regLog, regLogPath)
+        inputs      += (tgtId, srcId),
+        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, Workspace.shared),
+        inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, Workspace.shared),
+        outputs     += (tgtId, tgtIm, srcId, srcIm),
+        outputFiles += (join("rootfs", outDofRelPath), outDof),
+        outputFiles += (join("rootfs", regLogRelPath), regLog)
+      )
+
+    // If workspace is accessible by compute node, read/write files directly without copy
+    if (Workspace.shared) {
+      Workspace.rootFS.mkdirs()
+      regTask.addResource(Workspace.rootFS, "rootfs", true)
+    }
+
+    // Otherwise, output files have to be copied to local workspace if not shared
+    val regCap = regTask hook (
+        CopyFileHook(outDof, outDofPath),
+        CopyFileHook(regLog, regLogPath)
+      )
 
     val invBegin = EmptyTask() set (
         name    := "InvertAffineDofBegin",
         inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
-      ) source invDofSource
+      ) source FileSource(invDofPath, invDof)
 
     val invTask = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+        | val ${invDof.name} = FileUtil.join(workDir, "rootfs", s"$invDofRelPath")
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
-        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (tgtId, tgtIm, srcId, srcIm, outDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
-      ) source invDofSource
+        inputs      += (tgtId, srcId),
+        inputFiles  += (outDof, dofPre + "${tgtId},${srcId}" + dofSuf, Workspace.shared),
+        outputs     += (tgtId, srcId, outDof),
+        outputFiles += (join("rootfs", invDofRelPath), invDof)
+      )
 
-    regBegin -- Skip(regTask on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
-    invBegin -- Skip(invTask on Env.short by 10, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
+    // If workspace is accessible by compute node, read/write files directly without copy
+    if (Workspace.shared) {
+      Workspace.rootFS.mkdirs()
+      invTask.addResource(Workspace.rootFS, "rootfs", true)
+    }
+
+    // Otherwise, output files have to be copied to local workspace if not shared
+    val invCap = Capsule(invTask, strainer = true) hook CopyFileHook(invDof, invDofPath)
+
+    regBegin -- Skip(regCap on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
+    invBegin -- Skip(invCap on Env.short by 10, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
   }
 }

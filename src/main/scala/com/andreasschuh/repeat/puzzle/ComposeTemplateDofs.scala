@@ -26,6 +26,8 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.grouping.batch._
+import org.openmole.plugin.hook.file._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
@@ -53,30 +55,44 @@ object ComposeTemplateDofs {
             srcId: Prototype[Int], srcIm: Prototype[File], srcDof: Prototype[File], iniDof: Prototype[File]) = {
 
     import Workspace.{dofIni, dofPre, dofSuf}
+    import FileUtil.{join, relativize}
 
-    val iniDofPath   = FileUtil.join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val iniDofSource = FileSource(iniDofPath, iniDof)
+    val iniDofPath    = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val iniDofRelPath = relativize(Workspace.rootFS, iniDofPath)
 
     val begin = EmptyTask() set (
         name    := "ComposeTemplateDofsBegin",
         inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
         outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
-      ) source iniDofSource
+      ) source FileSource(iniDofPath, iniDof)
 
-    val compose = ScalaTask(
+    val composeTask = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+        | val ${iniDof.name} = FileUtil.join(workDir, "rootfs", s"$iniDofPath")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core.{Config,IRTK}",
+        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
-      ) source iniDofSource
+        inputs      += (tgtId, tgtIm, srcId, srcIm),
+        inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, Workspace.shared),
+        inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, Workspace.shared),
+        outputs     += (tgtId, tgtIm, srcId, srcIm),
+        outputFiles += (join("rootfs", iniDofRelPath), iniDof)
+      )
+
+    // If workspace is accessible by compute node, read/write files directly without copy
+    if (Workspace.shared) {
+      Workspace.rootFS.mkdirs()
+      composeTask.addResource(Workspace.rootFS, "rootfs", true)
+    }
+
+    // Otherwise, output files have to be copied to local workspace if not shared
+    val compose = composeTask hook CopyFileHook(iniDof, iniDofPath)
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
     val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
-    begin -- Skip(compose on Env.short, cond1 + " && " + cond2)
+    begin -- Skip(compose on Env.short by 50, cond1 + " && " + cond2)
   }
 }
