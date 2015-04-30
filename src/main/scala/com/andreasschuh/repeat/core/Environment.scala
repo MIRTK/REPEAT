@@ -56,19 +56,20 @@ object Environment extends Configurable("environment") {
   /** Get named execution environment with specified properties */
   private def getEnvironment(name: String, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) = {
     val parts    = name.split("-")
-    val queue    = if (parts.length > 1) parts.tail.mkString("-") else "long"
-    val _memory  = Some(memory  getOrElse getIntProperty(s"$name.memory"))
-    val _nodes   = Some(nodes   getOrElse getIntProperty(s"$name.nodes"))
-    val _threads = Some(threads getOrElse getIntProperty(s"$name.threads"))
-    val _requirements = getStringListProperty(s"$name.requirements").toList
-    parts.head.toLowerCase match {
+    val _name    = parts.head.toLowerCase
+    val _queue   = if (parts.length > 1) parts.tail.mkString("-") else "long"
+    val _memory  = Some(memory  getOrElse getIntProperty(s"${_name}.memory"))
+    val _nodes   = Some(nodes   getOrElse getIntProperty(s"${_name}.nodes"))
+    val _threads = Some(threads getOrElse getIntProperty(s"${_name}.threads"))
+    val _requirements = getStringListProperty(s"${_name}.requirements").toList
+    _name.toLowerCase match {
       case "slurm" =>
         addSSHAuthenticationFor("slurm")
         SLURMEnvironment(
           getStringProperty("slurm.user"),
           getStringProperty("slurm.host"),
           getIntProperty("slurm.port"),
-          queue = Some(getStringProperty(s"queue.$queue")),
+          queue = Some(getStringProperty(s"slurm.queue.${_queue}")),
           memory = _memory,
           nodes = _nodes,
           threads = _threads,
