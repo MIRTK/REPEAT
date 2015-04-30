@@ -87,7 +87,10 @@ object FileUtil {
   }
 
   /** Get relative file path */
-  def relativize(base: File, path: File) = base.toPath.relativize(path.toPath).toFile
+  def relativize(base: File, path: File): File = base.toPath.relativize(path.toPath).toFile
+
+  /** Get relative file path */
+  def relativize(base: File, path: String): String = relativize(base, new File(path)).getPath
 
   /** Normalize/clean up path */
   def normalize(path: File) = path.toPath.normalize.toFile
