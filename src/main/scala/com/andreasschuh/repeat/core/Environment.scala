@@ -75,7 +75,7 @@ object Environment extends Configurable("environment") {
           constraints = _requirements,
           openMOLEMemory = Some(256)
         )(OpenMOLEWorkspace.instance.authenticationProvider)
-      case "condor" =>
+      case "condor" | "htcondor" =>
         addSSHAuthenticationFor("condor")
         CondorEnvironment(
           getStringProperty("condor.user"),
