@@ -108,6 +108,6 @@ object RegisterImages {
         regCmd      := reg.runCmd
       ), strainer = true) source phiDofSource hook CopyFileHook(regLog, regLogPath)
 
-    begin -- Skip(run on Env.long, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
+    begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
   }
 }

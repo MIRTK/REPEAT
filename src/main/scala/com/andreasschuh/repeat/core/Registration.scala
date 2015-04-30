@@ -87,6 +87,12 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** Command to run image registration */
   val runCmd = getCmdProperty("command")
 
+  /** Execution environment for registration command */
+  val runEnv = Environment(name    = getStringOptionProperty("environment"),
+                           memory  = getIntOptionProperty("memory"),
+                           nodes   = getIntOptionProperty("nodes"),
+                           threads = getIntOptionProperty("threads"))
+
   /** Optional command which can be used to convert output transformation to IRTK format */
   val phi2dofCmd = getCmdOptionProperty("phi2dof")
 

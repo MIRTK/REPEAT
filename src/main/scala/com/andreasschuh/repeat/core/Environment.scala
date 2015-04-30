@@ -21,11 +21,14 @@
 
 package com.andreasschuh.repeat.core
 
+import java.io.File
+
 import org.openmole.core.workspace.{ Workspace => OpenMOLEWorkspace }
 import org.openmole.core.workflow.execution.local.LocalEnvironment
 import org.openmole.plugin.environment.ssh.{ PrivateKey, SSHAuthentication }
 import org.openmole.plugin.environment.slurm.SLURMEnvironment
 import org.openmole.plugin.environment.condor.CondorEnvironment
+import fr.iscpif.gridscale.condor.CondorRequirement
 
 
 /**
@@ -33,37 +36,76 @@ import org.openmole.plugin.environment.condor.CondorEnvironment
  */
 object Environment extends Configurable("environment") {
 
-  /** Get environment for the named task category */
-  protected def getEnvironmentProperty(propName: String) = {
-    getStringProperty(propName).toLowerCase match {
+  /** Add SSH authentication method for named execution environment */
+  private def addSSHAuthenticationFor(name: String): Unit = {
+    val auth = getStringProperty(s"$name.auth")
+    auth match {
+      case "id_dsa" | "id_rsa" =>
+        val sshDir = new File(System.getProperty("user.home"), ".ssh")
+        if (sshDir.exists)
+          SSHAuthentication += PrivateKey(
+            new File(sshDir, auth),
+            getStringProperty(s"$name.user"),
+            "", // no passphrase used/allowed
+            getStringProperty(s"$name.host")
+          )
+      case _ =>
+    }
+  }
+
+  /** Get named execution environment with specified properties */
+  private def getEnvironment(name: String, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) = {
+    val parts    = name.split("-")
+    val queue    = if (parts.length > 1) parts.tail.mkString("-") else "long"
+    val _memory  = Some(memory  getOrElse getIntProperty(s"$name.memory"))
+    val _nodes   = Some(nodes   getOrElse getIntProperty(s"$name.nodes"))
+    val _threads = Some(threads getOrElse getIntProperty(s"$name.threads"))
+    val _requirements = getStringListProperty(s"$name.requirements").toList
+    parts.head.toLowerCase match {
       case "slurm" =>
-        SLURM.sshKey match {
-          case Some(sshKey) => SSHAuthentication(0) = PrivateKey(sshKey, SLURM.user, "", SLURM.host)
-          case None =>
-        }
-        SLURMEnvironment(SLURM.user, SLURM.host,
-          queue = Some(SLURM.queue(propName)),
-          threads = Some(1),
-          memory = Some(4096),
+        addSSHAuthenticationFor("slurm")
+        SLURMEnvironment(
+          getStringProperty("slurm.user"),
+          getStringProperty("slurm.host"),
+          getIntProperty("slurm.port"),
+          queue = Some(getStringProperty(s"queue.$queue")),
+          memory = _memory,
+          nodes = _nodes,
+          threads = _threads,
+          constraints = _requirements,
           openMOLEMemory = Some(256)
         )(OpenMOLEWorkspace.instance.authenticationProvider)
-      case "condor" => throw new Exception("Condor not yet supported by REPEAT")
-      case "local" => local
+      case "condor" =>
+        addSSHAuthenticationFor("condor")
+        CondorEnvironment(
+          getStringProperty("condor.user"),
+          getStringProperty("condor.host"),
+          getIntProperty("condor.port"),
+          memory = _memory,
+          nodes = nodes,
+          threads = threads,
+          requirements = _requirements.grouped(2).map(kv => CondorRequirement(kv.head, kv(1))).toList,
+          openMOLEMemory = Some(256)
+        )(OpenMOLEWorkspace.instance.authenticationProvider)
+      case "local" =>
+        LocalEnvironment(_nodes match {
+          case Some(n) if n > 0 => n
+          case _ => Runtime.getRuntime.availableProcessors()
+        })
+      case _ => throw new Exception("Invalid execution environment: " + name)
     }
   }
 
   /** Environment for parallel tasks executed on the local machine */
-  val local = LocalEnvironment(getIntProperty("nodes") match {
-    case n if n <= 0 => Runtime.getRuntime.availableProcessors()
-    case n if n >  0 => n
-  })
+  val local = getEnvironment("local")
 
   /** Environment on which to execute short running tasks */
-  val short = getEnvironmentProperty("short")
+  val short = getEnvironment(getStringProperty("short"))
 
   /** Environment on which to execute long running tasks */
-  val long = getEnvironmentProperty("long")
+  val long = getEnvironment(getStringProperty("long"))
 
-  /** Whether all tasks are executed on local machine */
-  val localOnly = (getStringProperty("short").toLowerCase == "local") && (getStringProperty("long").toLowerCase == "local")
+  /** Get named execution environment with specified properties */
+  def apply(name: Option[String] = None, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) =
+    getEnvironment(name getOrElse getStringProperty("long"), memory = memory, nodes = nodes, threads = threads)
 }

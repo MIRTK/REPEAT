@@ -30,7 +30,7 @@ import FileUtil.{join, normalize}
 object Workspace extends Configurable("workspace") {
 
   /** Whether workspace directory is readable/writeable by all remote compute nodes */
-  val shared = getBooleanProperty("shared") || Environment.localOnly
+  val shared = getBooleanProperty("shared")
 
   /** Top-level directory of workspace */
   val dir = getFileProperty("dir")

@@ -30,7 +30,7 @@ import FileUtil.{join, normalize}
 object Dataset extends Configurable("dataset") {
 
   /** Whether the files in the dataset are readable by remote compute nodes */
-  val shared = getBooleanProperty("shared") || Environment.localOnly
+  val shared = getBooleanProperty("shared")
 
   /** Top-level directory of dataset */
   val dir = getFileProperty("dir")

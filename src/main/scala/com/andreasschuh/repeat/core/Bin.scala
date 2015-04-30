@@ -37,7 +37,7 @@ import scala.util.Try
 object Bin extends Configurable("software") {
 
   /** Whether software installations are shared by all compute nodes */
-  val shared = getBooleanProperty("shared") || Environment.localOnly
+  val shared = getBooleanProperty("shared")
 
   /** Local path of the "care" executable used to pack software tools */
   protected val care = getFileProperty("care")

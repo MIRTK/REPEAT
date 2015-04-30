@@ -55,7 +55,7 @@ object IRTK extends Configurable("irtk") {
   }
 
   /** Maximum number of threads to be used by each command */
-  val threads = getIntProperty("threads") match {
+  val threads = getIntProperty(".environment.threads") match {
     case n if n <= 0 => Runtime.getRuntime.availableProcessors()
     case n if n >  0 => n
   }

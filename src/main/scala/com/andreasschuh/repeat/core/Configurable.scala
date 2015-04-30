@@ -53,6 +53,12 @@ abstract class Configurable(val propGroup: String = "") {
   /** Get integer value of property in this group */
   protected def getIntProperty(propName: String) = Config().getInt(getPropPath(propName))
 
+  /** Get optional integer value of property in this group */
+  protected def getIntOptionProperty(propName: String) = {
+    val propPath = getPropPath(propName)
+    if (Config().hasPath(propPath)) Some(Config().getInt(propPath)) else None
+  }
+
   /** Get list of string values */
   protected def getIntListProperty(propName: String) = Config().getIntList(getPropPath(propName))
 
