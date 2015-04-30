@@ -34,6 +34,8 @@ libraryDependencies += "org.openmole" %% "org-openmole-plugin-task-scala" % open
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-domain-file" % openMOLEVersion
 
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-grouping-batch" % openMOLEVersion
+
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-environment-condor" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-environment-ssh" % openMOLEVersion

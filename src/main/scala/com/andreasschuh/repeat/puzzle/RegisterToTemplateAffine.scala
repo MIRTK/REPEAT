@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.task.scala._
@@ -79,6 +80,6 @@ object RegisterToTemplateAffine {
       outputFiles += ("output" + logSuf, log)
     ) source dofSource hook CopyFileHook(log, logPath)
 
-    begin -- Skip(reg on Env.short, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")
+    begin -- Skip(reg on Env.short by 10, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")
   }
 }

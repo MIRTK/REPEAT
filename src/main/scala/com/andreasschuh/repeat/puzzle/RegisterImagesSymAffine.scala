@@ -113,7 +113,7 @@ object RegisterImagesSymAffine {
         outputs     += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
       ) source invDofSource
 
-    regBegin -- Skip(regTask on Env.short, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
-    invBegin -- Skip(invTask on Env.short, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
+    regBegin -- Skip(regTask on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
+    invBegin -- Skip(invTask on Env.short by 10, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
   }
 }
