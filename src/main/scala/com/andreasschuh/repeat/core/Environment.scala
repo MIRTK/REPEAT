@@ -23,6 +23,7 @@ package com.andreasschuh.repeat.core
 
 import java.io.File
 
+import org.openmole.core.exception.UserBadDataError
 import org.openmole.core.workspace.{ Workspace => OpenMOLEWorkspace }
 import org.openmole.core.workflow.execution.local.LocalEnvironment
 import org.openmole.plugin.environment.ssh.{ PrivateKey, SSHAuthentication }
@@ -41,14 +42,13 @@ object Environment extends Configurable("environment") {
     val auth = getStringProperty(s"$name.auth")
     auth match {
       case "id_dsa" | "id_rsa" =>
+        val login  = getStringProperty(s"$name.user")
+        val host   = getStringProperty(s"$name.host")
+        val port   = 22
         val sshDir = new File(System.getProperty("user.home"), ".ssh")
         if (sshDir.exists)
-          SSHAuthentication += PrivateKey(
-            new File(sshDir, auth),
-            getStringProperty(s"$name.user"),
-            "", // no passphrase used/allowed
-            getStringProperty(s"$name.host")
-          )
+          // TODO: Add only if not present yet
+          SSHAuthentication += PrivateKey(new File(sshDir, auth), login, "", host)
       case _ =>
     }
   }
@@ -64,7 +64,7 @@ object Environment extends Configurable("environment") {
     val _requirements = getStringListProperty(s"${_name}.requirements").toList
     _name.toLowerCase match {
       case "slurm" =>
-        addSSHAuthenticationFor("slurm")
+        //addSSHAuthenticationFor("slurm")
         SLURMEnvironment(
           getStringProperty("slurm.user"),
           getStringProperty("slurm.host"),
@@ -77,7 +77,7 @@ object Environment extends Configurable("environment") {
           openMOLEMemory = Some(256)
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "condor" | "htcondor" =>
-        addSSHAuthenticationFor("condor")
+        //addSSHAuthenticationFor("condor")
         CondorEnvironment(
           getStringProperty("condor.user"),
           getStringProperty("condor.host"),

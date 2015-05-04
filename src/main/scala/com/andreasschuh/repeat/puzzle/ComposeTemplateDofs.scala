@@ -57,39 +57,30 @@ object ComposeTemplateDofs {
     import Workspace.{dofIni, dofPre, dofSuf}
     import FileUtil.{join, relativize}
 
-    val iniDofPath    = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val iniDofRelPath = relativize(Workspace.rootFS, iniDofPath)
+    val iniDofAbsPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val iniDofOutPath = if (Workspace.shared) iniDofAbsPath else relativize(Workspace.dir, iniDofAbsPath)
 
     val begin = EmptyTask() set (
         name    := "ComposeTemplateDofsBegin",
         inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
         outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
-      ) source FileSource(iniDofPath, iniDof)
+      ) source FileSource(iniDofAbsPath, iniDof)
 
-    val composeTask = ScalaTask(
+    val compose = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${iniDof.name} = FileUtil.join(workDir, "rootfs", s"$iniDofPath")
+        | val ${iniDof.name} = FileUtil.join(workDir, s"$iniDofOutPath")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
         imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm),
-        inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, Workspace.shared),
-        inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, Workspace.shared),
+        inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, link = Workspace.shared),
+        inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, tgtIm, srcId, srcIm),
-        outputFiles += (join("rootfs", iniDofRelPath), iniDof)
-      )
-
-    // If workspace is accessible by compute node, read/write files directly without copy
-    if (Workspace.shared) {
-      Workspace.rootFS.mkdirs()
-      composeTask.addResource(Workspace.rootFS, "rootfs", true)
-    }
-
-    // Otherwise, output files have to be copied to local workspace if not shared
-    val compose = composeTask hook CopyFileHook(iniDof, iniDofPath)
+        outputFiles += (iniDofOutPath, iniDof)
+      ) hook CopyFileHook(iniDof, iniDofAbsPath)
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
     val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
