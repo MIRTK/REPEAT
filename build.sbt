@@ -18,6 +18,8 @@ OsgiKeys.privatePackage := Seq("")
 
 defaultScalariformSettings
 
+resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+
 resolvers += "ISC-PIF Release" at "http://maven.iscpif.fr/public/"
 
 val openMOLEVersion = "5.0-SNAPSHOT"
