@@ -35,13 +35,6 @@ object Workspace extends Configurable("workspace") {
   /** Top-level directory of workspace */
   val dir = getFileProperty("dir")
 
-  /**
-   * Directory containing input/output data files
-   *
-   * This directory is used as root of file system used by PRoot if workspace is shared.
-   */
-  val rootFS = join(dir, "rootfs")
-
   /** Working directory for OpenMOLE environments */
   val openMOLE = Some(join(dir, "openmole").getAbsolutePath)
 
@@ -50,14 +43,14 @@ object Workspace extends Configurable("workspace") {
 
   /** Local directory containing input images of dataset */
   val imgDir = if (copyDataset) {
-    normalize(join(rootFS, getStringProperty("images.dir")))
+    normalize(join(dir, getStringProperty("images.dir")))
   } else {
     Dataset.imgDir
   }
 
   /** Local directory containing input label images of dataset */
   val segDir = if (copyDataset) {
-    normalize(join(rootFS, getStringProperty("labels.dir")))
+    normalize(join(dir, getStringProperty("labels.dir")))
   } else {
     Dataset.segDir
   }
@@ -68,12 +61,12 @@ object Workspace extends Configurable("workspace") {
   /** Local path of input template image */
   val refIm  = join(refDir, Dataset.refIm.getName)
 
-  val dofDir = normalize(join(rootFS, getStringProperty("dofs.dir")))
+  val dofDir = normalize(join(dir,    getStringProperty("dofs.dir")))
   val dofRig = normalize(join(dofDir, getStringProperty("dofs.rigid")))
   val dofIni = normalize(join(dofDir, getStringProperty("dofs.initial")))
   val dofAff = normalize(join(dofDir, getStringProperty("dofs.affine")))
   val dofPre = getStringProperty("dofs.prefix")
   val dofSuf = getStringProperty("dofs.suffix")
-  val logDir = normalize(join(rootFS, getStringProperty("logs.dir")))
+  val logDir = normalize(join(dir, getStringProperty("logs.dir")))
   val logSuf = getStringProperty("logs.suffix")
 }

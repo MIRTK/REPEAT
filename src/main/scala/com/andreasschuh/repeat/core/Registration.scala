@@ -53,24 +53,24 @@ class Registration(val id: String) extends Configurable("registration." + id) {
 
   /** Directory of converted affine input transformations */
   val affDir = dof2affCmd match {
-    case Some(_) => normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.affs")))
+    case Some(_) => normalize(join(Workspace.dir, getStringProperty(".workspace.output.affs")))
     case None => Workspace.dofAff
   }
 
   /** Directory of computed transformations */
-  val dofDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.dofs")))
+  val dofDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.dofs")))
 
   /** Directory of deformed images */
-  val imgDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.images")))
+  val imgDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.images")))
 
   /** Directory of propagated label images */
-  val segDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.labels")))
+  val segDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.labels")))
 
   /** Directory of evaluation results */
-  val resDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.results")))
+  val resDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.results")))
 
   /** Directory of summary evaluation results */
-  val sumDir = normalize(join(Workspace.rootFS, getStringProperty(".workspace.output.summary")))
+  val sumDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.summary")))
 
   /** Whether to backup files before overwriting them */
   val doBak = getBooleanProperty(".workspace.output.backup")

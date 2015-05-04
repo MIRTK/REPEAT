@@ -54,23 +54,23 @@ object RegisterToTemplateAffine {
 
     val log = Val[File]
 
-    val dofPath = join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logPath = join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
+    val dofAbsPath = join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logAbsPath = join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val dofRelPath = relativize(Workspace.rootFS, dofPath)
-    val logRelPath = relativize(Workspace.rootFS, logPath)
+    val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
+    val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
 
     val begin = EmptyTask() set(
         name    := "ComputeAffineTemplateDofsBegin",
         inputs  += (refIm, srcId, srcIm, iniDof),
         outputs += (refIm, srcId, srcIm, iniDof, dof)
-      ) source FileSource(dofPath, dof)
+      ) source FileSource(dofAbsPath, dof)
 
-    val regTask = ScalaTask(
+    val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, "rootfs", s"$dofRelPath")
-        | val ${log.name} = FileUtil.join(workDir, "rootfs", s"$logRelPath")
+        | val ${dof.name} = FileUtil.join(workDir, s"$dofOutPath")
+        | val ${log.name} = FileUtil.join(workDir, s"$logOutPath")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Affine",
         |   "Padding value" -> $bgVal
@@ -78,26 +78,17 @@ object RegisterToTemplateAffine {
       """.stripMargin) set (
         name        := "ComputeAffineTemplateDofs",
         imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, IRTK.getClass),
+        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
         inputs      += srcId,
-        inputFiles  += (refIm, refId + refSuf, Workspace.shared),
-        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, Workspace.shared),
-        inputFiles  += (iniDof, dofPre + refId + ",${srcId}" + dofSuf, Workspace.shared),
+        inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (iniDof, dofPre + refId + ",${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (refIm, srcId, srcIm, iniDof),
-        outputFiles += (join("rootfs", dofRelPath), dof),
-        outputFiles += (join("rootfs", logRelPath), log)
-      )
-
-    // If workspace is accessible by compute node, read/write files directly without copy
-    if (Workspace.shared) {
-      Workspace.rootFS.mkdirs()
-      regTask.addResource(Workspace.rootFS, "rootfs", true)
-    }
-
-    // Otherwise, output files have to be copied to local workspace if not shared
-    val reg = regTask hook (
-        CopyFileHook(dof, dofPath),
-        CopyFileHook(log, logPath)
+        outputFiles += (dofOutPath, dof),
+        outputFiles += (logOutPath, log)
+      ) hook (
+        CopyFileHook(dof, dofAbsPath),
+        CopyFileHook(log, logAbsPath)
       )
 
     begin -- Skip(reg on Env.short by 10, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")

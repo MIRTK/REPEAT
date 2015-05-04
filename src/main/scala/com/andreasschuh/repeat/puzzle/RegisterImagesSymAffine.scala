@@ -67,25 +67,25 @@ object RegisterImagesSymAffine {
 
     val regLog = Val[File]
 
-    val invDofPath = join(dofAff,        dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
-    val outDofPath = join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val regLogPath = join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
+    val invDofAbsPath = join(dofAff,        dofPre + s"$${${srcId.name}},$${${tgtId.name}}" + dofSuf).getAbsolutePath
+    val outDofAbsPath = join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val regLogAbsPath = join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val invDofRelPath = relativize(Workspace.rootFS, invDofPath)
-    val outDofRelPath = relativize(Workspace.rootFS, outDofPath)
-    val regLogRelPath = relativize(Workspace.rootFS, regLogPath)
+    val invDofOutPath = if (Workspace.shared) invDofAbsPath else relativize(Workspace.dir, invDofAbsPath)
+    val outDofOutPath = if (Workspace.shared) outDofAbsPath else relativize(Workspace.dir, outDofAbsPath)
+    val regLogOutPath = if (Workspace.shared) regLogAbsPath else relativize(Workspace.dir, regLogAbsPath)
 
     val regBegin = EmptyTask() set (
         name    := "AffineRegImagesSymBegin",
         inputs  += (tgtId, tgtIm, srcId, srcIm, iniDof),
         outputs += (tgtId, tgtIm, srcId, srcIm, iniDof, outDof)
-      ) source FileSource(outDofPath, outDof)
+      ) source FileSource(outDofAbsPath, outDof)
 
-    val regTask = ScalaTask(
+    val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${outDof.name} = FileUtil.join(workDir, "rootfs", s"$outDofRelPath")
-        | val ${regLog.name} = FileUtil.join(workDir, "rootfs", s"$regLogRelPath")
+        | val ${outDof.name} = FileUtil.join(workDir, s"$outDofOutPath")
+        | val ${regLog.name} = FileUtil.join(workDir, s"$regLogOutPath")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
         |   "No. of resolution levels" -> 2,
@@ -94,59 +94,41 @@ object RegisterImagesSymAffine {
       """.stripMargin) set (
         name        := "AffineRegImagesSym",
         imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, IRTK.getClass),
+        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
         inputs      += (tgtId, srcId),
-        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, Workspace.shared),
-        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, Workspace.shared),
-        inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, Workspace.shared),
+        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, tgtIm, srcId, srcIm),
-        outputFiles += (join("rootfs", outDofRelPath), outDof),
-        outputFiles += (join("rootfs", regLogRelPath), regLog)
-      )
-
-    // If workspace is accessible by compute node, read/write files directly without copy
-    if (Workspace.shared) {
-      Workspace.rootFS.mkdirs()
-      regTask.addResource(Workspace.rootFS, "rootfs", true)
-    }
-
-    // Otherwise, output files have to be copied to local workspace if not shared
-    val regCap = regTask hook (
-        CopyFileHook(outDof, outDofPath),
-        CopyFileHook(regLog, regLogPath)
+        outputFiles += (outDofOutPath, outDof),
+        outputFiles += (regLogOutPath, regLog)
+      ) hook (
+        CopyFileHook(outDof, outDofAbsPath),
+        CopyFileHook(regLog, regLogAbsPath)
       )
 
     val invBegin = EmptyTask() set (
         name    := "InvertAffineDofBegin",
         inputs  += (tgtId, tgtIm, srcId, srcIm, outDof),
         outputs += (tgtId, tgtIm, srcId, srcIm, outDof, invDof)
-      ) source FileSource(invDofPath, invDof)
+      ) source FileSource(invDofAbsPath, invDof)
 
-    val invTask = ScalaTask(
+    val inv = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${invDof.name} = FileUtil.join(workDir, "rootfs", s"$invDofRelPath")
+        | val ${invDof.name} = FileUtil.join(workDir, s"$invDofOutPath")
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
         imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, IRTK.getClass),
+        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
         inputs      += (tgtId, srcId),
-        inputFiles  += (outDof, dofPre + "${tgtId},${srcId}" + dofSuf, Workspace.shared),
+        inputFiles  += (outDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, srcId, outDof),
-        outputFiles += (join("rootfs", invDofRelPath), invDof)
-      )
+        outputFiles += (invDofOutPath, invDof)
+      ) hook CopyFileHook(invDof, invDofAbsPath)
 
-    // If workspace is accessible by compute node, read/write files directly without copy
-    if (Workspace.shared) {
-      Workspace.rootFS.mkdirs()
-      invTask.addResource(Workspace.rootFS, "rootfs", true)
-    }
-
-    // Otherwise, output files have to be copied to local workspace if not shared
-    val invCap = Capsule(invTask, strainer = true) hook CopyFileHook(invDof, invDofPath)
-
-    regBegin -- Skip(regCap on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
-    invBegin -- Skip(invCap on Env.short by 10, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
+    regBegin -- Skip(reg on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
+    invBegin -- Skip(inv on Env.short by 10, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
   }
 }

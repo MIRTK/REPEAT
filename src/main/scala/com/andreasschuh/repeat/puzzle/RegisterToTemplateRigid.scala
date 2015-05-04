@@ -52,49 +52,40 @@ object RegisterToTemplateRigid {
 
     val log = Val[File]
 
-    val dofPath = join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logPath = join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
+    val dofAbsPath = join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logAbsPath = join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val dofRelPath = relativize(Workspace.rootFS, dofPath)
-    val logRelPath = relativize(Workspace.rootFS, logPath)
+    val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
+    val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
 
     val begin = EmptyTask() set (
         name    := "ComputeRigidTemplateDofsBegin",
         inputs  += (refIm, srcId, srcIm),
         outputs += (refIm, srcId, srcIm, dof)
-      ) source FileSource(dofPath, dof)
+      ) source FileSource(dofAbsPath, dof)
 
-    val regTask = ScalaTask(
+    val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, "rootfs", s"$dofRelPath")
-        | val ${log.name} = FileUtil.join(workDir, "rootfs", s"$logRelPath")
+        | val ${dof.name} = FileUtil.join(workDir, s"$dofOutPath")
+        | val ${log.name} = FileUtil.join(workDir, s"$logOutPath")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Rigid",
         |   "Background value" -> $bgVal
         | )
       """.stripMargin) set (
         name        := "ComputeRigidTemplateDofs",
-        imports     += ("com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}", "sys.process._"),
-        usedClasses += (Config.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
+        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
         inputs      += srcId,
-        inputFiles  += (refIm, refId + refSuf, Workspace.shared),
-        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, Workspace.shared),
+        inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         outputs     += (refIm, srcId, srcIm),
-        outputFiles += (join("rootfs", dofRelPath), dof),
-        outputFiles += (join("rootfs", logRelPath), log)
-      )
-
-    // If workspace is accessible by compute node, read/write files directly without copy
-    if (Workspace.shared) {
-      Workspace.rootFS.mkdirs()
-      regTask.addResource(Workspace.rootFS, "rootfs", true)
-    }
-
-    // Otherwise, output files have to be copied to local workspace if not shared
-    val reg = regTask hook (
-        CopyFileHook(dof, dofPath),
-        CopyFileHook(log, logPath)
+        outputFiles += (dofOutPath, dof),
+        outputFiles += (logOutPath, log)
+      ) hook (
+        CopyFileHook(dof, dofAbsPath),
+        CopyFileHook(log, logAbsPath)
       )
 
     val cond1 = s"${dof.name}.lastModified() > ${refIm.name}.lastModified()"
