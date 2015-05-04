@@ -36,7 +36,7 @@ object Workspace extends Configurable("workspace") {
   val dir = getFileProperty("dir")
 
   /** Working directory for OpenMOLE environments */
-  val openMOLE = Some(join(dir, "openmole").getAbsolutePath)
+  val openMOLE = Some(join(dir, "tmp").getAbsolutePath)
 
   /** Whether dataset files have to be copied to workspace */
   def copyDataset = shared && !Dataset.shared && Bin.shared
