@@ -74,7 +74,9 @@ object Environment extends Configurable("environment") {
           nodes = _nodes,
           threads = _threads,
           constraints = _requirements,
-          openMOLEMemory = Some(256)
+          openMOLEMemory = Some(256),
+          workDirectory = Workspace.openMOLE,
+          storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "condor" | "htcondor" =>
         addSSHAuthenticationFor("condor")
@@ -86,7 +88,9 @@ object Environment extends Configurable("environment") {
           nodes = nodes,
           threads = threads,
           requirements = _requirements.grouped(2).map(kv => CondorRequirement(kv.head, kv(1))).toList,
-          openMOLEMemory = Some(256)
+          openMOLEMemory = Some(256),
+          workDirectory = Workspace.openMOLE,
+          storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "local" =>
         LocalEnvironment(_nodes match {
