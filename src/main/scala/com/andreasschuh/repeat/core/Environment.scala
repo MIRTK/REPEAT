@@ -26,7 +26,7 @@ import java.io.File
 import org.openmole.core.exception.UserBadDataError
 import org.openmole.core.workspace.{ Workspace => OpenMOLEWorkspace }
 import org.openmole.core.workflow.execution.local.LocalEnvironment
-import org.openmole.plugin.environment.ssh.{ PrivateKey, SSHAuthentication }
+import org.openmole.plugin.environment.ssh.{ PrivateKey, LoginPassword, SSHAuthentication }
 import org.openmole.plugin.environment.slurm.SLURMEnvironment
 import org.openmole.plugin.environment.condor.CondorEnvironment
 import fr.iscpif.gridscale.condor.CondorRequirement
@@ -37,19 +37,22 @@ import fr.iscpif.gridscale.condor.CondorRequirement
  */
 object Environment extends Configurable("environment") {
 
-  /** Add SSH authentication method for named execution environment */
-  private def addSSHAuthenticationFor(name: String): Unit = {
-    val auth = getStringProperty(s"$name.auth")
-    auth match {
-      case "id_dsa" | "id_rsa" =>
-        val login  = getStringProperty(s"$name.user")
-        val host   = getStringProperty(s"$name.host")
-        val port   = 22
-        val sshDir = new File(System.getProperty("user.home"), ".ssh")
-        if (sshDir.exists)
-          // TODO: Add only if not present yet
-          SSHAuthentication += PrivateKey(new File(sshDir, auth), login, "", host)
-      case _ =>
+  /** Add authentication method for named execution environment */
+  private def addAuthenticationFor(name: String): Unit = {
+    val login = getStringProperty(s"$name.user")
+    val host  = getStringProperty(s"$name.host")
+    try SSHAuthentication(login, host, 22)(OpenMOLEWorkspace.instance.authenticationProvider)
+    catch {
+      case _: UserBadDataError =>
+        val auth = getStringProperty(s"$name.auth")
+        auth match {
+        case "id_dsa" | "id_rsa" =>
+          val key = new File(new File(System.getProperty("user.home"), ".ssh"), auth)
+          if (!key.isFile) throw new Exception("Private SSH key file " + key + " does not exist")
+          SSHAuthentication += PrivateKey(key, login, "", host) // no passphrase allowed
+        case password: String =>
+          SSHAuthentication += LoginPassword(login, password, host)
+      }
     }
   }
 
@@ -64,7 +67,7 @@ object Environment extends Configurable("environment") {
     val _requirements = getStringListProperty(s"${_name}.requirements").toList
     _name.toLowerCase match {
       case "slurm" =>
-        //addSSHAuthenticationFor("slurm")
+        addAuthenticationFor("slurm")
         SLURMEnvironment(
           getStringProperty("slurm.user"),
           getStringProperty("slurm.host"),
@@ -79,7 +82,7 @@ object Environment extends Configurable("environment") {
           storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "condor" | "htcondor" =>
-        //addSSHAuthenticationFor("condor")
+        addAuthenticationFor("condor")
         CondorEnvironment(
           getStringProperty("condor.user"),
           getStringProperty("condor.host"),
