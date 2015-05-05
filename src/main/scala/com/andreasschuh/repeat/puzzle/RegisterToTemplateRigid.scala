@@ -55,8 +55,8 @@ object RegisterToTemplateRigid {
     val dofAbsPath = join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
     val logAbsPath = join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
-    val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
+    //val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
+    //val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
 
     val begin = EmptyTask() set (
         name    := "ComputeRigidTemplateDofsBegin",
@@ -67,8 +67,8 @@ object RegisterToTemplateRigid {
     val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, s"$dofOutPath")
-        | val ${log.name} = FileUtil.join(workDir, s"$logOutPath")
+        | val ${dof.name} = FileUtil.join(workDir, "result$dofSuf")
+        | val ${log.name} = FileUtil.join(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Rigid",
         |   "Background value" -> $bgVal
@@ -81,8 +81,8 @@ object RegisterToTemplateRigid {
         inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         outputs     += (refIm, srcId, srcIm),
-        outputFiles += (dofOutPath, dof),
-        outputFiles += (logOutPath, log)
+        outputFiles += ("result" + dofSuf, dof),
+        outputFiles += ("output" + logSuf, log)
       ) hook (
         CopyFileHook(dof, dofAbsPath),
         CopyFileHook(log, logAbsPath)
