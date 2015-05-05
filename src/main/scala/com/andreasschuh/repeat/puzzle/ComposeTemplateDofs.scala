@@ -58,7 +58,7 @@ object ComposeTemplateDofs {
     import FileUtil.{join, relativize}
 
     val iniDofAbsPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val iniDofOutPath = if (Workspace.shared) iniDofAbsPath else relativize(Workspace.dir, iniDofAbsPath)
+    //val iniDofOutPath = if (Workspace.shared) iniDofAbsPath else relativize(Workspace.dir, iniDofAbsPath)
 
     val begin = EmptyTask() set (
         name    := "ComposeTemplateDofsBegin",
@@ -69,7 +69,7 @@ object ComposeTemplateDofs {
     val compose = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${iniDof.name} = FileUtil.join(workDir, s"$iniDofOutPath")
+        | val ${iniDof.name} = FileUtil.join(workDir, "initial$dofSuf")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
@@ -79,7 +79,7 @@ object ComposeTemplateDofs {
         inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, link = Workspace.shared),
         inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, tgtIm, srcId, srcIm),
-        outputFiles += (iniDofOutPath, iniDof)
+        outputFiles += ("initial" + dofSuf, iniDof)
       ) hook CopyFileHook(iniDof, iniDofAbsPath)
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"

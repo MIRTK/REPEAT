@@ -57,8 +57,8 @@ object RegisterToTemplateAffine {
     val dofAbsPath = join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
     val logAbsPath = join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
-    val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
+    //val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
+    //val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
 
     val begin = EmptyTask() set(
         name    := "ComputeAffineTemplateDofsBegin",
@@ -69,8 +69,8 @@ object RegisterToTemplateAffine {
     val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, s"$dofOutPath")
-        | val ${log.name} = FileUtil.join(workDir, s"$logOutPath")
+        | val ${dof.name} = FileUtil.join(workDir, "result$dofSuf")
+        | val ${log.name} = FileUtil.join(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Affine",
         |   "Padding value" -> $bgVal
@@ -84,8 +84,8 @@ object RegisterToTemplateAffine {
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (iniDof, dofPre + refId + ",${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (refIm, srcId, srcIm, iniDof),
-        outputFiles += (dofOutPath, dof),
-        outputFiles += (logOutPath, log)
+        outputFiles += ("result" + dofSuf, dof),
+        outputFiles += ("output" + logSuf, log)
       ) hook (
         CopyFileHook(dof, dofAbsPath),
         CopyFileHook(log, logAbsPath)

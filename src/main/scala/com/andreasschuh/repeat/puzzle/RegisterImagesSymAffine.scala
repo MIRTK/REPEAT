@@ -71,9 +71,9 @@ object RegisterImagesSymAffine {
     val outDofAbsPath = join(dofAff,        dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
     val regLogAbsPath = join(logDir, dofAff.getName, s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val invDofOutPath = if (Workspace.shared) invDofAbsPath else relativize(Workspace.dir, invDofAbsPath)
-    val outDofOutPath = if (Workspace.shared) outDofAbsPath else relativize(Workspace.dir, outDofAbsPath)
-    val regLogOutPath = if (Workspace.shared) regLogAbsPath else relativize(Workspace.dir, regLogAbsPath)
+    //val invDofOutPath = if (Workspace.shared) invDofAbsPath else relativize(Workspace.dir, invDofAbsPath)
+    //val outDofOutPath = if (Workspace.shared) outDofAbsPath else relativize(Workspace.dir, outDofAbsPath)
+    //val regLogOutPath = if (Workspace.shared) regLogAbsPath else relativize(Workspace.dir, regLogAbsPath)
 
     val regBegin = EmptyTask() set (
         name    := "AffineRegImagesSymBegin",
@@ -84,8 +84,8 @@ object RegisterImagesSymAffine {
     val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${outDof.name} = FileUtil.join(workDir, s"$outDofOutPath")
-        | val ${regLog.name} = FileUtil.join(workDir, s"$regLogOutPath")
+        | val ${outDof.name} = FileUtil.join(workDir, "result$dofSuf")
+        | val ${regLog.name} = FileUtil.join(workDir, "output$logSuf")
         | IRTK.ireg(${tgtIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${outDof.name}, Some(regLog),
         |   "Transformation model" -> "Affine",
         |   "No. of resolution levels" -> 2,
@@ -100,8 +100,8 @@ object RegisterImagesSymAffine {
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, tgtIm, srcId, srcIm),
-        outputFiles += (outDofOutPath, outDof),
-        outputFiles += (regLogOutPath, regLog)
+        outputFiles += ("result" + dofSuf, outDof),
+        outputFiles += ("output" + logSuf, regLog)
       ) hook (
         CopyFileHook(outDof, outDofAbsPath),
         CopyFileHook(regLog, regLogAbsPath)
@@ -116,7 +116,7 @@ object RegisterImagesSymAffine {
     val inv = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${invDof.name} = FileUtil.join(workDir, s"$invDofOutPath")
+        | val ${invDof.name} = FileUtil.join(workDir, "inverse$dofSuf")
         | IRTK.invert(${outDof.name}, ${invDof.name})
       """.stripMargin) set (
         name        := "InvertAffineDof",
@@ -125,7 +125,7 @@ object RegisterImagesSymAffine {
         inputs      += (tgtId, srcId),
         inputFiles  += (outDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
         outputs     += (tgtId, srcId, outDof),
-        outputFiles += (invDofOutPath, invDof)
+        outputFiles += ("inverse" + dofSuf, invDof)
       ) hook CopyFileHook(invDof, invDofAbsPath)
 
     regBegin -- Skip(reg on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
