@@ -101,14 +101,12 @@ object RegisterImages {
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
         imports     += ("com.andreasschuh.repeat.core.{Config, Registration, FileUtil, TaskLogger}", "scala.sys.process._"),
-        usedClasses += (Config.getClass, Registration.getClass, FileUtil.getClass),
+        usedClasses += (Config.getClass, FileUtil.getClass, Registration.getClass, classOf[TaskLogger]),
         inputs      += (tgtId, srcId, affDof, regCmd, parId, parVal),
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (affDof, dofPre + "${tgtId},${srcId}" + reg.affSuf, link = Workspace.shared),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, runTime),
-        outputFiles += ("result" + reg.phiSuf, phiDof),
-        outputFiles += ("output" + logSuf, regLog),
+        outputs     += (tgtId, tgtIm, srcId, srcIm, runTime, phiDof, regLog),
         regCmd      := reg.runCmd
       ), strainer = true) hook (
         CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),

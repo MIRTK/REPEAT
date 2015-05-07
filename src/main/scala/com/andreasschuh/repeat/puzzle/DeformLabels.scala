@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.hook.file.CopyFileHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
@@ -59,6 +60,7 @@ object DeformLabels {
             srcId: Prototype[Int], srcSeg: Prototype[File],
             phiDof: Prototype[File], outSeg: Prototype[File]) = {
     import Dataset.{segPre, segSuf}
+    import Workspace.dofPre
     import FileUtil.join
 
     val outSegPath   = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
@@ -72,6 +74,7 @@ object DeformLabels {
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
+        | val ${outSeg.name} = new java.io.File(workDir, "output$segSuf")
         | val args = Map(
         |   "target" -> ${tgtSeg.name}.getPath,
         |   "source" -> ${srcSeg.name}.getPath,
@@ -85,14 +88,17 @@ object DeformLabels {
         | val ret = cmd.!
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
-       name        := s"${reg.id}-DeformLabels",
-       imports     += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
-       usedClasses += Config.getClass,
-       inputs      += (tgtSeg, srcSeg, phiDof, command),
-       outputs     += (tgtSeg, srcSeg, phiDof, outSeg),
-       command     := reg.deformLabelsCmd
-      ), strainer = true) source outSegSource
+        name        := s"${reg.id}-DeformLabels",
+        imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
+        usedClasses += (FileUtil.getClass, Registration.getClass),
+        inputs      += (tgtId, srcId, command),
+        inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, link = Workspace.shared),
+        inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, link = Workspace.shared),
+        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
+        outputs     += outSeg,
+        command     := reg.deformLabelsCmd
+      ), strainer = true) hook CopyFileHook(outSeg, outSegSource, move = Workspace.shared)
 
-    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short by 10, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

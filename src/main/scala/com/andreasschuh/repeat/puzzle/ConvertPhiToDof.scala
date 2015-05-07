@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.hook.file.CopyFileHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
@@ -56,19 +57,19 @@ object ConvertPhiToDof {
     import Workspace.{dofPre, dofSuf}
     import FileUtil.join
 
-    val outDofPath   = join(reg.dofDir, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
-    val outDofSource = FileSource(outDofPath, outDof)
+    val outDofPath = join(reg.dofDir, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
 
     val begin = Capsule(EmptyTask() set (
         name    := s"${reg.id}-ConvertPhiToDofBegin",
         outputs += outDof
-      ), strainer = true) source outDofSource
+      ), strainer = true) source FileSource(outDofPath, outDof)
 
     val phi2dof = reg.phi2dofCmd match {
-      case Some(command) =>
-        val template = Val[Cmd]
+      case Some(cmd) =>
+        val command = Val[Cmd]
         val task = ScalaTask(
           s"""
+            | val ${outDof.name} = new java.io.File(workDir, "phi$dofSuf")
             | val args = Map(
             |   "regId"  -> "${reg.id}",
             |   "parId"  -> ${parId.name}.toString,
@@ -78,26 +79,24 @@ object ConvertPhiToDof {
             |   "out"    -> ${outDof.name}.getPath,
             |   "dofout" -> ${outDof.name}.getPath
             | )
-            | val cmd = Registration.command(template, args)
+            | val cmd = Registration.command(command, args)
             | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
             | print(str)
             | FileUtil.mkdirs(${phiDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert output transformation")
           """.stripMargin) set(
-            name     := s"${reg.id}-ConvertPhiToDof",
-            imports  += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
-            inputs   += (parId, phiDof, template),
-            outputs  += outDof,
-            template := command
+            name        := s"${reg.id}-ConvertPhiToDof",
+            imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
+            usedClasses += (FileUtil.getClass, Registration.getClass),
+            inputs      += (parId, tgtId, srcId, command),
+            inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
+            outputs     += outDof,
+            command     := cmd
           )
-        Capsule(task, strainer = true) source outDofSource
+        Capsule(task, strainer = true) hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
       case None =>
-        val task = ScalaTask(s"val ${outDof.name} = ${phiDof.name}") set (
-            name    := s"${reg.id}-UsePhiAsDof",
-            inputs  += phiDof,
-            outputs += outDof
-          )
+        val task = EmptyTask() set (name := s"${reg.id}-UsePhiAsDof")
         Capsule(task, strainer = true).toPuzzlePiece
     }
 

@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.hook.file.CopyFileHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
@@ -59,40 +60,44 @@ object DeformImage {
             srcId: Prototype[Int], srcIm: Prototype[File],
             phiDof: Prototype[File], outIm: Prototype[File]) = {
     import Dataset.{imgPre, imgSuf}
+    import Workspace.dofPre
     import FileUtil.join
 
-    val outImPath   = join(reg.imgDir, imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
-    val outImSource = FileSource(outImPath, outIm)
+    val outImPath = join(reg.imgDir, imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
 
     val begin = Capsule(EmptyTask() set (
         name    := s"${reg.id}-DeformImageBegin",
         outputs += outIm
-      ), strainer = true) source outImSource
+      ), strainer = true) source FileSource(outImPath, outIm)
 
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
       s"""
-         | val args = Map(
-         |   "target" -> ${tgtIm.name}.getPath,
-         |   "source" -> ${srcIm.name}.getPath,
-         |   "out"    -> ${outIm.name}.getPath,
-         |   "phi"    -> ${phiDof.name}.getPath
-         | )
-         | val cmd = Registration.command(${command.name}, args)
-         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-         | print(str)
-         | FileUtil.mkdirs(${outIm.name})
-         | val ret = cmd.!
-         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
+        | val ${outIm.name} = new java.io.File(workDir, "output$imgSuf")
+        | val args = Map(
+        |   "target" -> ${tgtIm.name}.getPath,
+        |   "source" -> ${srcIm.name}.getPath,
+        |   "out"    -> ${outIm.name}.getPath,
+        |   "phi"    -> ${phiDof.name}.getPath
+        | )
+        | val cmd = Registration.command(${command.name}, args)
+        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+        | print(str)
+        | FileUtil.mkdirs(${outIm.name})
+        | val ret = cmd.!
+        | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-DeformImage",
-        imports     += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
-        usedClasses += Config.getClass,
-        inputs      += (tgtIm, srcIm, phiDof, command),
-        outputs     += (tgtIm, srcIm, phiDof, outIm),
+        imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
+        usedClasses += (FileUtil.getClass, Registration.getClass),
+        inputs      += (tgtId, srcId, command),
+        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
+        outputs     += outIm,
         command     := reg.deformImageCmd
-      ), strainer = true) source outImSource
+      ), strainer = true) hook CopyFileHook(outIm, outImPath, move = Workspace.shared)
 
-    begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short by 10, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

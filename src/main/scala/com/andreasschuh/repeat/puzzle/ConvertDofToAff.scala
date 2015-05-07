@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.hook.file.CopyFileHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
@@ -50,21 +51,21 @@ object ConvertDofToAff {
    */
   def apply(reg: Registration, tgtId: Prototype[Int], srcId: Prototype[Int], iniDof: Prototype[File], affDof: Prototype[File]) = {
 
-    import Workspace.dofPre
+    import Workspace.{dofPre, dofSuf}
 
-    val affDofPath   = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
-    val affDofSource = FileSource(affDofPath, affDof)
+    val affDofPath = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
 
     val begin = Capsule(EmptyTask() set (
         name    := s"${reg.id}-ConvertDofToAffBegin",
         outputs += affDof
-      ), strainer = true) source affDofSource
+      ), strainer = true) source FileSource(affDofPath, affDof)
 
     val dof2aff = reg.dof2affCmd match {
       case Some(command) =>
         val template = Val[Cmd]
         val task = ScalaTask(
           s"""
+            | val ${affDof.name} = new java.io.File(workDir, "aff${reg.affSuf}")
             | val args = Map(
             |   "regId" -> "${reg.id}",
             |   "in"    -> ${iniDof.name}.getPath,
@@ -80,19 +81,17 @@ object ConvertDofToAff {
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert affine transformation")
           """.stripMargin) set(
-            name     := s"${reg.id}-ConvertDofToAff",
-            imports  += ("com.andreasschuh.repeat.core.{FileUtil,Registration}", "scala.sys.process._"),
-            inputs   += iniDof,
-            outputs  += affDof,
-            template := command
+            name        := s"${reg.id}-ConvertDofToAff",
+            imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
+            usedClasses += (FileUtil.getClass, Registration.getClass),
+            inputs      += (tgtId, srcId),
+            inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
+            outputs     += affDof,
+            template    := command
           )
-        Capsule(task, strainer = true) source affDofSource
+        Capsule(task, strainer = true) hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
       case None =>
-        val task = ScalaTask(s"val ${affDof.name} = ${iniDof.name}") set (
-            name    := s"${reg.id}-UseDofAsAff",
-            inputs  += iniDof,
-            outputs += affDof
-          )
+        val task = EmptyTask() set (name := s"${reg.id}-UseDofAsAff")
         Capsule(task, strainer = true).toPuzzlePiece
     }
 
