@@ -89,7 +89,7 @@ object RegisterImages {
         |   "phi"    -> ${phiDof.name}.getPath
         | )
         | val cmd = Registration.command(${regCmd.name}, args)
-        | val log = new TaskLogger(regLog)
+        | val log = new TaskLogger(${regLog.name})
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | if (!log.tee) print(str)
         | log.out(str)
