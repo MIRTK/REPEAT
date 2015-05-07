@@ -26,6 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file.CopyFileHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
@@ -63,13 +64,12 @@ object DeformLabels {
     import Workspace.dofPre
     import FileUtil.join
 
-    val outSegPath   = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
-    val outSegSource = FileSource(outSegPath, outSeg)
+    val outSegPath = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
 
     val begin = Capsule(EmptyTask() set (
         name    := s"${reg.id}-DeformLabelsBegin",
         outputs += outSeg
-      ), strainer = true) source outSegSource
+      ), strainer = true) source FileSource(outSegPath, outSeg)
 
     val command = Val[Cmd]
     val run = Capsule(ScalaTask(
@@ -97,7 +97,7 @@ object DeformLabels {
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
         outputs     += outSeg,
         command     := reg.deformLabelsCmd
-      ), strainer = true) hook CopyFileHook(outSeg, outSegSource, move = Workspace.shared)
+      ), strainer = true) hook CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
 
     begin -- Skip(run on Env.short by 10, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
   }

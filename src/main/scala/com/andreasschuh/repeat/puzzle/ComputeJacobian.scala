@@ -89,7 +89,7 @@ object ComputeJacobian {
         usedClasses += (Config.getClass, FileUtil.getClass, Registration.getClass),
         inputs      += (tgtId, srcId, command),
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared)
+        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
         outputs     += outJac,
         command     := reg.jacCmd
       ), strainer = true) hook CopyFileHook(outJac, outJacPath, move = Workspace.shared)

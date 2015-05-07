@@ -28,6 +28,7 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.domain.file._
+import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.display._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
