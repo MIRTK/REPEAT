@@ -226,7 +226,7 @@ object IRTK extends Configurable("irtk") {
       case Some(set) => set.map(l => l -> Array.fill(2)(.0)).toMap
       case None      => scala.collection.mutable.Map[Int, Array[Double]]()
     }
-    Seq("labelStats", a.getAbsolutePath, b.getAbsolutePath).lineStream.foreach(line => {
+    Cmd(binPath("labelStats"), a.getAbsolutePath, b.getAbsolutePath).lineStream.foreach(line => {
       val v = line.split(',')
       val l = v(0).toInt
       if (labels match {
