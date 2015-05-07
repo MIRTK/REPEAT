@@ -109,7 +109,13 @@ object RunRegistration {
         (affDof in SelectFileDomain(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
     ) set (name := "forEachImPairAndPar", inputs += regId, outputs += regId)
 
-    val run = setRegId -- forEachImPairAndPar -<
+    val incParId = ScalaTask("val parId = input.parId + 1") set (
+        name    := "incParId", 
+        inputs  += parId,
+        outputs += parId
+      )
+
+    val run = setRegId -- forEachImPairAndPar -< Capsule(incParId, strainer = true) --
       RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
       ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
 
