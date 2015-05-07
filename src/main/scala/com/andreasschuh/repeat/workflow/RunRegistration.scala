@@ -30,6 +30,7 @@ import com.andreasschuh.repeat.puzzle._
 
 import org.openmole.core.dsl._
 import org.openmole.plugin.domain.file._
+import org.openmole.plugin.hook.display._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.source.file.FileSource
@@ -105,23 +106,25 @@ object RunRegistration {
       imageSampling x paramSampling x
         (tgtIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${tgtId}" + imgSuf)) x
         (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf)) x
-        (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
-        (srcSeg in SelectFileDomain(Workspace.segDir, segPre + "${srcId}" + segSuf)) x
         (affDof in SelectFileDomain(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
     ) set (name := "forEachImPairAndPar", inputs += regId, outputs += regId)
 
     val run = setRegId -- forEachImPairAndPar -<
-      RegisterImages (reg, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
-      ConvertPhiToDof(reg, parId, tgtId, srcId, phiDof, outDof)
+      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
+      ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
 
-    val runEnd = Capsule(EmptyTask() set (name := "runEnd", inputs += outDof), strainer = true)
+    val runEnd = Capsule(EmptyTask() set (
+        name    := "runEnd",
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof)
+      ))
 
     // -----------------------------------------------------------------------------------------------------------------
     // Post-registration steps
     val post =
-      (runEnd -- DeformImage    (reg, parId, tgtId, tgtIm,  srcId, srcIm,  outDof, outIm )) +
-      (runEnd -- DeformLabels   (reg, parId, tgtId, tgtSeg, srcId, srcSeg, outDof, outSeg)) +
-      (runEnd -- ComputeJacobian(reg, parId, tgtId, tgtIm,  srcId,         outDof, outJac))
+      (runEnd -- DeformImage    (reg, regId, parId, tgtId, srcId, outDof, outIm )) +
+      (runEnd -- DeformLabels   (reg, regId, parId, tgtId, srcId, outDof, outSeg)) +
+      (runEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, outDof, outJac))
 
     // TODO: Compute mean runtime for each parameter set and store it in CSV file
 

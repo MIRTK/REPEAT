@@ -53,22 +53,28 @@ object ComputeJacobian {
    *
    * @return Puzzle piece to compute Jacobian determinant map
    */
-  def apply(reg: Registration, parId: Prototype[Int],
-            tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+            tgtId: Prototype[Int], srcId: Prototype[Int],
             phiDof: Prototype[File], outJac: Prototype[File]) = {
     import Dataset.{imgPre, imgSuf}
     import Workspace.dofPre
     import FileUtil.join
 
+    val tgtIm = Val[File]
+
+    val tgtImPath  = join(Workspace.imgDir, imgPre + s"$${${tgtId.name}}" + imgSuf).getAbsolutePath
     val outJacPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.jacSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-ComputeJacobianBegin",
-        outputs += outJac
-      ), strainer = true) source FileSource(outJacPath, outJac)
+        inputs  += (regId, parId, tgtId, srcId, phiDof),
+        outputs += (regId, parId, tgtId, srcId, phiDof, outJac)
+      ) source (
+        FileSource(outJacPath, outJac)
+      )
 
     val command = Val[Cmd]
-    val run = Capsule(ScalaTask(
+    val run = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | val ${outJac.name} = new java.io.File(workDir, "jac${reg.jacSuf}")
@@ -80,19 +86,22 @@ object ComputeJacobian {
         | val cmd = Registration.command(${command.name}, args)
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | print(str)
-        | FileUtil.mkdirs(${outJac.name})
         | val ret = cmd.!
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-ComputeJacobian",
-        imports     += ("com.andreasschuh.repeat.core.{Config, FileUtil, Registration}", "scala.sys.process._"),
-        usedClasses += (Config.getClass, FileUtil.getClass, Registration.getClass),
-        inputs      += (tgtId, srcId, command),
+        imports     += ("com.andreasschuh.repeat.core.{Config, Registration}", "scala.sys.process._"),
+        usedClasses += (Config.getClass, Registration.getClass),
+        inputs      += (regId, parId, tgtId, srcId, command),
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += outJac,
+        outputs     += (regId, parId, tgtId, srcId, outJac),
         command     := reg.jacCmd
-      ), strainer = true) hook CopyFileHook(outJac, outJacPath, move = Workspace.shared)
+      ) source (
+        FileSource(tgtImPath, tgtIm)
+      ) hook (
+        CopyFileHook(outJac, outJacPath, move = Workspace.shared)
+      )
 
     begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() > ${phiDof.name}.lastModified()")
 

@@ -56,23 +56,30 @@ object DeformLabels {
    *
    * @return Puzzle piece to propagate source labels
    */
-  def apply(reg: Registration, parId: Prototype[Int],
-            tgtId: Prototype[Int], tgtSeg: Prototype[File],
-            srcId: Prototype[Int], srcSeg: Prototype[File],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+            tgtId: Prototype[Int], srcId: Prototype[Int],
             phiDof: Prototype[File], outSeg: Prototype[File]) = {
     import Dataset.{segPre, segSuf}
     import Workspace.dofPre
     import FileUtil.join
 
+    val tgtSeg = Val[File]
+    val srcSeg = Val[File]
+
+    val tgtSegPath = join(Workspace.segDir, segPre + s"$${${tgtId.name}}" + segSuf).getAbsolutePath
+    val srcSegPath = join(Workspace.segDir, segPre + s"$${${srcId.name}}" + segSuf).getAbsolutePath
     val outSegPath = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-DeformLabelsBegin",
-        outputs += outSeg
-      ), strainer = true) source FileSource(outSegPath, outSeg)
+        inputs  += (regId, parId, tgtId, srcId, phiDof),
+        outputs += (regId, parId, tgtId, srcId, phiDof, outSeg)
+      ) source (
+        FileSource(outSegPath, outSeg)
+      )
 
     val command = Val[Cmd]
-    val run = Capsule(ScalaTask(
+    val run = ScalaTask(
       s"""
         | val ${outSeg.name} = new java.io.File(workDir, "output$segSuf")
         | val args = Map(
@@ -91,14 +98,19 @@ object DeformLabels {
         name        := s"${reg.id}-DeformLabels",
         imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
         usedClasses += (FileUtil.getClass, Registration.getClass),
-        inputs      += (tgtId, srcId, command),
+        inputs      += (regId, parId, tgtId, srcId, command),
         inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, link = Workspace.shared),
         inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, link = Workspace.shared),
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += outSeg,
+        outputs     += (regId, parId, tgtId, srcId, outSeg),
         command     := reg.deformLabelsCmd
-      ), strainer = true) hook CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
+      ) source (
+        FileSource(tgtSegPath, tgtSeg),
+        FileSource(srcSegPath, srcSeg)
+      ) hook (
+        CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
+      )
 
-    begin -- Skip(run on Env.short by 10, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

@@ -56,23 +56,32 @@ object DeformImage {
    *
    * @return Puzzle piece to deform source image
    */
-  def apply(reg: Registration, parId: Prototype[Int],
-            tgtId: Prototype[Int], tgtIm: Prototype[File],
-            srcId: Prototype[Int], srcIm: Prototype[File],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+            tgtId: Prototype[Int], srcId: Prototype[Int],
             phiDof: Prototype[File], outIm: Prototype[File]) = {
     import Dataset.{imgPre, imgSuf}
     import Workspace.dofPre
     import FileUtil.join
 
+    val tgtIm = Val[File]
+    val srcIm = Val[File]
+
+    val tgtImPath = join(Workspace.imgDir, imgPre + s"$${${tgtId.name}}" + imgSuf).getAbsolutePath
+    val srcImPath = join(Workspace.imgDir, imgPre + s"$${${srcId.name}}" + imgSuf).getAbsolutePath
     val outImPath = join(reg.imgDir, imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-DeformImageBegin",
-        outputs += outIm
-      ), strainer = true) source FileSource(outImPath, outIm)
+        inputs  += (regId, parId, tgtId,        srcId,        phiDof),
+        outputs += (regId, parId, tgtId, tgtIm, srcId, srcIm, phiDof, outIm)
+      ) source (
+        FileSource(tgtImPath, tgtIm),
+        FileSource(srcImPath, srcIm),
+        FileSource(outImPath, outIm)
+      )
 
     val command = Val[Cmd]
-    val run = Capsule(ScalaTask(
+    val run = ScalaTask(
       s"""
         | val ${outIm.name} = new java.io.File(workDir, "output$imgSuf")
         | val args = Map(
@@ -84,21 +93,22 @@ object DeformImage {
         | val cmd = Registration.command(${command.name}, args)
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | print(str)
-        | FileUtil.mkdirs(${outIm.name})
         | val ret = cmd.!
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-DeformImage",
-        imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
-        usedClasses += (FileUtil.getClass, Registration.getClass),
-        inputs      += (tgtId, srcId, command),
+        imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+        usedClasses += Registration.getClass,
+        inputs      += (regId, parId, tgtId, srcId, command),
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += outIm,
+        outputs     += (regId, parId, tgtId, srcId, outIm),
         command     := reg.deformImageCmd
-      ), strainer = true) hook CopyFileHook(outIm, outImPath, move = Workspace.shared)
+      ) hook (
+        CopyFileHook(outIm, outImPath, move = Workspace.shared)
+      )
 
-    begin -- Skip(run on Env.short by 10, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
+    begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
   }
 }

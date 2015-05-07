@@ -27,6 +27,7 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.hook.file._
+import org.openmole.plugin.hook.display._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
@@ -55,11 +56,9 @@ object RegisterImages {
    *
    * @return Puzzle piece to compute transformation from target to source
    */
-  def apply(reg: Registration, parId: Prototype[Int], parVal: Prototype[Map[String, String]],
-            tgtId: Prototype[Int], tgtIm: Prototype[File],
-            srcId: Prototype[Int], srcIm: Prototype[File],
-            affDof: Prototype[File], phiDof: Prototype[File],
-            runTime: Prototype[Double]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int], parVal: Prototype[Map[String, String]],
+            tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
+            affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Double]) = {
     import Dataset.{imgPre, imgSuf}
     import Workspace.{dofPre, logDir, logSuf}
     import FileUtil.join
@@ -70,12 +69,13 @@ object RegisterImages {
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-RegisterImagesBegin",
-        outputs += phiDof
-      ), strainer = true) source FileSource(phiDofPath, phiDof)
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof)
+      ) source FileSource(phiDofPath, phiDof)
 
-    val run = Capsule(ScalaTask(
+    val run = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         | val ${phiDof.name} = new java.io.File(workDir, "result${reg.phiSuf}")
@@ -93,24 +93,24 @@ object RegisterImages {
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | if (!log.tee) print(str)
         | log.out(str)
-        | FileUtil.mkdirs(${phiDof.name})
         | val startTime = System.nanoTime
         | val ret = cmd ! log
         | val runTime = (System.nanoTime - startTime) / 1e-9
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
-        imports     += ("com.andreasschuh.repeat.core.{Config, Registration, FileUtil, TaskLogger}", "scala.sys.process._"),
-        usedClasses += (Config.getClass, FileUtil.getClass, Registration.getClass, classOf[TaskLogger]),
-        inputs      += (tgtId, srcId, affDof, regCmd, parId, parVal),
+        imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
+        usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
+        inputs      += (regCmd, regId, parId, parVal, tgtId, srcId),
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (affDof, dofPre + "${tgtId},${srcId}" + reg.affSuf, link = Workspace.shared),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, runTime, phiDof, regLog),
+        outputs     += (regId, parId, tgtId, srcId, phiDof, regLog, runTime),
         regCmd      := reg.runCmd
-      ), strainer = true) hook (
+      ) hook (
         CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),
-        CopyFileHook(regLog, regLogPath, move = Workspace.shared)
+        CopyFileHook(regLog, regLogPath, move = Workspace.shared),
+        ToStringHook(runTime)
       )
 
     begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")

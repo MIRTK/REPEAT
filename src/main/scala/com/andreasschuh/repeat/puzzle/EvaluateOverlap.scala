@@ -335,16 +335,16 @@ object EvaluateOverlap {
 
     if (dscEnabled && jsiEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
         (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc) +
         (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi)
     else if (dscEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
         (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc)
     else if (jsiEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
         (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi)
     else
       Capsule(EmptyTask()).toPuzzle

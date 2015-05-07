@@ -42,6 +42,8 @@ object ConvertPhiToDof {
   /**
    * @param reg    Registration info
    * @param parId  ID of parameter set
+   * @param tgtId  ID of target image
+   * @param srcId  ID of source image
    * @param phiDof Output transformation ("<phi>") of registration.
    *               If no phi2dof conversion is provided, tools for applying the transformation and computing
    *               evaluation measures such as the Jacobian determinant must be provided instead.
@@ -50,7 +52,7 @@ object ConvertPhiToDof {
    *
    * @return Puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, parId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
             tgtId: Prototype[Int], srcId: Prototype[Int],
             phiDof: Prototype[File], outDof: Prototype[File]) = {
 
@@ -59,10 +61,13 @@ object ConvertPhiToDof {
 
     val outDofPath = join(reg.dofDir, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-ConvertPhiToDofBegin",
-        outputs += outDof
-      ), strainer = true) source FileSource(outDofPath, outDof)
+        inputs  += (regId, parId, tgtId, srcId, phiDof),
+        outputs += (regId, parId, tgtId, srcId, phiDof, outDof)
+      ) source (
+        FileSource(outDofPath, outDof)
+      )
 
     val phi2dof = reg.phi2dofCmd match {
       case Some(cmd) =>
@@ -71,7 +76,7 @@ object ConvertPhiToDof {
           s"""
             | val ${outDof.name} = new java.io.File(workDir, "phi$dofSuf")
             | val args = Map(
-            |   "regId"  -> "${reg.id}",
+            |   "regId"  -> ${regId.name},
             |   "parId"  -> ${parId.name}.toString,
             |   "in"     -> ${phiDof.name}.getPath,
             |   "phi"    -> ${phiDof.name}.getPath,
@@ -82,22 +87,25 @@ object ConvertPhiToDof {
             | val cmd = Registration.command(command, args)
             | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
             | print(str)
-            | FileUtil.mkdirs(${phiDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert output transformation")
-          """.stripMargin) set(
+          """.stripMargin) set (
             name        := s"${reg.id}-ConvertPhiToDof",
-            imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
-            usedClasses += (FileUtil.getClass, Registration.getClass),
-            inputs      += (parId, tgtId, srcId, command),
+            imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+            usedClasses += Registration.getClass,
+            inputs      += (regId, parId, tgtId, srcId, command),
             inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-            outputs     += outDof,
+            outputs     += (regId, parId, tgtId, srcId, outDof),
             command     := cmd
           )
-        Capsule(task, strainer = true) hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
+        task hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
       case None =>
-        val task = EmptyTask() set (name := s"${reg.id}-UsePhiAsDof")
-        Capsule(task, strainer = true).toPuzzlePiece
+        val task = EmptyTask() set (
+            name    := s"${reg.id}-UsePhiAsDof",
+            inputs  += (regId, parId, tgtId, srcId, outDof),
+            outputs += (regId, parId, tgtId, srcId, outDof)
+          )
+        task.toCapsule.toPuzzlePiece
     }
 
     begin -- Skip(phi2dof, s"${outDof.name}.lastModified() > ${phiDof.name}.lastModified()")
