@@ -196,9 +196,10 @@ object EvaluateOverlap {
         """.stripMargin) set (
           name        := s"${reg.id}-EvaluateOverlap",
           imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
-          usedClasses += (Config.getClass, Overlap.getClass),
-          inputs      += (parId, tgtId, tgtSeg, srcId, outSeg),
-          outputs     += (parId, tgtId, srcId, dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd)
+          usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
+          inputFiles  += (tgtSeg, "target" + segSuf, link = Workspace.shared),
+          inputFiles  += (outSeg, "labels" + segSuf, link = Workspace.shared),
+          outputs     += (dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd)
         )
       Capsule(task, strainer = true)
     }
@@ -333,16 +334,16 @@ object EvaluateOverlap {
 
     if (dscEnabled && jsiEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
         (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc) +
         (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi)
     else if (dscEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
         (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc)
     else if (jsiEnabled)
       (forEachPar -< backupResults >- backupEnded) +
-        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short)) +
+        (backupEnded -- forEachImPairAndPar -< (evalOverlap on Env.short by 10)) +
         (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi)
     else
       Capsule(EmptyTask()).toPuzzle
