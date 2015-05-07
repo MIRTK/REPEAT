@@ -102,20 +102,35 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Pairwise registration
-    val forEachImPairAndPar = ExplorationTask(
-      imageSampling x paramSampling x
-        (tgtIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${tgtId}" + imgSuf)) x
-        (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf)) x
-        (affDof in SelectFileDomain(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf))
-    ) set (name := "forEachImPairAndPar", inputs += regId, outputs += regId)
+    val forEachPar = ExplorationTask(paramSampling) set (
+        name    := "forEachPar",
+        inputs  += regId,
+        outputs += regId
+      )
 
     val incParId = ScalaTask("val parId = input.parId + 1") set (
         name    := "incParId", 
-        inputs  += parId,
-        outputs += parId
+        inputs  += (regId, parId, parVal),
+        outputs += (regId, parId, parVal)
       )
 
-    val run = setRegId -- forEachImPairAndPar -< Capsule(incParId, strainer = true) --
+    val forEachImPairPerPar = ExplorationTask(
+        imageSampling x
+          (tgtIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${tgtId}" + imgSuf)) x
+          (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf))
+      ) set (
+        name    := "forEachImPair",
+        inputs  += (regId, parId, parVal),
+        outputs += (regId, parId, parVal)
+      )
+
+    val affDofSrc = EmptyTask() set (
+        name    := "affDofSrc",
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof)
+      ) source FileSource(FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf), affDof)
+
+    val run = setRegId -- forEachPar -< incParId -- forEachImPairPerPar -< affDofSrc --
       RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
       ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
 
