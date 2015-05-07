@@ -57,10 +57,10 @@ object Environment extends Configurable("environment") {
   }
 
   /** Get named execution environment with specified properties */
-  private def getEnvironment(name: String, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) = {
+  private def getEnvironment(name: String, queue: String = "long", memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) = {
     val parts    = name.split("-")
     val _name    = parts.head.toLowerCase
-    val _queue   = if (parts.length > 1) parts.tail.mkString("-") else "long"
+    val _queue   = if (parts.length > 1) parts.tail.mkString("-") else queue
     val _memory  = Some(memory  getOrElse getIntProperty(s"${_name}.memory"))
     val _nodes   = Some(nodes   getOrElse getIntProperty(s"${_name}.nodes"))
     val _threads = Some(threads getOrElse getIntProperty(s"${_name}.threads"))
@@ -78,7 +78,7 @@ object Environment extends Configurable("environment") {
           threads = _threads,
           constraints = _requirements,
           openMOLEMemory = Some(256),
-          workDirectory = Workspace.openMOLE,
+          sharedDirectory = Workspace.comDir,
           storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "condor" | "htcondor" =>
@@ -92,7 +92,7 @@ object Environment extends Configurable("environment") {
           threads = threads,
           requirements = _requirements.grouped(2).map(kv => CondorRequirement(kv.head, kv(1))).toList,
           openMOLEMemory = Some(256),
-          workDirectory = Workspace.openMOLE,
+          sharedDirectory = Workspace.comDir,
           storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "local" =>
@@ -108,10 +108,10 @@ object Environment extends Configurable("environment") {
   val local = getEnvironment("local")
 
   /** Environment on which to execute short running tasks */
-  val short = getEnvironment(getStringProperty("short"))
+  val short = getEnvironment(getStringProperty("short"), queue = "short")
 
   /** Environment on which to execute long running tasks */
-  val long = getEnvironment(getStringProperty("long"))
+  val long = getEnvironment(getStringProperty("long"), queue = "long")
 
   /** Get named execution environment with specified properties */
   def apply(name: Option[String] = None, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) =

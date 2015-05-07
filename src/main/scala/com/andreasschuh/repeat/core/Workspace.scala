@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.core
 
-import FileUtil.{join, normalize}
+import FileUtil.{join, normalize, hidden}
 
 
 /**
@@ -35,8 +35,8 @@ object Workspace extends Configurable("workspace") {
   /** Top-level directory of workspace */
   val dir = getFileProperty("dir")
 
-  /** Working directory for OpenMOLE environments */
-  val openMOLE = Some(join(dir, "tmp").getAbsolutePath)
+  /** Shared directory used by OpenMOLE for cluster environments */
+  val comDir = if (shared) Some(join(dir, hidden("openmole")).getPath) else None
 
   /** Whether dataset files have to be copied to workspace */
   def copyDataset = shared && !Dataset.shared && Bin.shared
