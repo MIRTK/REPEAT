@@ -59,6 +59,7 @@ object RegisterImages {
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
             affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Double]) = {
+
     import Dataset.{imgPre, imgSuf}
     import Workspace.{dofPre, logDir, logSuf}
     import FileUtil.join
@@ -109,8 +110,7 @@ object RegisterImages {
         regCmd      := reg.runCmd
       ) hook (
         CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),
-        CopyFileHook(regLog, regLogPath, move = Workspace.shared),
-        ToStringHook(runTime)
+        CopyFileHook(regLog, regLogPath, move = Workspace.shared)
       )
 
     begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")

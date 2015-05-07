@@ -32,8 +32,6 @@ import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
-import com.andreasschuh.repeat.core._
-
 import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
@@ -46,19 +44,19 @@ object DeformImage {
    * Applies output transformation to source image
    *
    * @param reg[in]        Registration info
-   * @param parId[in]      Parameter set ID
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID of parameter set
    * @param tgtId[in,out]  ID of target image
-   * @param tgtIm[in,out]  Path of target image
    * @param srcId[in,out]  ID of source image
-   * @param srcIm[in,out]  Path of source image
-   * @param phiDof[in,out] Transformation from target to source
+   * @param phiDof[in]     Transformation from target to source
    * @param outIm[out]     Output image
    *
    * @return Puzzle piece to deform source image
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
-            tgtId: Prototype[Int], srcId: Prototype[Int],
-            phiDof: Prototype[File], outIm: Prototype[File]) = {
+            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
+            outIm: Prototype[File]) = {
+
     import Dataset.{imgPre, imgSuf}
     import Workspace.dofPre
     import FileUtil.join

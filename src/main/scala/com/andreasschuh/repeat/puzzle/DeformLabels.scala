@@ -32,8 +32,6 @@ import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
-import com.andreasschuh.repeat.core._
-
 import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
@@ -46,19 +44,19 @@ object DeformLabels {
    * Applies output transformation to propagate source labels
    *
    * @param reg[in]        Registration info
-   * @param parId[in]      Parameter set ID
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID of parameter set
    * @param tgtId[in,out]  ID of target image
-   * @param tgtSeg[in,out] Path of target segmentation image
    * @param srcId[in,out]  ID of source image
-   * @param srcSeg[in,out] Path of source segmentation image
-   * @param phiDof[in,out] Transformation from target to source
+   * @param phiDof[in]     Transformation from target to source
    * @param outSeg[out]    Output segmentation image
    *
    * @return Puzzle piece to propagate source labels
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
-            tgtId: Prototype[Int], srcId: Prototype[Int],
-            phiDof: Prototype[File], outSeg: Prototype[File]) = {
+            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
+            outSeg: Prototype[File]) = {
+
     import Dataset.{segPre, segSuf}
     import Workspace.dofPre
     import FileUtil.join
@@ -91,13 +89,12 @@ object DeformLabels {
         | val cmd = Registration.command(${command.name}, args)
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | print(str)
-        | FileUtil.mkdirs(${outSeg.name})
         | val ret = cmd.!
         | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-DeformLabels",
-        imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
-        usedClasses += (FileUtil.getClass, Registration.getClass),
+        imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+        usedClasses += Registration.getClass,
         inputs      += (regId, parId, tgtId, srcId, command),
         inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, link = Workspace.shared),
         inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, link = Workspace.shared),

@@ -40,15 +40,16 @@ import com.andreasschuh.repeat.core._
 object ConvertPhiToDof {
 
   /**
-   * @param reg    Registration info
-   * @param parId  ID of parameter set
-   * @param tgtId  ID of target image
-   * @param srcId  ID of source image
-   * @param phiDof Output transformation ("<phi>") of registration.
-   *               If no phi2dof conversion is provided, tools for applying the transformation and computing
-   *               evaluation measures such as the Jacobian determinant must be provided instead.
-   *               These are then used instead for the assessment of the registration quality.
-   * @param outDof Output transformation in IRTK format.
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID of parameter set
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param phiDof[in]     Output transformation ("<phi>") of registration.
+   *                       If no phi2dof conversion is provided, tools for applying the transformation and computing
+   *                       evaluation measures such as the Jacobian determinant must be provided instead.
+   *                       These are then used instead for the assessment of the registration quality.
+   * @param outDof[out]    Output transformation in IRTK format.
    *
    * @return Puzzle piece for conversion from IRTK format to format required by registration
    */

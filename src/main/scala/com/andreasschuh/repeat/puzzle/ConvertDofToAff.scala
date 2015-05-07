@@ -40,25 +40,30 @@ import com.andreasschuh.repeat.core._
 object ConvertDofToAff {
 
   /**
-   * @param reg    Registration info
-   * @param tgtId  ID of target
-   * @param srcId  ID of source
-   * @param iniDof Affine IRTK transformation
-   * @param affDof Input transformation ("<aff>") for registration.
-   *               If no dof2aff conversion is provided, the IRTK transformation is used directly.
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param tgtId[in,out]  ID of target
+   * @param srcId[in,out]  ID of source
+   * @param iniDof[in]     Affine IRTK transformation
+   * @param affDof[out]    Input transformation ("<aff>") for registration.
+   *                       If no dof2aff conversion is provided, the IRTK transformation is used directly.
    *
    * @return Puzzle puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, tgtId: Prototype[Int], srcId: Prototype[Int], iniDof: Prototype[File], affDof: Prototype[File]) = {
+  def apply(reg: Registration, regId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
+            iniDof: Prototype[File], affDof: Prototype[File]) = {
 
     import Workspace.{dofPre, dofSuf}
 
     val affDofPath = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
 
-    val begin = Capsule(EmptyTask() set (
+    val begin = EmptyTask() set (
         name    := s"${reg.id}-ConvertDofToAffBegin",
-        outputs += affDof
-      ), strainer = true) source FileSource(affDofPath, affDof)
+        inputs  += (regId, tgtId, srcId, iniDof),
+        outputs += (regId, tgtId, srcId, iniDof, affDof)
+      ) source (
+        FileSource(affDofPath, affDof)
+      )
 
     val dof2aff = reg.dof2affCmd match {
       case Some(command) =>
@@ -77,22 +82,25 @@ object ConvertDofToAff {
             | val cmd = Registration.command(template, args)
             | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
             | print(str)
-            | FileUtil.mkdirs(${affDof.name})
             | val ret = cmd.!
             | if (ret != 0) throw new Exception("Failed to convert affine transformation")
           """.stripMargin) set(
             name        := s"${reg.id}-ConvertDofToAff",
-            imports     += ("com.andreasschuh.repeat.core.{FileUtil, Registration}", "scala.sys.process._"),
-            usedClasses += (FileUtil.getClass, Registration.getClass),
-            inputs      += (tgtId, srcId),
+            imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+            usedClasses += Registration.getClass,
+            inputs      += (regId, tgtId, srcId),
             inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
-            outputs     += affDof,
+            outputs     += (regId, tgtId, srcId, affDof),
             template    := command
           )
-        Capsule(task, strainer = true) hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
+        task hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
       case None =>
-        val task = EmptyTask() set (name := s"${reg.id}-UseDofAsAff")
-        Capsule(task, strainer = true).toPuzzlePiece
+        val task = EmptyTask() set (
+            name    := s"${reg.id}-UseDofAsAff",
+            inputs  += (regId, tgtId, srcId, affDof),
+            outputs += (regId, tgtId, srcId, affDof)
+          )
+        task.toCapsule.toPuzzlePiece
     }
 
     begin -- Skip(dof2aff, s"${affDof.name}.lastModified() > ${iniDof.name}.lastModified()")

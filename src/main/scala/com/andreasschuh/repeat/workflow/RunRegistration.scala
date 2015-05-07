@@ -96,7 +96,7 @@ object RunRegistration {
     val pre = setRegId -- forEachImPair -<
       CopyFilesTo(Workspace.imgDir, tgtIm,  srcIm) --
       CopyFilesTo(Workspace.segDir, tgtSeg, srcSeg) --
-      ConvertDofToAff(reg, tgtId, srcId, iniDof, preDof)
+      ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, preDof)
 
     val preEnd = Capsule(EmptyTask() set (name := "preEnd", inputs += preDof.toArray))
 
