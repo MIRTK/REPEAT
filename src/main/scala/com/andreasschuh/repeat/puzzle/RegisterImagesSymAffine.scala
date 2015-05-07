@@ -122,6 +122,6 @@ object RegisterImagesSymAffine {
       ) hook CopyFileHook(invDof, invDofPath, move = Workspace.shared)
 
     regBegin -- Skip(reg on Env.short by 10, s"${outDof.name}.lastModified() > ${iniDof.name}.lastModified()") --
-    invBegin -- Skip(inv on Env.short by 25, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
+    invBegin -- Skip(inv on Env.short by 20, s"${invDof.name}.lastModified() > ${outDof.name}.lastModified()")
   }
 }

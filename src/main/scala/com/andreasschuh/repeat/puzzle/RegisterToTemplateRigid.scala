@@ -85,6 +85,6 @@ object RegisterToTemplateRigid {
 
     val cond1 = s"${dof.name}.lastModified() > ${refIm.name}.lastModified()"
     val cond2 = s"${dof.name}.lastModified() > ${srcIm.name}.lastModified()"
-    begin -- Skip(reg on Env.short by 10, cond1 + " && " + cond2)
+    begin -- Skip(reg on Env.short, cond1 + " && " + cond2)
   }
 }

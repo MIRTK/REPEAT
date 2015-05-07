@@ -86,6 +86,6 @@ object RegisterToTemplateAffine {
         CopyFileHook(log, logPath, move = Workspace.shared)
       )
 
-    begin -- Skip(reg on Env.short by 10, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")
+    begin -- Skip(reg on Env.short, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")
   }
 }
