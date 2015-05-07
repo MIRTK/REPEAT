@@ -36,6 +36,9 @@ object FileUtil {
     if (f.exists) f.delete()
   }
 
+  /** Prepand dot on Linux to make file/directory hidden */
+  def hidden(a: String) = if (System.getProperty("os.name") == "Linux") "." + a else a
+
   /**
    * Copy file if it was modified
    *
