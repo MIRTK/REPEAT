@@ -48,44 +48,39 @@ object RegisterToTemplateRigid {
 
     import Dataset.{refId, refSuf, imgPre, imgSuf, bgVal}
     import Workspace.{dofPre, dofSuf, dofRig, logDir, logSuf}
-    import FileUtil.{join, relativize}
+    import FileUtil.join
 
     val log = Val[File]
 
-    val dofAbsPath = join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logAbsPath = join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
-
-    //val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
-    //val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
+    val dofPath = join(dofRig,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logPath = join(logDir, dofRig.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val begin = EmptyTask() set (
         name    := "ComputeRigidTemplateDofsBegin",
         inputs  += (refIm, srcId, srcIm),
         outputs += (refIm, srcId, srcIm, dof)
-      ) source FileSource(dofAbsPath, dof)
+      ) source FileSource(dofPath, dof)
 
     val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, "result$dofSuf")
-        | val ${log.name} = FileUtil.join(workDir, "output$logSuf")
+        | val ${dof.name} = new java.io.File(workDir, "result$dofSuf")
+        | val ${log.name} = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, None, ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Rigid",
         |   "Background value" -> $bgVal
         | )
       """.stripMargin) set (
         name        := "ComputeRigidTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += srcId,
         inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
-        outputs     += (refIm, srcId, srcIm),
-        outputFiles += ("result" + dofSuf, dof),
-        outputFiles += ("output" + logSuf, log)
+        outputs     += (refIm, srcId, srcIm, dof, log)
       ) hook (
-        CopyFileHook(dof, dofAbsPath),
-        CopyFileHook(log, logAbsPath)
+        CopyFileHook(dof, dofPath, move = Workspace.shared),
+        CopyFileHook(log, logPath, move = Workspace.shared)
       )
 
     val cond1 = s"${dof.name}.lastModified() > ${refIm.name}.lastModified()"

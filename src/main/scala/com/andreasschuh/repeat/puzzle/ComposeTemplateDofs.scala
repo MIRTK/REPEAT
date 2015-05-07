@@ -55,35 +55,33 @@ object ComposeTemplateDofs {
             srcId: Prototype[Int], srcIm: Prototype[File], srcDof: Prototype[File], iniDof: Prototype[File]) = {
 
     import Workspace.{dofIni, dofPre, dofSuf}
-    import FileUtil.{join, relativize}
+    import FileUtil.join
 
-    val iniDofAbsPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-    //val iniDofOutPath = if (Workspace.shared) iniDofAbsPath else relativize(Workspace.dir, iniDofAbsPath)
+    val iniDofPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
 
     val begin = EmptyTask() set (
         name    := "ComposeTemplateDofsBegin",
         inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
         outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
-      ) source FileSource(iniDofAbsPath, iniDof)
+      ) source FileSource(iniDofPath, iniDof)
 
     val compose = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${iniDof.name} = FileUtil.join(workDir, "initial$dofSuf")
+        | val ${iniDof.name} = new java.io.File(workDir, "initial$dofSuf")
         | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
       """.stripMargin) set (
         name        := "ComposeTemplateDofs",
         imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, IRTK.getClass),
+        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
         inputs      += (tgtId, tgtIm, srcId, srcIm),
         inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, link = Workspace.shared),
         inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, link = Workspace.shared),
-        outputs     += (tgtId, tgtIm, srcId, srcIm),
-        outputFiles += ("initial" + dofSuf, iniDof)
-      ) hook CopyFileHook(iniDof, iniDofAbsPath)
+        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
+      ) hook CopyFileHook(iniDof, iniDofPath, move = Workspace.shared)
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
     val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
-    begin -- Skip(compose on Env.short by 50, cond1 + " && " + cond2)
+    begin -- Skip(compose on Env.short by 25, cond1 + " && " + cond2)
   }
 }

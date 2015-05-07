@@ -60,6 +60,7 @@ object RegisterImages {
             srcId: Prototype[Int], srcIm: Prototype[File],
             affDof: Prototype[File], phiDof: Prototype[File],
             runTime: Prototype[Double]) = {
+    import Dataset.{imgPre, imgSuf}
     import Workspace.{dofPre, logDir, logSuf}
     import FileUtil.join
 
@@ -69,16 +70,16 @@ object RegisterImages {
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val phiDofSource = FileSource(phiDofPath, phiDof)
-
     val begin = Capsule(EmptyTask() set (
         name    := s"${reg.id}-RegisterImagesBegin",
         outputs += phiDof
-      ), strainer = true) source phiDofSource
+      ), strainer = true) source FileSource(phiDofPath, phiDof)
 
     val run = Capsule(ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+        | val ${phiDof.name} = new java.io.File(workDir, "result${reg.phiSuf}")
+        | val ${regLog.name} = new java.io.File(workDir, "output$logSuf")
         | val args = ${parVal.name} ++ Map(
         |   "regId"  -> "${reg.id}",
         |   "parId"  -> ${parId.name}.toString,
@@ -87,7 +88,6 @@ object RegisterImages {
         |   "aff"    -> ${affDof.name}.getPath,
         |   "phi"    -> ${phiDof.name}.getPath
         | )
-        | val regLog = new java.io.File(workDir, "output$logSuf")
         | val cmd = Registration.command(${regCmd.name}, args)
         | val log = new TaskLogger(regLog)
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
@@ -100,13 +100,20 @@ object RegisterImages {
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
-        imports     += ("com.andreasschuh.repeat.core.{Config,Registration,FileUtil,TaskLogger}", "scala.sys.process._"),
-        usedClasses += Config.getClass,
-        inputs      += (tgtIm, srcIm, affDof, regCmd, parId, parVal),
-        outputs     += (tgtIm, srcIm, phiDof, runTime),
+        imports     += ("com.andreasschuh.repeat.core.{Config, Registration, FileUtil, TaskLogger}", "scala.sys.process._"),
+        usedClasses += (Config.getClass, Registration.getClass, FileUtil.getClass),
+        inputs      += (tgtId, srcId, affDof, regCmd, parId, parVal),
+        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
+        inputFiles  += (affDof, dofPre + "${tgtId},${srcId}" + reg.affSuf, link = Workspace.shared),
+        outputs     += (tgtId, tgtIm, srcId, srcIm, runTime),
+        outputFiles += ("result" + reg.phiSuf, phiDof),
         outputFiles += ("output" + logSuf, regLog),
         regCmd      := reg.runCmd
-      ), strainer = true) source phiDofSource hook CopyFileHook(regLog, regLogPath)
+      ), strainer = true) hook (
+        CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),
+        CopyFileHook(regLog, regLogPath, move = Workspace.shared)
+      )
 
     begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
   }

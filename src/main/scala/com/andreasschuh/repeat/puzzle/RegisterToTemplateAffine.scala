@@ -50,45 +50,40 @@ object RegisterToTemplateAffine {
 
     import Dataset.{refId, refSuf, imgPre, imgSuf, bgVal}
     import Workspace.{dofPre, dofSuf, dofAff, logDir, logSuf}
-    import FileUtil.{join, relativize}
+    import FileUtil.join
 
     val log = Val[File]
 
-    val dofAbsPath = join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
-    val logAbsPath = join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
-
-    //val dofOutPath = if (Workspace.shared) dofAbsPath else relativize(Workspace.dir, dofAbsPath)
-    //val logOutPath = if (Workspace.shared) logAbsPath else relativize(Workspace.dir, logAbsPath)
+    val dofPath = join(dofAff,        dofPre + refId + s",$${${srcId.name}}" + dofSuf).getAbsolutePath
+    val logPath = join(logDir, dofAff.getName, refId + s",$${${srcId.name}}" + logSuf).getAbsolutePath
 
     val begin = EmptyTask() set(
         name    := "ComputeAffineTemplateDofsBegin",
         inputs  += (refIm, srcId, srcIm, iniDof),
         outputs += (refIm, srcId, srcIm, iniDof, dof)
-      ) source FileSource(dofAbsPath, dof)
+      ) source FileSource(dofPath, dof)
 
     val reg = ScalaTask(
       s"""
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${dof.name} = FileUtil.join(workDir, "result$dofSuf")
-        | val ${log.name} = FileUtil.join(workDir, "output$logSuf")
+        | val ${dof.name} = new java.io.File(workDir, "result$dofSuf")
+        | val ${log.name} = new java.io.File(workDir, "output$logSuf")
         | IRTK.ireg(${refIm.name}, ${srcIm.name}, Some(${iniDof.name}), ${dof.name}, Some(${log.name}),
         |   "Transformation model" -> "Affine",
         |   "Padding value" -> $bgVal
         | )
       """.stripMargin) set (
         name        := "ComputeAffineTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
+        imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
+        usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += srcId,
         inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (iniDof, dofPre + refId + ",${srcId}" + dofSuf, link = Workspace.shared),
-        outputs     += (refIm, srcId, srcIm, iniDof),
-        outputFiles += ("result" + dofSuf, dof),
-        outputFiles += ("output" + logSuf, log)
+        outputs     += (refIm, srcId, srcIm, iniDof, dof, log)
       ) hook (
-        CopyFileHook(dof, dofAbsPath),
-        CopyFileHook(log, logAbsPath)
+        CopyFileHook(dof, dofPath, move = Workspace.shared),
+        CopyFileHook(log, logPath, move = Workspace.shared)
       )
 
     begin -- Skip(reg on Env.short by 10, s"${dof.name}.lastModified() > ${iniDof.name}.lastModified()")
