@@ -43,14 +43,16 @@ object IRTK extends Configurable("irtk") {
   def binPath(name: String): String = new File(dir, name).getPath
 
   /** Get IRTK command property */
-  override def getCmdProperty(propName: String) = {
-    val cmd = super.getCmdProperty(propName)
-    Cmd(binPath(cmd.head)) ++ cmd.tail
+  override def getCmdProperty(propName: String): Cmd = getStringProperty(propName) match {
+    case cmd if cmd.length > 0 =>
+      val seq = split(cmd)
+      Cmd(binPath(seq.head)) ++ seq.tail
+    case _ => throw new Exception(s"Property $propName cannot be an empty string")
   }
 
   /** Get IRTK command property */
-  override def getCmdOptionProperty(propName: String) = super.getCmdOptionProperty(propName) match {
-    case Some(cmd) => Some(Cmd(binPath(cmd.head)) ++ cmd.tail)
+  override def getCmdOptionProperty(propName: String) = getStringOptionProperty(propName) match {
+    case Some(_) => Some(getCmdProperty(propName))
     case None => None
   }
 

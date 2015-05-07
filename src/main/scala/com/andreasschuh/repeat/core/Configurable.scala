@@ -87,14 +87,17 @@ abstract class Configurable(val propGroup: String = "") {
 
   /** Get command string property value */
   protected def getCmdProperty(propName: String): Cmd = getStringProperty(propName) match {
-    case cmd if cmd.length > 0 => split(cmd)
+    case cmd if cmd.length > 0 =>
+      val seq = split(cmd)
+      val bin = new File(seq.head).getAbsolutePath
+      Cmd(bin) ++ seq.tail
     case _ => throw new Exception(s"Property $propName cannot be an empty string")
   }
 
   /** Get optional command string property value */
   protected def getCmdOptionProperty(propName: String): Option[Cmd] = {
     getStringOptionProperty(propName) match {
-      case Some(cmd) if cmd.length > 0 => Some(split(cmd))
+      case Some(_) => Some(getCmdProperty(propName))
       case _ => None
     }
   }
