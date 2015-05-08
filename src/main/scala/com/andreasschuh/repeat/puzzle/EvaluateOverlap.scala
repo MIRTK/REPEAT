@@ -296,18 +296,26 @@ object EvaluateOverlap {
         | if (!dscAvgCsvFile.exists) {
         |   val res = new java.io.FileWriter(dscAvgCsvFile)
         |   try {
-        |     if (${Overlap.append}) res.write("Registration,")
+        |     if (${Overlap.append}) res.write("Registration,Parameters,")
         |     res.write(header.mkString(",") + "\\n")
-        |   } finally res.close()
+        |   }
+        |   catch {
+        |     case e: Exception => throw e
+        |   }
+        |   finally res.close()
         | }
         | val res = new java.io.FileWriter(dscAvgCsvFile, ${Overlap.append})
         | try {
         |   dscAvg.foreach {
-        |     case (id, v) =>
-        |       if (${Overlap.append}) res.write(s"$$regId-$$id,")
+        |     case (parId, v) =>
+        |       if (${Overlap.append}) res.write(s"$$regId,$$parId,")
         |       res.write(v.mkString(",") + "\\n")
         |   }
-        | } finally res.close()
+        | }
+        | catch {
+        |   case e: Exception => throw e
+        | }
+        | finally res.close()
       """.stripMargin) set (
         name    := s"${reg.id}-WriteMeanDsc",
         inputs  += (regId.toArray, parId.toArray, dscGrpAvg.toArray, header),
@@ -318,25 +326,32 @@ object EvaluateOverlap {
       s"""
         | val regId = input.regId.head
         | val jsiAvgCsvFile = new java.io.File(s"$jsiAvgCsvPath")
-        | println("\\n******** writeMeanJsi *******\\nWrite " + jsiAvgCsvFile + "\\n********")
         | val jsiAvg = (jsiGrpAvg zip parId).groupBy(_._2).map {
         |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size.toDouble)
         | }.toArray.sortBy(_._1)
         | if (!jsiAvgCsvFile.exists) {
         |   val res = new java.io.FileWriter(jsiAvgCsvFile)
         |   try {
-        |     if (${Overlap.append}) res.write("Registration,")
+        |     if (${Overlap.append}) res.write("Registration,Parameters,")
         |     res.write(header.mkString(",") + "\\n")
-        |   } finally res.close()
+        |   }
+        |   catch {
+        |     case e: Exception => throw e
+        |   }
+        |   finally res.close()
         | }
         | val res = new java.io.FileWriter(jsiAvgCsvFile, ${Overlap.append})
         | try {
         |   jsiAvg.foreach {
-        |     case (id, v) =>
-        |       if (${Overlap.append}) res.write(s"$$regId-$$id,")
+        |     case (parId, v) =>
+        |       if (${Overlap.append}) res.write(s"$$regId,$$parId,")
         |       res.write(v.mkString(",") + "\\n")
         |   }
-        | } finally res.close()
+        | }
+        | catch {
+        |   case e: Exception => throw e
+        | }
+        | finally res.close()
       """.stripMargin) set (
         name    := s"${reg.id}-WriteMeanJsi",
         inputs  += (regId.toArray, parId.toArray, jsiGrpAvg.toArray, header),
