@@ -57,25 +57,25 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val regId   = Val[String] // ID/name of registration
-    val parId   = Val[Int]    // Parameter set ID (column index)
-    val parVal  = Val[Map[String, String]] // Map from parameter name to value
-    val tgtId   = Val[Int]
-    val tgtIm   = Val[File]
-    val tgtSeg  = Val[File]
-    val srcId   = Val[Int]
-    val srcIm   = Val[File]
-    val srcSeg  = Val[File]
-    val iniDof  = Val[File]   // Pre-computed affine transformation
-    val preDof  = Val[File]   // Affine transformation converted to input format
-    val affDof  = Val[File]   // Affine transformation converted to input format
-    val phiDof  = Val[File]   // Output transformation of registration
-    val outDof  = Val[File]   // Output transformation converted to IRTK format
-    val outIm   = Val[File]   // Deformed source image
-    val outSeg  = Val[File]   // Deformed source segmentation
-    val outJac  = Val[File]   // Jacobian determinant map
-    val runTime = Val[Double] // Runtime of registration command
-    val avgTime = Val[Double] // Mean runtime per parameter set
+    val regId      = Val[String] // ID/name of registration
+    val parId      = Val[Int]    // Parameter set ID (column index)
+    val parVal     = Val[Map[String, String]] // Map from parameter name to value
+    val tgtId      = Val[Int]
+    val tgtIm      = Val[File]
+    val tgtSeg     = Val[File]
+    val srcId      = Val[Int]
+    val srcIm      = Val[File]
+    val srcSeg     = Val[File]
+    val iniDof     = Val[File]   // Pre-computed affine transformation
+    val preDof     = Val[File]   // Affine transformation converted to input format
+    val affDof     = Val[File]   // Affine transformation converted to input format
+    val phiDof     = Val[File]   // Output transformation of registration
+    val outDof     = Val[File]   // Output transformation converted to IRTK format
+    val outIm      = Val[File]   // Deformed source image
+    val outSeg     = Val[File]   // Deformed source segmentation
+    val outJac     = Val[File]   // Jacobian determinant map
+    val cpuRunTime = Val[Double] // CPU time of registration command
+    val cpuAvgTime = Val[Double] // Mean CPU time over registrations per parameter set
 
     val setRegId = ScalaTask(s"""val regId = "${reg.id}"""") set (name := "setRegId", outputs += regId)
 
@@ -136,12 +136,12 @@ object RunRegistration {
 
     val regEnd = Capsule(EmptyTask() set (
         name    := "regEnd",
-        inputs  += (regId, parId, tgtId, srcId, phiDof, runTime),
-        outputs += (regId, parId, tgtId, srcId, phiDof, runTime)
+        inputs  += (regId, parId, tgtId, srcId, phiDof, cpuRunTime),
+        outputs += (regId, parId, tgtId, srcId, phiDof, cpuRunTime)
       ))
 
     val run = setRegId -- forEachPar -< incParId -- forEachImPairPerPar -< affDofSrc --
-      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) -- regEnd --
+      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, cpuRunTime) -- regEnd --
       ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
 
     val runEnd = Capsule(EmptyTask() set (
@@ -152,18 +152,25 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Compute mean runtime for each parameter set and save it in CSV file
-    val writeAvgTime = ScalaTask(
+    val writeAvgCpuTime = ScalaTask(
       s"""
-        | val regId   = input.regId.head
-        | val parId   = input.parId.head
-        | val avgTime = runTime.sum / runTime.filter(t => t > 0).size
+        | val regId      = input.regId.head
+        | val parId      = input.parId.head
+        | val cpuRunTime = input.${cpuRunTime.name}.filter(t => t > .0)
+        | val cpuAvgTime = if (cpuRunTime.size > .0) cpuRunTime.sum / cpuRunTime.size else .0
+        | if (cpuRunTime.size == 0)
+        |   println(f"WARNING: Mean CPU time for $$regId (parId=$$parId) invalid as no registrations were performed")
+        | else if (cpuRunTime.size < input.${cpuRunTime.name}.size) {
+        |   val ratio = input.${cpuRunTime.name}.size.toDouble / cpuRunTime.size.toDouble
+        |   println(f"WARNING: Mean CPU time for $$regId (parId=$$parId) calculate using only $${100 * ratio}%.0f%% of all runs")
+        | }
       """.stripMargin) set (
-        name    := s"${reg.id}-WriteMeanDsc",
-        inputs  += (regId.toArray, parId.toArray, runTime.toArray),
-        outputs += (regId, parId, avgTime)
+        name    := s"${reg.id}-WriteMeanCpuTime",
+        inputs  += (regId.toArray, parId.toArray, cpuRunTime.toArray),
+        outputs += (regId, parId, cpuAvgTime)
       ) hook (
-        AppendToCSVFileHook(avgTimeCsvPath, regId, parId, avgTime) set (
-          csvHeader := "Registration,Parameters,Mean runtime",
+        AppendToCSVFileHook(avgTimeCsvPath, regId, parId, cpuAvgTime) set (
+          csvHeader := "Registration,Parameters,Mean CPU time",
           singleRow := true
         )
       )
@@ -177,6 +184,6 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow
-    (pre >- preEnd) + (preEnd -- run -- runEnd) + (regEnd >- writeAvgTime) + post
+    (pre >- preEnd) + (preEnd -- run -- runEnd) + (regEnd >- writeAvgCpuTime) + post
   }
 }

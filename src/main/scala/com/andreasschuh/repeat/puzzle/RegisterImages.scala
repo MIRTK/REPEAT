@@ -52,13 +52,13 @@ object RegisterImages {
    * @param srcIm[in,out]  Path of source image
    * @param affDof[out]    Initial affine guess of transformation from target to source
    * @param phiDof[out]    Output transformation from target to source
-   * @param runTime[out]   Runtime of registration command in seconds
+   * @param cpuTime[out]   CPU time of registration command in seconds
    *
    * @return Puzzle piece to compute transformation from target to source
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
-            affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Double]) = {
+            affDof: Prototype[File], phiDof: Prototype[File], cpuTime: Prototype[Double]) = {
 
     import Dataset.{imgPre, imgSuf}
     import Workspace.{dofPre, logDir, logSuf}
@@ -70,16 +70,16 @@ object RegisterImages {
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val resetTimer = ScalaTask("val runTime = .0") set (
+    val resetTimer = ScalaTask(s"val ${cpuTime.name} = .0") set (
         name    := s"${reg.id}-ResetTimer",
         inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime)
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, cpuTime)
       )
 
     val begin = EmptyTask() set (
         name    := s"${reg.id}-RegisterImagesBegin",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime, phiDof)
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, cpuTime),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, cpuTime, phiDof)
       ) source FileSource(phiDofPath, phiDof)
 
     val run = ScalaTask(
@@ -102,7 +102,7 @@ object RegisterImages {
         | log.out(str)
         | val startTime = System.nanoTime
         | val ret = cmd ! log
-        | val runTime = (System.nanoTime - startTime) * 1e-9
+        | val ${cpuTime.name} = (System.nanoTime - startTime) * 1e-9
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
@@ -112,7 +112,7 @@ object RegisterImages {
         inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         inputFiles  += (affDof, dofPre + "${tgtId},${srcId}" + reg.affSuf, link = Workspace.shared),
-        outputs     += (regId, parId, tgtId, srcId, phiDof, regLog, runTime),
+        outputs     += (regId, parId, tgtId, srcId, phiDof, regLog, cpuTime),
         regCmd      := reg.runCmd
       ) hook (
         CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),
