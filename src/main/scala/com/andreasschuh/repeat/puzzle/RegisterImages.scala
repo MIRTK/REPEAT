@@ -70,10 +70,16 @@ object RegisterImages {
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
+    val resetTimer = ScalaTask("val runTime = .0") set (
+        name    := s"${reg.id}-ResetTimer",
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime)
+      )
+
     val begin = EmptyTask() set (
         name    := s"${reg.id}-RegisterImagesBegin",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof)
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime, phiDof)
       ) source FileSource(phiDofPath, phiDof)
 
     val run = ScalaTask(
@@ -113,6 +119,6 @@ object RegisterImages {
         CopyFileHook(regLog, regLogPath, move = Workspace.shared)
       )
 
-    begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
+    resetTimer -- begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
   }
 }

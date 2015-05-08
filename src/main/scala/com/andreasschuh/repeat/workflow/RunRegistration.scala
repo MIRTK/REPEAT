@@ -134,14 +134,20 @@ object RunRegistration {
         outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof)
       ) source FileSource(FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf), affDof)
 
+    val regEnd = Capsule(EmptyTask() set (
+        name    := "regEnd",
+        inputs  += (regId, parId, tgtId, srcId, phiDof, runTime),
+        outputs += (regId, parId, tgtId, srcId, phiDof, runTime)
+      ))
+
     val run = setRegId -- forEachPar -< incParId -- forEachImPairPerPar -< affDofSrc --
-      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) --
+      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) -- regEnd --
       ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
 
     val runEnd = Capsule(EmptyTask() set (
         name    := "runEnd",
-        inputs  += (regId, parId, tgtId, srcId, outDof, runTime),
-        outputs += (regId, parId, tgtId, srcId, outDof, runTime)
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof)
       ))
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -150,7 +156,7 @@ object RunRegistration {
       s"""
         | val regId   = input.regId.head
         | val parId   = input.parId.head
-        | val avgTime = runTime.sum / runTime.size
+        | val avgTime = runTime.sum / runTime.filter(t => t > 0).size
       """.stripMargin) set (
         name    := s"${reg.id}-WriteMeanDsc",
         inputs  += (regId.toArray, parId.toArray, runTime.toArray),
@@ -171,6 +177,6 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow
-    (pre >- preEnd) + (preEnd -- run -- runEnd) + (runEnd >- writeAvgTime) + post
+    (pre >- preEnd) + (preEnd -- run -- runEnd) + (regEnd >- writeAvgTime) + post
   }
 }
