@@ -266,7 +266,7 @@ object EvaluateOverlap {
         outputs += (regId, parId, tgtId, srcId, jsiGrpAvg)
       ) hook (
         AppendToCSVFileHook(jsiGrpAvgCsvPath, tgtId, srcId, jsiGrpAvg) set (
-          csvHeader :="Target ID,Source ID," + Overlap.groups.mkString(","),
+          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
           singleRow := true
         )
       )
@@ -277,7 +277,7 @@ object EvaluateOverlap {
       outputs += (regId, parId, tgtId, srcId, jsiGrpStd)
       ) hook (
         AppendToCSVFileHook(jsiGrpStdCsvPath, tgtId, srcId, jsiGrpStd) set (
-          csvHeader :="Target ID,Source ID," + Overlap.groups.mkString(","),
+          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
           singleRow := true
         )
       )
