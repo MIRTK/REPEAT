@@ -31,6 +31,7 @@ import com.andreasschuh.repeat.puzzle._
 import org.openmole.core.dsl._
 import org.openmole.plugin.domain.file._
 import org.openmole.plugin.hook.display._
+import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.source.file.FileSource
@@ -52,6 +53,8 @@ object RunRegistration {
     import Dataset._
     import Workspace.{dofAff, dofPre, dofSuf}
 
+    val avgTimeCsvPath = FileUtil.join(reg.sumDir, "Time.csv")
+
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
     val regId   = Val[String] // ID/name of registration
@@ -72,6 +75,7 @@ object RunRegistration {
     val outSeg  = Val[File]   // Deformed source segmentation
     val outJac  = Val[File]   // Jacobian determinant map
     val runTime = Val[Double] // Runtime of registration command
+    val avgTime = Val[Double] // Mean runtime per parameter set
 
     val setRegId = ScalaTask(s"""val regId = "${reg.id}"""") set (name := "setRegId", outputs += regId)
 
@@ -136,9 +140,27 @@ object RunRegistration {
 
     val runEnd = Capsule(EmptyTask() set (
         name    := "runEnd",
-        inputs  += (regId, parId, tgtId, srcId, outDof),
-        outputs += (regId, parId, tgtId, srcId, outDof)
+        inputs  += (regId, parId, tgtId, srcId, outDof, runTime),
+        outputs += (regId, parId, tgtId, srcId, outDof, runTime)
       ))
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Compute mean runtime for each parameter set and save it in CSV file
+    val writeAvgTime = ScalaTask(
+      s"""
+        | val regId   = input.regId.head
+        | val parId   = input.parId.head
+        | val avgTime = runTime.sum / runTime.size
+      """.stripMargin) set (
+        name    := s"${reg.id}-WriteMeanDsc",
+        inputs  += (regId.toArray, parId.toArray, runTime.toArray),
+        outputs += (regId, parId, avgTime)
+      ) hook (
+        AppendToCSVFileHook(avgTimeCsvPath, regId, parId, avgTime) set (
+          csvHeader := "Registration,Parameters,Mean runtime",
+          singleRow := true
+        )
+      )
 
     // -----------------------------------------------------------------------------------------------------------------
     // Post-registration steps
@@ -147,10 +169,8 @@ object RunRegistration {
       (runEnd -- DeformLabels   (reg, regId, parId, tgtId, srcId, outDof, outSeg)) +
       (runEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, outDof, outJac))
 
-    // TODO: Compute mean runtime for each parameter set and store it in CSV file
-
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration workflow
-    (pre >- preEnd) + (preEnd -- run -- runEnd) + post
+    (pre >- preEnd) + (preEnd -- run -- runEnd) + (runEnd >- writeAvgTime) + post
   }
 }
