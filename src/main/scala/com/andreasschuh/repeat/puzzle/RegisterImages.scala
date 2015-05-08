@@ -96,7 +96,7 @@ object RegisterImages {
         | log.out(str)
         | val startTime = System.nanoTime
         | val ret = cmd ! log
-        | val runTime = (System.nanoTime - startTime) / 1e-9
+        | val runTime = (System.nanoTime - startTime) * 1e-9
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
