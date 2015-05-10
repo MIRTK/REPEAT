@@ -58,7 +58,7 @@ object Config {
    * 1. $PWD/@p name
    * 2. $HOME/.openmole/@p name
    * 3. $OPENMOLE/configuration/@p name
-   * 4. $JAR/reference.conf
+   * 4. $JAR/application.conf
    * where:
    * - $PWD is the current working directory
    * - $HOME is the home directory of the user
@@ -86,10 +86,11 @@ object Config {
     // Parsed configuration object
     _config = Some(new Config(
       // Merge configuration with reference configuration
+      // (using application.conf to allow for resolution of cross-substitutions)
       ConfigFactory.defaultOverrides().withFallback(_file match {
         case Some(f) => ConfigFactory.parseFile(f)
         case None => ConfigFactory.empty()
-      }).withFallback(ConfigFactory.defaultReference(getClass.getClassLoader)).resolve(),
+      }).withFallback(ConfigFactory.parseResources(getClass.getClassLoader, "application.conf")).resolve(),
       // Directory used to make relative paths in configuration absolute
       _dir.getAbsoluteFile
     ))
