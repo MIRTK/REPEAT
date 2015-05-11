@@ -31,6 +31,11 @@ import scala.sys.process.ProcessLogger
  */
 class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessLogger {
 
+  var t = Array.fill(3)(.0)
+
+  /** Get runtime measurements in seconds: user, system, total, real */
+  def time = Array(t(0), t(1), t(0) + t(1), t(2))
+
   /** File writer object */
   protected val writer = {
     val logFile = log.getAbsoluteFile
@@ -49,7 +54,7 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
     writer.write(s)
     writer.write('\n')
     if (flush) writer.flush()
-    if (tee) println(s)
+    if (tee) Console.out.println(s)
   }
 
   /** Write line of process' STDERR */
@@ -57,12 +62,19 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
     writer.write(s)
     writer.write('\n')
     writer.flush()
-    if (tee) println(s)
+    if (tee) Console.err.println(s)
+    """(user|sys|real)\s+([0-9]+\.[0-9]+)""".r.findAllMatchIn(s).foreach(m =>
+      m.group(1) match {
+        case "user" => t(0) = m.group(2).toDouble
+        case "sys"  => t(1) = m.group(2).toDouble
+        case "real" => t(2) = m.group(2).toDouble
+      }
+    )
   }
 
   /** Wrap process execution and close file when finished */
   def buffer[T](f: => T): T = {
-    val returnValue: T = f
+    val returnValue = f
     writer.close()
     returnValue
   }

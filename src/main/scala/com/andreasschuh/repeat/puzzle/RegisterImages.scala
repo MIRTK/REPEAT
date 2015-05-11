@@ -22,6 +22,7 @@
 package com.andreasschuh.repeat.puzzle
 
 import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
@@ -43,20 +44,21 @@ object RegisterImages {
   /**
    * Performs (deformable) registration between target and source
    *
-   * @param reg[in]        Registration info
-   * @param parId[in,out]  ID of parameter set
-   * @param parVal[in,out] Registration parameters
-   * @param tgtId[in,out]  ID of target image
-   * @param tgtIm[in,out]  Path of target image
-   * @param srcId[in,out]  ID of source image
-   * @param srcIm[in,out]  Path of source image
-   * @param affDof[out]    Initial affine guess of transformation from target to source
-   * @param phiDof[out]    Output transformation from target to source
-   * @param runTime[out]   CPU time of registration command in seconds
+   * @param reg[in]         Registration info
+   * @param parId[in,out]   ID of parameter set
+   * @param parVal[in,out]  Registration parameters
+   * @param tgtId[in,out]   ID of target image
+   * @param tgtIm[in,out]   Path of target image
+   * @param srcId[in,out]   ID of source image
+   * @param srcIm[in,out]   Path of source image
+   * @param affDof[in]      Initial affine guess of transformation from target to source
+   * @param phiDof[out]     Output transformation from target to source
+   * @param runTime[in,out] Runtime of registration command in seconds
    *
    * @return Puzzle piece to compute transformation from target to source
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int], parVal: Prototype[Map[String, String]],
+  def apply(reg: Registration, regId: Prototype[String],
+            parId: Prototype[Int], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
             affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Array[Double]]) = {
 
@@ -70,16 +72,11 @@ object RegisterImages {
     val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
     val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
 
-    val resetTimer = ScalaTask(s"val ${runTime.name} = Array(.0, .0, .0, .0)") set (
-        name    := s"${reg.id}-ResetTimer",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime)
-      )
-
     val begin = EmptyTask() set (
         name    := s"${reg.id}-RegisterImagesBegin",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime, phiDof)
+        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
+        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime, phiDof),
+        runTime := Array.fill(4)(.0)
       ) source FileSource(phiDofPath, phiDof)
 
     val run = ScalaTask(
@@ -95,16 +92,15 @@ object RegisterImages {
         |   "aff"    -> ${affDof.name}.getPath,
         |   "phi"    -> ${phiDof.name}.getPath
         | )
-        | val cmd = Registration.command(${regCmd.name}, args)
+        | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(${regCmd.name}, args)
         | val log = new TaskLogger(${regLog.name})
         | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         | if (!log.tee) print(str)
         | log.out(str)
-        | val startTime = System.nanoTime
         | var ret = -1
-        | val tms = Benchmark.measure { ret = cmd ! log }
+        | ret = cmd ! log
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
-        | val ${runTime.name} = tms.s.map(_._2).toArray
+        | val ${runTime.name} = log.time
       """.stripMargin) set (
         name        := s"${reg.id}-RegisterImages",
         imports     += ("com.andreasschuh.repeat.core.{Benchmark, Config, Registration, TaskLogger}", "scala.sys.process._"),
@@ -120,6 +116,7 @@ object RegisterImages {
         CopyFileHook(regLog, regLogPath, move = Workspace.shared)
       )
 
-    resetTimer -- begin -- Skip(run on reg.runEnv, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
+    val task = CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) -- (run on reg.runEnv)
+    begin -- Skip(task, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
   }
 }

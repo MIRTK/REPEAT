@@ -62,13 +62,15 @@ object ConvertPhiToDof {
 
     val outDofPath = join(reg.dofDir, dofPre + "${tgtId},${srcId}" + dofSuf).getAbsolutePath
 
-    val begin = EmptyTask() set (
-        name    := s"${reg.id}-ConvertPhiToDofBegin",
-        inputs  += (regId, parId, tgtId, srcId, phiDof),
-        outputs += (regId, parId, tgtId, srcId, phiDof, outDof)
-      ) source (
-        FileSource(outDofPath, outDof)
-      )
+    val begin =
+      Capsule(
+        EmptyTask() set (
+          name    := s"${reg.id}-ConvertPhiToDofBegin",
+          inputs  += (regId, parId, tgtId, srcId, phiDof),
+          outputs += (regId, parId, tgtId, srcId, outDof)
+        ),
+        strainer = true
+      ) source FileSource(outDofPath, outDof)
 
     val phi2dof = reg.phi2dofCmd match {
       case Some(cmd) =>
@@ -99,14 +101,10 @@ object ConvertPhiToDof {
             outputs     += (regId, parId, tgtId, srcId, outDof),
             command     := cmd
           )
-        task hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
+        Capsule(task, strainer = true) hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
       case None =>
-        val task = EmptyTask() set (
-            name    := s"${reg.id}-UsePhiAsDof",
-            inputs  += (regId, parId, tgtId, srcId, outDof),
-            outputs += (regId, parId, tgtId, srcId, outDof)
-          )
-        task.toCapsule.toPuzzlePiece
+        val task = EmptyTask() set (name := s"${reg.id}-UsePhiAsDof")
+        Capsule(task, strainer = true).toPuzzlePiece
     }
 
     begin -- Skip(phi2dof, s"${outDof.name}.lastModified() > ${phiDof.name}.lastModified()")

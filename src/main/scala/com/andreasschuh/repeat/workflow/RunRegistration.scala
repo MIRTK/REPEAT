@@ -30,11 +30,9 @@ import com.andreasschuh.repeat.puzzle._
 
 import org.openmole.core.dsl._
 import org.openmole.plugin.domain.file._
-import org.openmole.plugin.hook.display._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
-import org.openmole.plugin.source.file.FileSource
 import org.openmole.plugin.task.scala._
 
 
@@ -44,6 +42,8 @@ import org.openmole.plugin.task.scala._
 object RunRegistration {
 
   /**
+   * Construct workflow puzzle
+   *
    * @param reg Registration info
    *
    * @return Workflow puzzle for running the registration and generating the results needed for quality assessment
@@ -53,120 +53,138 @@ object RunRegistration {
     import Dataset._
     import Workspace.{dofAff, dofPre, dofSuf}
 
+    val runTimeCsvPath = FileUtil.join(reg.resDir, "Time.csv")
     val avgTimeCsvPath = FileUtil.join(reg.sumDir, "Time.csv")
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val regId   = Val[String] // ID/name of registration
-    val parId   = Val[Int]    // Parameter set ID (column index)
+    val regId   = Val[String]              // ID/name of registration
+    val parId   = Val[Int]                 // Parameter set ID ("params" CSV row index)
     val parVal  = Val[Map[String, String]] // Map from parameter name to value
-    val tgtId   = Val[Int]
-    val tgtIm   = Val[File]
-    val tgtSeg  = Val[File]
-    val srcId   = Val[Int]
-    val srcIm   = Val[File]
-    val srcSeg  = Val[File]
-    val iniDof  = Val[File]          // Pre-computed affine transformation
-    val preDof  = Val[File]          // Affine transformation converted to input format
-    val affDof  = Val[File]          // Affine transformation converted to input format
-    val phiDof  = Val[File]          // Output transformation of registration
-    val outDof  = Val[File]          // Output transformation converted to IRTK format
-    val outIm   = Val[File]          // Deformed source image
-    val outSeg  = Val[File]          // Deformed source segmentation
-    val outJac  = Val[File]          // Jacobian determinant map
-    val runTime = Val[Array[Double]] // Runtime of registration command
-    val avgTime = Val[Array[Double]] // Mean runtime over registrations per parameter set
-
-    val setRegId = ScalaTask(s"""val regId = "${reg.id}"""") set (name := "setRegId", outputs += regId)
+    val tgtId   = Val[Int]                 // ID of target image
+    val tgtIm   = Val[File]                // Fixed target image
+    val srcId   = Val[Int]                 // ID of source image
+    val srcIm   = Val[File]                // Moving source image
+    val iniDof  = Val[File]                // Pre-computed affine transformation from target to source
+    val affDof  = Val[File]                // Affine transformation converted to input format
+    val phiDof  = Val[File]                // Output transformation of registration
+    val outDof  = Val[File]                // Output transformation converted to IRTK format
+    val outIm   = Val[File]                // Deformed source image
+    val outSeg  = Val[File]                // Deformed source segmentation
+    val outJac  = Val[File]                // Jacobian determinant map
+    val csvTime = Val[List[String]]        // Runtime CSV written by previous execution
+    val runTime = Val[Array[Double]]       // Runtime of registration command
+    val avgTime = Val[Array[Double]]       // Mean runtime over all registrations for a given set of parameters
 
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
-    val paramSampling = CSVToMapSampling(reg.parCsv, parVal) zipWithIndex parId
+    val paramSampling = CSVToMapSampling(reg.parCsv, parVal)
     val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
     val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
     val imageSampling = (tgtIdSampling x srcIdSampling) filter (if (reg.isSym) "tgtId < srcId" else "tgtId != srcId")
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Pre-registration steps
-    val forEachImPair = ExplorationTask(
-      imageSampling x
-        (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
-        (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
-        (tgtSeg in SelectFileDomain(segDir, segPre + "${tgtId}" + segSuf)) x
-        (srcSeg in SelectFileDomain(segDir, segPre + "${srcId}" + segSuf)) x
-        (iniDof in SelectFileDomain(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf))
-    ) set (name := "forEachImPair", inputs += regId, outputs += regId)
-
-    val pre = setRegId -- forEachImPair -<
-      CopyFilesTo(Workspace.imgDir, tgtIm,  srcIm) --
-      CopyFilesTo(Workspace.segDir, tgtSeg, srcSeg) --
-      ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, preDof)
-
-    val preEnd = Capsule(EmptyTask() set (name := "preEnd", inputs += preDof.toArray))
-
-    // -----------------------------------------------------------------------------------------------------------------
-    // Pairwise registration
-    val forEachPar = ExplorationTask(paramSampling) set (
-        name    := "forEachPar",
-        inputs  += regId,
-        outputs += regId
+    // Tasks
+    val forEachPar =
+      ExplorationTask(paramSampling zipWithIndex parId) set (
+        name    := s"${reg.id}-ForEachPar",
+        outputs += regId,
+        regId   := reg.id
       )
 
-    val incParId = ScalaTask("val parId = input.parId + 1") set (
-        name    := "incParId", 
-        inputs  += (regId, parId, parVal),
-        outputs += (regId, parId, parVal)
+    val incParId =
+      Capsule(
+        ScalaTask("val parId = input.parId + 1") set (
+          name    := s"${reg.id}-IncParId",
+          inputs  += parId,
+          outputs += parId
+        ),
+        strainer = true
       )
 
-    val forEachImPairPerPar = ExplorationTask(
+    val forEachImPair = // must *not* be a capsule as it is used more than once!
+      ExplorationTask(
         imageSampling x
-          (tgtIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${tgtId}" + imgSuf)) x
-          (srcIm  in SelectFileDomain(Workspace.imgDir, imgPre + "${srcId}" + imgSuf))
+          (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
+          (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
+          (iniDof in SelectFileDomain(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf))
       ) set (
-        name    := "forEachImPair",
-        inputs  += (regId, parId, parVal),
-        outputs += (regId, parId, parVal)
+        name := s"${reg.id}-ForEachImPair"
       )
 
-    val affDofSrc = EmptyTask() set (
-        name    := "affDofSrc",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof)
-      ) source FileSource(FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf), affDof)
+    val writeTimeCsv =
+      Capsule(
+        ScalaTask(
+          s"""
+            | if (runTime.sum > .0) {
+            |   val csv = new java.io.File(s"$runTimeCsvPath")
+            |   val hdr = if (csv.exists) "" else "Target,Source,User,System,Total,Real\\n"
+            |   csv.getParentFile.mkdirs()
+            |   val fw  = new java.io.FileWriter(csv, true)
+            |   try {
+            |     fw.write(hdr + tgtId + "," + srcId)
+            |     runTime.foreach( t => fw.write(f",$$t%.2f") )
+            |     fw.write("\\n")
+            |   }
+            |   finally fw.close()
+            | }
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-RegEnd",
+          inputs  += (regId, parId, tgtId, srcId, runTime),
+          outputs += (regId, parId, tgtId, srcId)
+        ),
+        strainer = true
+      )
 
-    val regEnd = Capsule(EmptyTask() set (
-        name    := "regEnd",
-        inputs  += (regId, parId, tgtId, srcId, phiDof, runTime),
-        outputs += (regId, parId, tgtId, srcId, phiDof, runTime)
-      ))
+    val runEnd =
+      Capsule(
+        EmptyTask() set (
+          name    := s"${reg.id}-RunEnd",
+          inputs  += (regId, parId, tgtId, srcId, outDof),
+          outputs += (regId, parId, tgtId, srcId, outDof)
+        ),
+        strainer = true
+      )
 
-    val run = setRegId -- forEachPar -< incParId -- forEachImPairPerPar -< affDofSrc --
-      RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, phiDof, runTime) -- regEnd --
-      ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof)
+    val readTimeCsv =
+      ScalaTask(
+        s"""
+          | val regId   = input.regId.head
+          | val parId   = input.parId.head
+          | val csvTime = fromFile(s"$runTimeCsvPath").getLines().toList
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-ReadTimeCsv",
+        imports += "scala.io.Source.fromFile",
+        inputs  += (regId.toArray, parId.toArray),
+        outputs += (regId, parId, csvTime)
+      )
 
-    val runEnd = Capsule(EmptyTask() set (
-        name    := "runEnd",
-        inputs  += (regId, parId, tgtId, srcId, outDof),
-        outputs += (regId, parId, tgtId, srcId, outDof)
-      ))
+    val getRunTime =
+      ScalaTask(s"""val runTime = csvTime.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).head.split(",").drop(2).map(_.toDouble)""") set (
+        name    := s"${reg.id}-GetRunTime",
+        inputs  += (regId, parId, tgtId, srcId, csvTime),
+        outputs += (regId, parId, tgtId, srcId, runTime)
+      )
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Calculate mean runtime for each parameter set and save it in CSV file
-    val writeAvgTime = ScalaTask(
-      s"""
-        | val regId   = input.regId.head
-        | val parId   = input.parId.head
-        | val runTime = input.${runTime.name}.filter(t => t.sum > .0).transpose
-        | val numTime = runTime.head.size
-        | val avgTime = if (numTime > .0) runTime.map(_.sum / numTime) else Array.fill(runTime.size)(.0)
-        | if (numTime == 0)
-        |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) invalid because no registrations were performed")
-        | else if (numTime.size < input.${runTime.name}.size) {
-        |   val ratio = input.${runTime.name}.size.toDouble / numTime.toDouble
-        |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) calculated using only $${100 * ratio}%.0f%% of all registrations")
-        | }
-      """.stripMargin) set (
-        name    := s"${reg.id}-WriteMeanCpuTime",
+    val writeAvgTime =
+      ScalaTask(
+        s"""
+          | val regId   = input.regId.head
+          | val parId   = input.parId.head
+          | val runTime = input.${runTime.name}.filter(t => t.sum > .0).transpose
+          | val numTime = runTime.head.size
+          | val avgTime = if (numTime > .0) runTime.map(_.sum / numTime) else Array.fill(runTime.size)(.0)
+          | if (numTime == 0)
+          |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) invalid because no registrations were performed")
+          | else if (numTime.size < input.${runTime.name}.size) {
+          |   val ratio = input.${runTime.name}.size.toDouble / numTime.toDouble
+          |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) calculated using only $${100 * ratio}%.0f%% of all registrations")
+          | }
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-WriteAvgTime",
         inputs  += (regId.toArray, parId.toArray, runTime.toArray),
         outputs += (regId, parId, avgTime)
       ) hook (
@@ -177,14 +195,22 @@ object RunRegistration {
       )
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Post-registration steps
+    // Workflow
+    val run =
+      forEachPar -< incParId -- Capsule(forEachImPair, strainer = true) -<
+        ConvertDofToAff(reg, regId,                tgtId,        srcId, iniDof, affDof) --
+        RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm,  affDof, phiDof, runTime) -- writeTimeCsv --
+        ConvertPhiToDof(reg, regId, parId,         tgtId,        srcId,                 phiDof, outDof ) --
+      runEnd
+
     val post =
+      // read time entries from CSV instead of using those from the regEnd aggregation as some registrations
+      // may not have been performed because the results were already available (i.e., runTime == 0)
+      (writeTimeCsv >- readTimeCsv -- Capsule(forEachImPair, strainer = true) -< getRunTime >- writeAvgTime) +
       (runEnd -- DeformImage    (reg, regId, parId, tgtId, srcId, outDof, outIm )) +
       (runEnd -- DeformLabels   (reg, regId, parId, tgtId, srcId, outDof, outSeg)) +
       (runEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, outDof, outJac))
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Complete registration workflow
-    (pre >- preEnd) + (preEnd -- run -- runEnd) + (regEnd >- writeAvgTime) + post
+    run + post
   }
 }
