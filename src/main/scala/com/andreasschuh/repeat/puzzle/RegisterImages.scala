@@ -58,7 +58,7 @@ object RegisterImages {
    * @return Puzzle piece to compute transformation from target to source
    */
   def apply(reg: Registration, regId: Prototype[String],
-            parId: Prototype[Int], parVal: Prototype[Map[String, String]],
+            parId: Prototype[String], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
             affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Array[Double]]) = {
 
@@ -85,8 +85,8 @@ object RegisterImages {
         | val ${phiDof.name} = new java.io.File(workDir, "result${reg.phiSuf}")
         | val ${regLog.name} = new java.io.File(workDir, "output$logSuf")
         | val args = ${parVal.name} ++ Map(
-        |   "regId"  -> "${reg.id}",
-        |   "parId"  -> ${parId.name}.toString,
+        |   "regId"  -> ${regId.name},
+        |   "parId"  -> ${parId.name},
         |   "target" -> ${tgtIm.name}.getPath,
         |   "source" -> ${srcIm.name}.getPath,
         |   "aff"    -> ${affDof.name}.getPath,

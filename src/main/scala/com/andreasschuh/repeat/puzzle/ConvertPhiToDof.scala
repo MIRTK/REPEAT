@@ -53,7 +53,7 @@ object ConvertPhiToDof {
    *
    * @return Puzzle piece for conversion from IRTK format to format required by registration
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
             tgtId: Prototype[Int], srcId: Prototype[Int],
             phiDof: Prototype[File], outDof: Prototype[File]) = {
 
@@ -80,7 +80,7 @@ object ConvertPhiToDof {
             | val ${outDof.name} = new java.io.File(workDir, "phi$dofSuf")
             | val args = Map(
             |   "regId"  -> ${regId.name},
-            |   "parId"  -> ${parId.name}.toString,
+            |   "parId"  -> ${parId.name},
             |   "in"     -> ${phiDof.name}.getPath,
             |   "phi"    -> ${phiDof.name}.getPath,
             |   "dof"    -> ${outDof.name}.getPath,

@@ -53,7 +53,7 @@ object DeformLabels {
    *
    * @return Puzzle piece to propagate source labels
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
             tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
             outSeg: Prototype[File]) = {
 
@@ -72,9 +72,7 @@ object DeformLabels {
         name    := s"${reg.id}-DeformLabelsBegin",
         inputs  += (regId, parId, tgtId, srcId, phiDof),
         outputs += (regId, parId, tgtId, srcId, phiDof, outSeg)
-      ) source (
-        FileSource(outSegPath, outSeg)
-      )
+      ) source FileSource(outSegPath, outSeg)
 
     val command = Val[Cmd]
     val run = ScalaTask(
@@ -104,9 +102,7 @@ object DeformLabels {
       ) source (
         FileSource(tgtSegPath, tgtSeg),
         FileSource(srcSegPath, srcSeg)
-      ) hook (
-        CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
-      )
+      ) hook CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
 
     begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
   }

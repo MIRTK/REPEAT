@@ -42,17 +42,17 @@ object ComputeJacobian {
   /**
    * Computes Jacobian determinant map of output transformation
    *
-   * @param reg[in]        Registration info
-   * @param regId[in,out]  ID of registration
-   * @param parId[in,out]  ID parameter set
-   * @param tgtId[in,out]  ID of target image
-   * @param srcId[in,out]  ID of source image
-   * @param phiDof[in]     Transformation from target to source
-   * @param outJac[out]    Output Jacobian determinant map
+   * @param reg[in]       Registration info
+   * @param regId[in,out] ID of registration
+   * @param parId[in,out] ID parameter set
+   * @param tgtId[in,out] ID of target image
+   * @param srcId[in,out] ID of source image
+   * @param phiDof[in]    Transformation from target to source
+   * @param outJac[out]   Output Jacobian determinant map
    *
    * @return Puzzle piece to compute Jacobian determinant map
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
             tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
             outJac: Prototype[File]) = {
 
@@ -69,9 +69,7 @@ object ComputeJacobian {
         name    := s"${reg.id}-ComputeJacobianBegin",
         inputs  += (regId, parId, tgtId, srcId, phiDof),
         outputs += (regId, parId, tgtId, srcId, phiDof, outJac)
-      ) source (
-        FileSource(outJacPath, outJac)
-      )
+      ) source FileSource(outJacPath, outJac)
 
     val command = Val[Cmd]
     val run = ScalaTask(
@@ -97,11 +95,7 @@ object ComputeJacobian {
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
         outputs     += (regId, parId, tgtId, srcId, outJac),
         command     := reg.jacCmd
-      ) source (
-        FileSource(tgtImPath, tgtIm)
-      ) hook (
-        CopyFileHook(outJac, outJacPath, move = Workspace.shared)
-      )
+      ) source FileSource(tgtImPath, tgtIm) hook CopyFileHook(outJac, outJacPath, move = Workspace.shared)
 
     begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() > ${phiDof.name}.lastModified()")
 

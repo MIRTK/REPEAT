@@ -53,7 +53,7 @@ object DeformImage {
    *
    * @return Puzzle piece to deform source image
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[Int],
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
             tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
             outIm: Prototype[File]) = {
 
@@ -103,9 +103,7 @@ object DeformImage {
         inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
         outputs     += (regId, parId, tgtId, srcId, outIm),
         command     := reg.deformImageCmd
-      ) hook (
-        CopyFileHook(outIm, outImPath, move = Workspace.shared)
-      )
+      ) hook CopyFileHook(outIm, outImPath, move = Workspace.shared)
 
     begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
   }

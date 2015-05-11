@@ -59,7 +59,8 @@ object RunRegistration {
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
     val regId   = Val[String]              // ID/name of registration
-    val parId   = Val[Int]                 // Parameter set ID ("params" CSV row index)
+    val parIdx  = Val[Int]                 // Parameter set ID ("params" CSV row index)
+    val parId   = Val[String]              // Parameter set ID with leading zeros
     val parVal  = Val[Map[String, String]] // Map from parameter name to value
     val tgtId   = Val[Int]                 // ID of target image
     val tgtIm   = Val[File]                // Fixed target image
@@ -86,21 +87,13 @@ object RunRegistration {
     // -----------------------------------------------------------------------------------------------------------------
     // Tasks
     val forEachPar =
-      ExplorationTask(paramSampling zipWithIndex parId) set (
+      ExplorationTask(paramSampling zipWithIndex parIdx) set (
         name    := s"${reg.id}-ForEachPar",
         outputs += regId,
         regId   := reg.id
       )
 
-    val incParId =
-      Capsule(
-        ScalaTask("val parId = input.parId + 1") set (
-          name    := s"${reg.id}-IncParId",
-          inputs  += parId,
-          outputs += parId
-        ),
-        strainer = true
-      )
+    val setParId = Capsule(SetParId(reg, paramSampling, parIdx, parId), strainer = true)
 
     val forEachImPair = // must *not* be a capsule as it is used more than once!
       ExplorationTask(
@@ -197,10 +190,10 @@ object RunRegistration {
     // -----------------------------------------------------------------------------------------------------------------
     // Workflow
     val run =
-      forEachPar -< incParId -- Capsule(forEachImPair, strainer = true) -<
-        ConvertDofToAff(reg, regId,                tgtId,        srcId, iniDof, affDof) --
-        RegisterImages (reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm,  affDof, phiDof, runTime) -- writeTimeCsv --
-        ConvertPhiToDof(reg, regId, parId,         tgtId,        srcId,                 phiDof, outDof ) --
+      forEachPar -< setParId -- Capsule(forEachImPair, strainer = true) -<
+        ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof) --
+        RegisterImages(reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm,  affDof, phiDof, runTime) -- writeTimeCsv --
+        ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof ) --
       runEnd
 
     val post =
