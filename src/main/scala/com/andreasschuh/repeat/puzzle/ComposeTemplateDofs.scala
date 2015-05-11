@@ -82,6 +82,6 @@ object ComposeTemplateDofs {
 
     val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
     val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
-    begin -- Skip(compose on Env.short by 20, cond1 + " && " + cond2)
+    begin -- Skip(compose on Env.short, cond1 + " && " + cond2)
   }
 }
