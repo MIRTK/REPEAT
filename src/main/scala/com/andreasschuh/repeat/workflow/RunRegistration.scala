@@ -178,7 +178,7 @@ object RunRegistration {
           | val avgTime = if (numTime > .0) runTime.map(_.sum / numTime) else Array.fill(runTime.size)(.0)
           | if (numTime == 0)
           |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) invalid because no registrations were performed")
-          | else if (numTime.size < input.${runTime.name}.size) {
+          | else if (numTime < input.${runTime.name}.size) {
           |   val ratio = input.${runTime.name}.size.toDouble / numTime.toDouble
           |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) calculated using only $${100 * ratio}%.0f%% of all registrations")
           | }
