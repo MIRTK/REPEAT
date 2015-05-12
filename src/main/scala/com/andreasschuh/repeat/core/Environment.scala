@@ -29,7 +29,6 @@ import org.openmole.core.workflow.execution.local.LocalEnvironment
 import org.openmole.plugin.environment.ssh.{ PrivateKey, LoginPassword, SSHAuthentication }
 import org.openmole.plugin.environment.slurm.SLURMEnvironment
 import org.openmole.plugin.environment.condor.CondorEnvironment
-import fr.iscpif.gridscale.condor.CondorRequirement
 
 
 /**
@@ -77,7 +76,6 @@ object Environment extends Configurable("environment") {
           nodes = _nodes,
           threads = _threads,
           constraints = _requirements,
-          openMOLEMemory = Some(256),
           sharedDirectory = Workspace.comDir,
           storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
@@ -90,8 +88,7 @@ object Environment extends Configurable("environment") {
           memory = _memory,
           nodes = nodes,
           threads = threads,
-          requirements = _requirements.grouped(2).map(kv => CondorRequirement(kv.head, kv(1))).toList,
-          openMOLEMemory = Some(256),
+          requirements = if (_requirements.isEmpty) None else Some("( " + _requirements.mkString(" ) && ( ") + " )"),
           sharedDirectory = Workspace.comDir,
           storageSharedLocally = Workspace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
@@ -99,7 +96,7 @@ object Environment extends Configurable("environment") {
         LocalEnvironment(_nodes match {
           case Some(n) if n > 0 => n
           case _ => Runtime.getRuntime.availableProcessors()
-        })
+        }, deinterleave = true)
       case _ => throw new Exception("Invalid execution environment: " + name)
     }
   }
