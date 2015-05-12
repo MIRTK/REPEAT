@@ -31,7 +31,7 @@ import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
-import com.andreasschuh.repeat.core._
+import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
 /**
@@ -101,7 +101,7 @@ object ConvertPhiToDof {
             outputs     += (regId, parId, tgtId, srcId, outDof),
             command     := cmd
           )
-        Capsule(task, strainer = true) hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
+        Capsule(task, strainer = true) on Env.short hook CopyFileHook(outDof, outDofPath, move = Workspace.shared)
       case None =>
         val task = EmptyTask() set (name := s"${reg.id}-UsePhiAsDof")
         Capsule(task, strainer = true).toPuzzlePiece

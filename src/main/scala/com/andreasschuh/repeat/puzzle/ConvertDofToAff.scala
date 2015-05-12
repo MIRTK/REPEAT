@@ -31,7 +31,7 @@ import org.openmole.plugin.task.scala._
 import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
-import com.andreasschuh.repeat.core._
+import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
 /**
@@ -97,7 +97,7 @@ object ConvertDofToAff {
             outputs     += (regId, tgtId, srcId, affDof),
             template    := command
           )
-        Capsule(task, strainer = true) hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
+        Capsule(task, strainer = true) on Env.short hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
       case None =>
         val task = EmptyTask() set (name := s"${reg.id}-UseDofAsAff")
         Capsule(task, strainer = true).toPuzzlePiece
