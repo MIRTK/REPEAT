@@ -193,7 +193,7 @@ object RunRegistration {
       forEachPar -< setParId -- Capsule(forEachImPair, strainer = true) -<
         ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof) --
         RegisterImages(reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm,  affDof, phiDof, runTime) -- writeTimeCsv --
-        ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof ) --
+        ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof) --
       runEnd
 
     val post =
