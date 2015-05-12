@@ -174,7 +174,7 @@ object EvaluateOverlap {
             |   case Some(line) => line.split(",").drop(2).map(_.toDouble)
             |   case None => Array[Double]()
             | }
-            | val ${skip.name} = ${values.name}.size > 0
+            | val ${skip.name} = !$enabled || ${values.name}.size > 0
           """.stripMargin
         ) set (
           name    := s"${reg.id}-${if (enabled) "Get" else "Ignore"}${values.name.capitalize}",
@@ -230,53 +230,59 @@ object EvaluateOverlap {
 
     // Write overlap of individual registration result
     def writeValues(csvPath: String, values: Prototype[Array[Double]], skip: Prototype[Boolean], header: String, enabled: Boolean) =
-      ScalaTask(
-        s"""
-          | if ($enabled && !${skip.name}) {
-          |   val csv = new java.io.File(s"$csvPath")
-          |   val hdr = if (csv.exists) "" else "Target,Source,$header\\n"
-          |   csv.getParentFile.mkdirs()
-          |   val fw = new java.io.FileWriter(csv, true)
-          |   try fw.write(hdr + tgtId + "," + srcId + "," + ${values.name}.mkString(",") + "\\n")
-          |   finally fw.close()
-          | }
-        """.stripMargin
-      ) set (
-        name   := s"${reg.id}-${if (enabled)"Write" else "Ignore"}${values.name.capitalize}",
-        inputs += (regId, parId, tgtId, srcId, values, skip)
-      )
+      if (enabled)
+        ScalaTask(
+          s"""
+            | if (!${skip.name}) {
+            |   val csv = new java.io.File(s"$csvPath")
+            |   val hdr = if (csv.exists) "" else "Target,Source,$header\\n"
+            |   csv.getParentFile.mkdirs()
+            |   val fw = new java.io.FileWriter(csv, true)
+            |   try fw.write(hdr + tgtId + "," + srcId + "," + ${values.name}.mkString(",") + "\\n")
+            |   finally fw.close()
+            | }
+          """.stripMargin
+        ) set (
+          name   := s"${reg.id}-Write${values.name.capitalize}",
+          inputs += (regId, parId, tgtId, srcId, values, skip)
+        )
+      else
+        EmptyTask() set (name := s"${reg.id}-Ignore${values.name.capitalize}")
 
     // Write mean values calculated over all registration results computed with a fixed set of parameters
     def writeMeanValues(csvPath: String, avg: Prototype[Array[Double]], header: String, enabled: Boolean) =
-      ScalaTask(
-        s"""
-          | val regId  = input.regId.head
-          | val values = (${avg.name} zip parId).groupBy(_._2).map {
-          |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size)
-          | }.toArray.sortBy(_._1)
-          | val csv = new java.io.File(s"$csvPath")
-          | val hdr = !csv.exists
-          | val fw  = new java.io.FileWriter(csv, ${Overlap.append})
-          | try {
-          |   if (hdr) {
-          |     if (${Overlap.append}) fw.write("Registration,Parameters,")
-          |     fw.write("$header\\n")
-          |   }
-          |   values.foreach {
-          |     case (parId, v) =>
-          |       if (${Overlap.append}) fw.write(s"$$regId,$$parId,")
-          |       fw.write(v.mkString(",") + "\\n")
-          |   }
-          | }
-          | catch {
-          |   case e: Exception => throw e
-          | }
-          | finally fw.close()
-        """.stripMargin
-      ) set (
-        name   := s"${reg.id}-Write${avg.name.capitalize}",
-        inputs += (regId.toArray, parId.toArray, avg.toArray)
-      )
+      if (enabled)
+        ScalaTask(
+          s"""
+            | val regId  = input.regId.head
+            | val values = (${avg.name} zip parId).groupBy(_._2).map {
+            |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size)
+            | }.toArray.sortBy(_._1)
+            | val csv = new java.io.File(s"$csvPath")
+            | val hdr = !csv.exists
+            | val fw  = new java.io.FileWriter(csv, ${Overlap.append})
+            | try {
+            |   if (hdr) {
+            |     if (${Overlap.append}) fw.write("Registration,Parameters,")
+            |     fw.write("$header\\n")
+            |   }
+            |   values.foreach {
+            |     case (parId, v) =>
+            |       if (${Overlap.append}) fw.write(s"$$regId,$$parId,")
+            |       fw.write(v.mkString(",") + "\\n")
+            |   }
+            | }
+            | catch {
+            |   case e: Exception => throw e
+            | }
+            | finally fw.close()
+          """.stripMargin
+        ) set (
+          name   := s"${reg.id}-Write${avg.name.capitalize}",
+          inputs += (regId.toArray, parId.toArray, avg.toArray)
+        )
+      else
+        EmptyTask() set (name := s"${reg.id}-Ignore${avg.name.capitalize}")
 
     // -----------------------------------------------------------------------------------------------------------------
     // Workflow
@@ -315,10 +321,10 @@ object EvaluateOverlap {
       )
 
     val writeMean =
-      evalEnd >- (
-        writeMeanValues(dscAvgCsvPath, dscGrpAvg, header = groups, enabled = dscEnabled),
-        writeMeanValues(jsiAvgCsvPath, jsiGrpAvg, header = groups, enabled = jsiEnabled)
-      )
+      evalEnd >-
+        // FIXME: Running the following tasks in parallel only executes the first one of these...
+        Capsule(writeMeanValues(dscAvgCsvPath, dscGrpAvg, header = groups, enabled = dscEnabled), strainer = true) --
+        Capsule(writeMeanValues(jsiAvgCsvPath, jsiGrpAvg, header = groups, enabled = jsiEnabled))
 
     eval + write + writeMean
   }
