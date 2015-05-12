@@ -93,7 +93,7 @@ object RunRegistration {
         regId   := reg.id
       )
 
-    val setParId = Capsule(SetParId(reg, paramSampling, parIdx, parId), strainer = true)
+    val setParId = SetParId(reg, paramSampling, parIdx, parId)
 
     val forEachImPair = // must *not* be a capsule as it is used more than once!
       ExplorationTask(

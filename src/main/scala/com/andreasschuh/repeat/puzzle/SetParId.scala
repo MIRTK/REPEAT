@@ -27,10 +27,13 @@ object SetParId {
     val parMaxId = parSmp.build(Context())(new util.Random()).size.toString
     val parWidth = math.max(parMaxId.length, 2)
 
-    ScalaTask(s"""val ${parId.name} = f"$${${parIdx.name} + 1}%0${parWidth}d" """) set (
-      name    := s"${reg.id}-SetParId",
-      inputs  += parIdx,
-      outputs += parId
+    Capsule(
+      ScalaTask(s"""val ${parId.name} = f"$${${parIdx.name} + 1}%0${parWidth}d" """) set (
+        name    := s"${reg.id}-SetParId",
+        inputs  += parIdx,
+        outputs += parId
+      ),
+      strainer = true
     )
   }
 

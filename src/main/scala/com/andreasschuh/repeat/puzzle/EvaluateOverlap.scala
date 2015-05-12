@@ -29,12 +29,10 @@ import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.domain.file._
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.display._
-import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.task.scala._
+import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
 
@@ -46,13 +44,16 @@ object EvaluateOverlap {
 
   /**
    *
-   * @param reg Registration whose label overlap should be evaluated
+   * @param regRegistration whose label overlap should be evaluated
    */
   def apply(reg: Registration) = {
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Configuration
     import Dataset.{imgCsv, segPre, segSuf}
-    import Workspace.dofPre
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Constants
     val dscEnabled       = Overlap.measures contains Overlap.DSC
     val dscAvgCsvName    = Overlap.summary.replace("${measure}", "DSC")
     val dscValCsvPath    = FileUtil.join(reg.resDir, "DSC_Label.csv").getAbsolutePath
@@ -67,6 +68,11 @@ object EvaluateOverlap {
     val jsiGrpStdCsvPath = FileUtil.join(reg.resDir, "JSI_Sigma.csv").getAbsolutePath
     val jsiAvgCsvPath    = FileUtil.join(reg.sumDir, jsiAvgCsvName).getAbsolutePath
 
+    val labels = Overlap.labels.mkString(",")
+    val groups = Overlap.groups.mkString(",")
+
+    val segPath = FileUtil.relativize(Workspace.dir, reg.segDir)
+
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
     val regId  = Val[String]               // Registration ID/name
@@ -76,33 +82,44 @@ object EvaluateOverlap {
     val tgtId  = Val[Int]                  // ID of target image
     val tgtSeg = Val[File]                 // Target segmentation image
     val srcId  = Val[Int]                  // ID of source image
-    val outDof = Val[File]                 // Output transformation converted to IRTK format
     val outSeg = Val[File]                 // Deformed source segmentation
 
     val dscVal    = Val[Array[Double]]     // Dice similarity coefficient (DSC) for each label and segmentation
     val dscGrpAvg = Val[Array[Double]]     // Mean DSC for each label group and segmentation
     val dscGrpStd = Val[Array[Double]]     // Standard deviation of DSC for each label group and segmentation
 
+    val dscValCsv    = Val[List[String]]
+    val dscGrpAvgCsv = Val[List[String]]
+    val dscGrpStdCsv = Val[List[String]]
+
+    val dscValSkip    = Val[Boolean]
+    val dscGrpAvgSkip = Val[Boolean]
+    val dscGrpStdSkip = Val[Boolean]
+
     val jsiVal    = Val[Array[Double]]     // Jaccard similarity index (JSI) for each label and segmentation
     val jsiGrpAvg = Val[Array[Double]]     // Mean JSI for each label group and segmentation
     val jsiGrpStd = Val[Array[Double]]     // Standard deviation of JSI for each label group and segmentation
 
+    val jsiValCsv    = Val[List[String]]
+    val jsiGrpAvgCsv = Val[List[String]]
+    val jsiGrpStdCsv = Val[List[String]]
+
+    val jsiValSkip    = Val[Boolean]
+    val jsiGrpAvgSkip = Val[Boolean]
+    val jsiGrpStdSkip = Val[Boolean]
+
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
     val paramSampling = CSVToMapSampling(reg.parCsv, parVal) zipWithIndex parIdx
-    val tgtIdSampling = CSVSampling(imgCsv)
-    tgtIdSampling.addColumn("Image ID", tgtId) // must be separate due to "imported twice" ambiguity of "columns"
-    val srcIdSampling = CSVSampling(imgCsv)
-    srcIdSampling.addColumn("Image ID", srcId)
+    val tgtIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", tgtId))
+    val srcIdSampling = CSVSampling(imgCsv) set (columns += ("Image ID", srcId))
     val imageSampling = (tgtIdSampling x srcIdSampling) filter (if (reg.isSym) "tgtId < srcId" else "tgtId != srcId")
 
-    val segPath = FileUtil.relativize(Workspace.dir, reg.segDir)
-    val dofPath = FileUtil.relativize(Workspace.dir, reg.dofDir)
-
+    // -----------------------------------------------------------------------------------------------------------------
+    // Tasks
     val forEachPar =
       ExplorationTask(paramSampling) set (
         name    := s"${reg.id}-ForEachPar",
-        inputs  += regId,
         outputs += regId,
         regId   := reg.id
       )
@@ -110,79 +127,67 @@ object EvaluateOverlap {
     val setParId = SetParId(reg, paramSampling, parIdx, parId)
 
     val forEachImPair =
-      ExplorationTask(
-        imageSampling x
-          (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
-          (outSeg in SelectFileDomain(Workspace.dir, segPath + File.separator + segPre + "${srcId}-${tgtId}" + segSuf)) x
-          (outDof in SelectFileDomain(Workspace.dir, dofPath + File.separator + dofPre + "${tgtId},${srcId}" + reg.dofSuf))
-      ) set (
-        name    := s"${reg.id}-ForEachImPair",
-        inputs  += (regId, parId),
-        outputs += (regId, parId),
-        regId   := reg.id
-      )
-
-    // -----------------------------------------------------------------------------------------------------------------
-    // Backup/Move previous results
-    val parBakDone = Val[Boolean]
-    val backupDone = Val[Boolean]
-
-    val backupResultsName   = if (reg.doBak) "BackupResults" else "DeleteResults"
-    val backupResultsScript =
-      if (reg.doBak)
-        s"""
-          | if ($dscEnabled) {
-          |   backup(s"$dscValCsvPath",    true)
-          |   backup(s"$dscGrpAvgCsvPath", true)
-          |   backup(s"$dscGrpStdCsvPath", true)
-          | }
-          | if ($jsiEnabled) {
-          |   backup(s"$jsiValCsvPath",    true)
-          |   backup(s"$jsiGrpAvgCsvPath", true)
-          |   backup(s"$jsiGrpStdCsvPath", true)
-          | }
-        """ + (if (Overlap.append) s"""
-          | if ($dscEnabled) backup(s"$dscAvgCsvPath", true)
-          | if ($jsiEnabled) backup(s"$jsiAvgCsvPath", true)
-        """ else "")
-      else
-        s"""
-          | if ($dscEnabled) {
-          |   delete(s"$dscValCsvPath")
-          |   delete(s"$dscGrpAvgCsvPath")
-          |   delete(s"$dscGrpStdCsvPath")
-          | }
-          | if ($jsiEnabled) {
-          |   delete(s"$jsiValCsvPath")
-          |   delete(s"$jsiGrpAvgCsvPath")
-          |   delete(s"$jsiGrpStdCsvPath")
-          | }
-        """ + (if (Overlap.append) s"""
-          | if ($dscEnabled) delete(s"$jsiAvgCsvPath")
-          | if ($jsiEnabled) delete(s"$jsiAvgCsvPath")
-        """ else "")
-
-    val backupResults =
-      ScalaTask(backupResultsScript.stripMargin + "\nval parBakDone = true") set (
-        name        := s"${reg.id}-$backupResultsName",
-        imports     += "com.andreasschuh.repeat.core.FileUtil.delete",
-        usedClasses += FileUtil.getClass,
-        inputs      += (regId, parId),
-        outputs     += parBakDone
-      )
-
-    val backupEnded =
       Capsule(
-        ScalaTask("val backupDone = true") set (
-          name    := s"${reg.id}-BackupResultsDone",
-          inputs  += parBakDone.toArray,
-          outputs += backupDone
-        )
+        ExplorationTask(
+          imageSampling x
+            (tgtSeg in SelectFileDomain(Workspace.segDir, segPre + "${tgtId}" + segSuf)) x
+            (outSeg in SelectFileDomain(Workspace.dir, segPath + File.separator + segPre + "${srcId}-${tgtId}" + segSuf))
+        ) set (
+          name    := s"${reg.id}-ForEachImPair",
+          inputs  += (regId, parId),
+          outputs += (regId, parId),
+          regId   := reg.id
+        ),
+        strainer = true
       )
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Individual label overlaps
-    val evalOverlap =
+    // Read overlap results from CSV files written by previous evaluation
+    def readCsv(csvPath: String, lines: Prototype[List[String]], enabled: Boolean) =
+      Capsule(
+        ScalaTask(
+          s"""
+            | val ${lines.name} =
+            |   if ($enabled) {
+            |     try fromFile(s"$csvPath").getLines().toList
+            |     catch {
+            |       case _: FileNotFoundException => List[String]()
+            |       case e: Exception => throw e
+            |     }
+            |   }
+            |   else List[String]()
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-${if (enabled) "Read" else "Ignore"}${lines.name.capitalize}",
+          imports += ("scala.io.Source.fromFile", "java.io.FileNotFoundException"),
+          inputs  += (regId, parId),
+          outputs += lines
+        ),
+        strainer = true
+      )
+
+    // Get previous overlap result from specific line of input/output CSV
+    def getValues(lines: Prototype[List[String]], values: Prototype[Array[Double]], skip: Prototype[Boolean], enabled: Boolean) =
+      Capsule(
+        ScalaTask(
+          s"""
+            | val ${values.name} = ${lines.name}.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).headOption match {
+            |   case Some(line) => line.split(",").drop(2).map(_.toDouble)
+            |   case None => Array[Double]()
+            | }
+            | val ${skip.name} = ${values.name}.size > 0
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-${if (enabled) "Get" else "Ignore"}${values.name.capitalize}",
+          inputs  += (regId, parId, tgtId, srcId, lines),
+          outputs += (values, skip)
+        ),
+        strainer = true
+      )
+
+    // Evaluate overlap of given registration result
+    // Note: Evaluate label statistics (confusion matrix entries) only once and calculate the different
+    //       requested overlap measures from these numbers to save redundant label comparisons
+    val evalTask =
       Capsule(
         ScalaTask(
           s"""
@@ -199,187 +204,122 @@ object EvaluateOverlap {
             | val jsiVal    = jsi.toArray
             | val jsiGrpAvg = jsi.getMeanValues
             | val jsiGrpStd = jsi.getSigmaValues
-            |
           """.stripMargin
         ) set (
-          name        := s"${reg.id}-EvaluateOverlap",
+          name        := s"${reg.id}-EvalOverlap",
           imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
           usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
           inputs      += (regId, parId, tgtId, srcId),
           inputFiles  += (tgtSeg, "target" + segSuf, link = Workspace.shared),
           inputFiles  += (outSeg, "labels" + segSuf, link = Workspace.shared),
           outputs     += (regId, parId, tgtId, srcId, dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd)
-        )
+        ),
+        strainer = true
       )
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Write overlaps of individual labels and label groups for each pair of images
-    val writeDscVal =
-      EmptyTask() set (
-        name    := "writeDscVal",
-        inputs  += (regId, parId, tgtId, srcId, dscVal),
-        outputs += (regId, parId, tgtId, srcId, dscVal)
-      ) hook (
-        AppendToCSVFileHook(dscValCsvPath, tgtId, srcId, dscVal) set (
-          csvHeader := "Target ID,Source ID," + Overlap.labels.mkString(","),
-          singleRow := true
-        )
+    // Capsule which indicates end of overlap evaluation task
+    val evalEnd =
+      Capsule(
+        EmptyTask() set (
+          name    := s"${reg.id}-EvalOverlapEnd",
+          inputs  += (dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd),
+          outputs += (dscVal, dscGrpAvg, dscGrpStd, jsiVal, jsiGrpAvg, jsiGrpStd)
+        ),
+        strainer = true
       )
 
-    val writeDscAvg =
-      EmptyTask() set (
-        name    := "writeDscAvg",
-        inputs  += (regId, parId, tgtId, srcId, dscGrpAvg),
-        outputs += (regId, parId, tgtId, srcId, dscGrpAvg)
-      ) hook (
-        AppendToCSVFileHook(dscGrpAvgCsvPath, tgtId, srcId, dscGrpAvg) set (
-          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
-          singleRow := true
-        )
-      )
-
-    val writeDscStd =
-      EmptyTask() set (
-        name    := "writeDscStd",
-        inputs  += (regId, parId, tgtId, srcId, dscGrpStd),
-        outputs += (regId, parId, tgtId, srcId, dscGrpStd)
-      ) hook (
-        AppendToCSVFileHook(dscGrpStdCsvPath, tgtId,srcId, dscGrpStd) set (
-          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
-          singleRow := true
-        )
-      )
-
-    val writeJsiVal =
-      EmptyTask() set (
-        name    := "writeJsiVal",
-        inputs  += (regId, parId, tgtId, srcId, jsiVal),
-        outputs += (regId, parId, tgtId, srcId, jsiVal)
-      ) hook (
-        AppendToCSVFileHook(jsiValCsvPath, tgtId, srcId, jsiVal) set (
-          csvHeader := "Target ID,Source ID," + Overlap.labels.mkString(","),
-          singleRow := true
-        )
-      )
-
-    val writeJsiAvg =
-      EmptyTask() set (
-        name    := "writeJsiAvg",
-        inputs  += (regId, parId, tgtId, srcId, jsiGrpAvg),
-        outputs += (regId, parId, tgtId, srcId, jsiGrpAvg)
-      ) hook (
-        AppendToCSVFileHook(jsiGrpAvgCsvPath, tgtId, srcId, jsiGrpAvg) set (
-          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
-          singleRow := true
-        )
-      )
-
-    val writeJsiStd =
-      EmptyTask() set (
-        name    := "writeJsiStd",
-        inputs  += (regId, parId, tgtId, srcId, jsiGrpStd),
-        outputs += (regId, parId, tgtId, srcId, jsiGrpStd)
-      ) hook (
-        AppendToCSVFileHook(jsiGrpStdCsvPath, tgtId, srcId, jsiGrpStd) set (
-          csvHeader := "Target ID,Source ID," + Overlap.groups.mkString(","),
-          singleRow := true
-        )
-      )
-
-    // -----------------------------------------------------------------------------------------------------------------
-    // Write mean over all pairs of images
-    val header = Val[Array[String]]
-
-    val writeMeanDsc =
+    // Write overlap of individual registration result
+    def writeValues(csvPath: String, values: Prototype[Array[Double]], skip: Prototype[Boolean], header: String, enabled: Boolean) =
       ScalaTask(
         s"""
-          | val regId = input.regId.head
-          | val dscAvgCsvFile = new java.io.File(s"$dscAvgCsvPath")
-          | val dscAvg = (dscGrpAvg zip parId).groupBy(_._2).map {
+          | if ($enabled && !${skip.name}) {
+          |   val csv = new java.io.File(s"$csvPath")
+          |   val hdr = if (csv.exists) "" else "Target,Source,$header\\n"
+          |   csv.getParentFile.mkdirs()
+          |   val fw = new java.io.FileWriter(csv, true)
+          |   try fw.write(hdr + tgtId + "," + srcId + "," + ${values.name}.mkString(",") + "\\n")
+          |   finally fw.close()
+          | }
+        """.stripMargin
+      ) set (
+        name   := s"${reg.id}-${if (enabled)"Write" else "Ignore"}${values.name.capitalize}",
+        inputs += (regId, parId, tgtId, srcId, values, skip)
+      )
+
+    // Write mean values calculated over all registration results computed with a fixed set of parameters
+    def writeMeanValues(csvPath: String, avg: Prototype[Array[Double]], header: String, enabled: Boolean) =
+      ScalaTask(
+        s"""
+          | val regId  = input.regId.head
+          | val values = (${avg.name} zip parId).groupBy(_._2).map {
           |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size)
           | }.toArray.sortBy(_._1)
-          | if (!dscAvgCsvFile.exists) {
-          |   val res = new java.io.FileWriter(dscAvgCsvFile)
-          |   try {
-          |     if (${Overlap.append}) res.write("Registration,Parameters,")
-          |     res.write(header.mkString(",") + "\\n")
-          |   }
-          |   catch {
-          |     case e: Exception => throw e
-          |   }
-          |   finally res.close()
-          | }
-          | val res = new java.io.FileWriter(dscAvgCsvFile, ${Overlap.append})
+          | val csv = new java.io.File(s"$csvPath")
+          | val hdr = !csv.exists
+          | val fw  = new java.io.FileWriter(csv, ${Overlap.append})
           | try {
-          |   dscAvg.foreach {
+          |   if (hdr) {
+          |     if (${Overlap.append}) fw.write("Registration,Parameters,")
+          |     fw.write("$header\\n")
+          |   }
+          |   values.foreach {
           |     case (parId, v) =>
-          |       if (${Overlap.append}) res.write(s"$$regId,$$parId,")
-          |       res.write(v.mkString(",") + "\\n")
+          |       if (${Overlap.append}) fw.write(s"$$regId,$$parId,")
+          |       fw.write(v.mkString(",") + "\\n")
           |   }
           | }
           | catch {
           |   case e: Exception => throw e
           | }
-          | finally res.close()
+          | finally fw.close()
         """.stripMargin
       ) set (
-        name   := s"${reg.id}-WriteMeanDsc",
-        inputs += (regId.toArray, parId.toArray, dscGrpAvg.toArray, header),
-        header := Overlap.groups.toArray
+        name   := s"${reg.id}-Write${avg.name.capitalize}",
+        inputs += (regId.toArray, parId.toArray, avg.toArray)
       )
 
-    val writeMeanJsi =
-      ScalaTask(
-        s"""
-          | val regId = input.regId.head
-          | val jsiAvgCsvFile = new java.io.File(s"$jsiAvgCsvPath")
-          | val jsiAvg = (jsiGrpAvg zip parId).groupBy(_._2).map {
-          |   case (id, results) => id -> results.map(_._1).transpose.map(_.sum / results.size.toDouble)
-          | }.toArray.sortBy(_._1)
-          | if (!jsiAvgCsvFile.exists) {
-          |   val res = new java.io.FileWriter(jsiAvgCsvFile)
-          |   try {
-          |     if (${Overlap.append}) res.write("Registration,Parameters,")
-          |     res.write(header.mkString(",") + "\\n")
-          |   }
-          |   catch {
-          |     case e: Exception => throw e
-          |   }
-          |   finally res.close()
-          | }
-          | val res = new java.io.FileWriter(jsiAvgCsvFile, ${Overlap.append})
-          | try {
-          |   jsiAvg.foreach {
-          |     case (parId, v) =>
-          |       if (${Overlap.append}) res.write(s"$$regId,$$parId,")
-          |       res.write(v.mkString(",") + "\\n")
-          |   }
-          | }
-          | catch {
-          |   case e: Exception => throw e
-          | }
-          | finally res.close()
-        """.stripMargin
-      ) set (
-        name   := s"${reg.id}-WriteMeanJsi",
-        inputs += (regId.toArray, parId.toArray, jsiGrpAvg.toArray, header),
-        header := Overlap.groups.toArray
+    // -----------------------------------------------------------------------------------------------------------------
+    // Workflow
+    val readPrevResults =
+      readCsv(dscValCsvPath,    dscValCsv,    enabled = dscEnabled) --
+      readCsv(dscGrpAvgCsvPath, dscGrpAvgCsv, enabled = dscEnabled) --
+      readCsv(dscGrpStdCsvPath, dscGrpStdCsv, enabled = dscEnabled) --
+      readCsv(jsiValCsvPath,    jsiValCsv,    enabled = jsiEnabled) --
+      readCsv(jsiGrpAvgCsvPath, jsiGrpAvgCsv, enabled = jsiEnabled) --
+      readCsv(jsiGrpStdCsvPath, jsiGrpStdCsv, enabled = jsiEnabled)
+
+    val evalBegin =
+      getValues(dscValCsv,    dscVal,    dscValSkip,    enabled = dscEnabled) --
+      getValues(dscGrpAvgCsv, dscGrpAvg, dscGrpAvgSkip, enabled = dscEnabled) --
+      getValues(dscGrpStdCsv, dscGrpStd, dscGrpStdSkip, enabled = dscEnabled) --
+      getValues(jsiValCsv,    jsiVal,    jsiValSkip,    enabled = jsiEnabled) --
+      getValues(jsiGrpAvgCsv, jsiGrpAvg, jsiGrpAvgSkip, enabled = jsiEnabled) --
+      getValues(jsiGrpStdCsv, jsiGrpStd, jsiGrpStdSkip, enabled = jsiEnabled)
+
+    val eval =
+      forEachPar -< setParId -- readPrevResults -- forEachImPair -< evalBegin --
+        Skip(
+          evalTask on Env.short,
+          "dscValSkip && dscGrpAvgSkip && dscGrpStdSkip && jsiValSkip && jsiGrpAvgSkip && jsiGrpStdSkip"
+        ) --
+      evalEnd
+
+    val write =
+      evalEnd -- (
+        writeValues(dscValCsvPath,    dscVal,    dscValSkip,    header = labels, enabled = dscEnabled),
+        writeValues(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgSkip, header = groups, enabled = dscEnabled),
+        writeValues(dscGrpStdCsvPath, dscGrpStd, dscGrpStdSkip, header = groups, enabled = dscEnabled),
+        writeValues(jsiValCsvPath,    jsiVal,    jsiValSkip,    header = labels, enabled = jsiEnabled),
+        writeValues(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgSkip, header = groups, enabled = jsiEnabled),
+        writeValues(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdSkip, header = groups, enabled = jsiEnabled)
       )
 
-    if (dscEnabled && jsiEnabled)
-      (forEachPar -< Capsule(setParId, strainer = true) -- backupResults >- backupEnded) +
-        (backupEnded -- forEachPar -< Capsule(setParId, strainer = true) -- forEachImPair -< (evalOverlap on Env.short)) +
-        (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi) +
-        (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc)
-    else if (dscEnabled)
-      (forEachPar -< Capsule(setParId, strainer = true) -- backupResults >- backupEnded) +
-        (backupEnded -- forEachPar -< Capsule(setParId, strainer = true) -- forEachImPair -< (evalOverlap on Env.short)) +
-        (evalOverlap -- (writeDscVal, writeDscAvg, writeDscStd)) + (evalOverlap >- writeMeanDsc)
-    else if (jsiEnabled)
-      (forEachPar -< Capsule(setParId, strainer = true) -- backupResults >- backupEnded) +
-        (backupEnded -- forEachPar -< Capsule(setParId, strainer = true) -- forEachImPair -< (evalOverlap on Env.short)) +
-        (evalOverlap -- (writeJsiVal, writeJsiAvg, writeJsiStd)) + (evalOverlap >- writeMeanJsi)
-    else
-      EmptyTask().toCapsule.toPuzzle
+    val writeMean =
+      evalEnd >- (
+        writeMeanValues(dscAvgCsvPath, dscGrpAvg, header = groups, enabled = dscEnabled),
+        writeMeanValues(jsiAvgCsvPath, jsiGrpAvg, header = groups, enabled = jsiEnabled)
+      )
+
+    eval + write + writeMean
   }
 }
