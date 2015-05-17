@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
@@ -43,67 +43,48 @@ object DeformLabels {
   /**
    * Applies output transformation to propagate source labels
    *
-   * @param reg[in]        Registration info
-   * @param regId[in,out]  ID of registration
-   * @param parId[in,out]  ID of parameter set
-   * @param tgtId[in,out]  ID of target image
-   * @param srcId[in,out]  ID of source image
-   * @param phiDof[in]     Transformation from target to source
-   * @param outSeg[out]    Output segmentation image
+   * @param reg[in]            Registration info
+   * @param regId[in,out]      ID of registration
+   * @param parId[in,out]      ID of parameter set
+   * @param tgtId[in,out]      ID of target image
+   * @param srcId[in,out]      ID of source image
+   * @param tgtSegPath[in]     Path of target image segmentation
+   * @param srcSegPath[in]     Path of target image segmentation
+   * @param outDofPath[in]     Transformation from target to source
+   * @param outSegPath[in,out] Output segmentation image
    *
    * @return Puzzle piece to propagate source labels
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
-            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
-            outSeg: Prototype[File]) = {
+            tgtId: Prototype[Int], srcId: Prototype[Int], tgtSegPath: String, srcSegPath: String,
+            outDofPath: Prototype[Path], outSegPath: Prototype[Path]) = {
 
-    import Dataset.{segPre, segSuf}
-    import Workspace.dofPre
-    import FileUtil.join
+    val template = Val[Cmd]
 
-    val tgtSeg = Val[File]
-    val srcSeg = Val[File]
-
-    val tgtSegPath = join(Workspace.segDir, segPre + s"$${${tgtId.name}}" + segSuf).getAbsolutePath
-    val srcSegPath = join(Workspace.segDir, segPre + s"$${${srcId.name}}" + segSuf).getAbsolutePath
-    val outSegPath = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
-        name    := s"${reg.id}-DeformLabelsBegin",
-        inputs  += (regId, parId, tgtId, srcId, phiDof),
-        outputs += (regId, parId, tgtId, srcId, phiDof, outSeg)
-      ) source FileSource(outSegPath, outSeg)
-
-    val command = Val[Cmd]
-    val run = ScalaTask(
-      s"""
-        | val ${outSeg.name} = new java.io.File(workDir, "output$segSuf")
-        | val args = Map(
-        |   "target" -> ${tgtSeg.name}.getPath,
-        |   "source" -> ${srcSeg.name}.getPath,
-        |   "out"    -> ${outSeg.name}.getPath,
-        |   "phi"    -> ${phiDof.name}.getPath
-        | )
-        | val cmd = Registration.command(${command.name}, args)
-        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-        | print(str)
-        | val ret = cmd.!
-        | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
-      """.stripMargin) set (
+    val task =
+      ScalaTask(
+        s"""
+          | val args = Map(
+          |   "target" -> s"$tgtSegPath",
+          |   "source" -> s"$srcSegPath",
+          |   "out"    -> ${outSegPath.name}.getPath,
+          |   "phi"    -> ${outDofPath.name}.getPath
+          | )
+          | val cmd = command(template, args)
+          | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+          | print(str)
+          | val ret = cmd.!
+          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
+        """.stripMargin
+      ) set (
         name        := s"${reg.id}-DeformLabels",
         imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
         usedClasses += Registration.getClass,
-        inputs      += (regId, parId, tgtId, srcId, command),
-        inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, link = Workspace.shared),
-        inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, link = Workspace.shared),
-        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += (regId, parId, tgtId, srcId, outSeg),
-        command     := reg.deformLabelsCmd
-      ) source (
-        FileSource(tgtSegPath, tgtSeg),
-        FileSource(srcSegPath, srcSeg)
-      ) hook CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
+        inputs      += (regId, parId, tgtId, srcId, outSegPath, outDofPath, template),
+        outputs     += (regId, parId, tgtId, srcId, outSegPath),
+        template    := reg.deformLabelsCmd
+      )
 
-    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
+    Skip(task on Env.short, s"${outSegPath.name}.toFile().lastModified() > ${outDofPath.name}.toFile().lastModified()")
   }
 }

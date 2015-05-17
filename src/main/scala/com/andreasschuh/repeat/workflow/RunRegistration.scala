@@ -21,7 +21,8 @@
 
 package com.andreasschuh.repeat.workflow
 
-import java.io.File
+import java.nio.file.{Path, Paths}
+
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
 
@@ -34,6 +35,7 @@ import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.task.scala._
+import org.openmole.plugin.tool.pattern.Skip
 
 
 /**
@@ -50,32 +52,53 @@ object RunRegistration {
    */
   def apply(reg: Registration) = {
 
-    import Dataset._
-    import Workspace.{dofAff, dofPre, dofSuf}
+    // -----------------------------------------------------------------------------------------------------------------
+    // Constants
+    import Dataset.{imgDir => _, segDir => _, _}
+    import Workspace.{imgDir, segDir, dofAff, dofPre, dofSuf, logDir, logSuf}
 
-    val runTimeCsvPath = FileUtil.join(reg.resDir, "Time.csv")
-    val avgTimeCsvPath = FileUtil.join(reg.sumDir, "Time.csv")
+    val tgtImPathTemplate  = Paths.get(    imgDir.getAbsolutePath, imgPre + "${tgtId}"          +     imgSuf).toString
+    val srcImPathTemplate  = Paths.get(    imgDir.getAbsolutePath, imgPre + "${srcId}"          +     imgSuf).toString
+    val tgtSegPathTemplate = Paths.get(    segDir.getAbsolutePath, segPre + "${tgtId}"          +     segSuf).toString
+    val srcSegPathTemplate = Paths.get(    segDir.getAbsolutePath, segPre + "${srcId}"          +     segSuf).toString
+    val iniDofPathTemplate = Paths.get(    dofAff.getAbsolutePath, dofPre + "${tgtId},${srcId}" +     dofSuf).toString
+    val affDofPathTemplate = Paths.get(reg.affDir.getAbsolutePath, dofPre + "${tgtId},${srcId}" + reg.affSuf).toString
+    val outDofPathTemplate = Paths.get(reg.dofDir.getAbsolutePath, dofPre + "${tgtId},${srcId}" +     dofSuf).toString
+    val outJacPathTemplate = Paths.get(reg.dofDir.getAbsolutePath, dofPre + "${tgtId},${srcId}" + reg.jacSuf).toString
+    val outImPathTemplate  = Paths.get(reg.imgDir.getAbsolutePath, imgPre + "${srcId}-${tgtId}" +     imgSuf).toString
+    val outSegPathTemplate = Paths.get(reg.segDir.getAbsolutePath, segPre + "${srcId}-${tgtId}" +     segSuf).toString
+    val outLogPathTemplate = Paths.get(    logDir.getAbsolutePath, "${regId}-${parId}", "${tgtId},${srcId}" + logSuf).toString
+
+    val runTimeCsvPath = FileUtil.join(reg.resDir, "Time.csv").getAbsolutePath
+    val avgTimeCsvPath = FileUtil.join(reg.sumDir, "Time.csv").getAbsolutePath
+
+    val skipPre = iniDofPathTemplate == affDofPathTemplate
+
+    val outDofEnabled = true
+    val outImEnabled  = true
+    val outSegEnabled = true
+    val outJacEnabled = true
 
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
-    val regId   = Val[String]              // ID/name of registration
-    val parIdx  = Val[Int]                 // Parameter set ID ("params" CSV row index)
-    val parId   = Val[String]              // Parameter set ID with leading zeros
-    val parVal  = Val[Map[String, String]] // Map from parameter name to value
-    val tgtId   = Val[Int]                 // ID of target image
-    val tgtIm   = Val[File]                // Fixed target image
-    val srcId   = Val[Int]                 // ID of source image
-    val srcIm   = Val[File]                // Moving source image
-    val iniDof  = Val[File]                // Pre-computed affine transformation from target to source
-    val affDof  = Val[File]                // Affine transformation converted to input format
-    val phiDof  = Val[File]                // Output transformation of registration
-    val outDof  = Val[File]                // Output transformation converted to IRTK format
-    val outIm   = Val[File]                // Deformed source image
-    val outSeg  = Val[File]                // Deformed source segmentation
-    val outJac  = Val[File]                // Jacobian determinant map
-    val csvTime = Val[List[String]]        // Runtime CSV written by previous execution
-    val runTime = Val[Array[Double]]       // Runtime of registration command
-    val avgTime = Val[Array[Double]]       // Mean runtime over all registrations for a given set of parameters
+    val regId      = Val[String]              // ID/name of registration
+    val parIdx     = Val[Int]                 // Parameter set ID ("params" CSV row index)
+    val parId      = Val[String]              // Parameter set ID with leading zeros
+    val parVal     = Val[Map[String, String]] // Map from parameter name to value
+    val tgtId      = Val[Int]                 // ID of target image
+    val tgtImPath  = Val[Path]                // Fixed target image
+    val srcId      = Val[Int]                 // ID of source image
+    val srcImPath  = Val[Path]                // Moving source image
+    val iniDofPath = Val[Path]                // Pre-computed affine transformation from target to source
+    val affDofPath = Val[Path]                // Affine transformation converted to input format
+    val outDofPath = Val[Path]                // Output transformation converted to IRTK format
+    val outImPath  = Val[Path]                // Deformed source image
+    val outSegPath = Val[Path]                // Deformed source segmentation
+    val outJacPath = Val[Path]                // Jacobian determinant map
+    val outLogPath = Val[Path]                // Registration command output log file
+    val csvTime    = Val[List[String]]        // Runtime CSV written by previous execution
+    val runTime    = Val[Array[Double]]       // Runtime of registration command
+    val avgTime    = Val[Array[Double]]       // Mean runtime over all registrations for a given set of parameters
 
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
@@ -86,58 +109,100 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Tasks
+    val nop = Capsule(EmptyTask() set (name := s"${reg.id}-NOP")).toPuzzle
+
+    val setRegId =
+      EmptyTask() set (
+        name    := s"${reg.id}-SetRegId",
+        outputs += regId,
+        regId   := reg.id
+      )
+
     val forEachPar =
       ExplorationTask(paramSampling zipWithIndex parIdx) set (
         name    := s"${reg.id}-ForEachPar",
-        outputs += regId,
-        regId   := reg.id
+        inputs  += regId,
+        outputs += regId
       )
 
     val setParId = SetParId(reg, paramSampling, parIdx, parId)
 
     val forEachImPair = // must *not* be a capsule as it is used more than once!
-      ExplorationTask(
-        imageSampling x
-          (tgtIm  in SelectFileDomain(imgDir, imgPre + "${tgtId}" + imgSuf)) x
-          (srcIm  in SelectFileDomain(imgDir, imgPre + "${srcId}" + imgSuf)) x
-          (iniDof in SelectFileDomain(dofAff, dofPre + "${tgtId},${srcId}" + dofSuf))
-      ) set (
-        name := s"${reg.id}-ForEachImPair"
+      ExplorationTask(imageSampling) set (
+        name    := s"${reg.id}-ForEachImPair",
+        inputs  += (regId, parId, parVal),
+        outputs += (regId, parId, parVal)
       )
 
-    val writeTimeCsv =
+    val preBegin =
+      ScalaTask(
+        s"""
+          | val iniDofPath = Paths.get(s"$iniDofPathTemplate")
+          | val affDofPath = Paths.get(s"$affDofPathTemplate")
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-PreBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, tgtId, srcId),
+        outputs += (regId, tgtId, srcId, iniDofPath, affDofPath)
+      )
+
+    val preEnd =
       Capsule(
-        ScalaTask(
-          s"""
-            | if (runTime.sum > .0) {
-            |   val csv = new java.io.File(s"$runTimeCsvPath")
-            |   val hdr = if (csv.exists) "" else "Target,Source,User,System,Total,Real\\n"
-            |   csv.getParentFile.mkdirs()
-            |   val fw  = new java.io.FileWriter(csv, true)
-            |   try {
-            |     fw.write(hdr + tgtId + "," + srcId)
-            |     runTime.foreach( t => fw.write(f",$$t%.2f") )
-            |     fw.write("\\n")
-            |   }
-            |   finally fw.close()
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-RegEnd",
-          inputs  += (regId, parId, tgtId, srcId, runTime),
-          outputs += (regId, parId, tgtId, srcId)
-        ),
-        strainer = true
+        EmptyTask() set (
+          name    := s"${reg.id}-PreEnd",
+          inputs  += regId.toArray,
+          outputs += regId
+        )
+      )
+
+    val setRegIdOrPreEnd = if (skipPre) Capsule(setRegId) else preEnd
+
+    val runBegin =
+      ScalaTask(
+        s"""
+          | val tgtImPath  = Paths.get(s"$tgtImPathTemplate")
+          | val srcImPath  = Paths.get(s"$srcImPathTemplate")
+          | val affDofPath = Paths.get(s"$affDofPathTemplate")
+          | val outDofPath = Paths.get(s"$outDofPathTemplate")
+          | val outLogPath = Paths.get(s"$outLogPathTemplate")
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-RunBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, parId, parVal, tgtId, srcId),
+        outputs += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath)
       )
 
     val runEnd =
       Capsule(
         EmptyTask() set (
           name    := s"${reg.id}-RunEnd",
-          inputs  += (regId, parId, tgtId, srcId, outDof),
-          outputs += (regId, parId, tgtId, srcId, outDof)
-        ),
-        strainer = true
+          inputs  += (regId, parId, tgtId, srcId, outDofPath, runTime),
+          outputs += (regId, parId, tgtId, srcId, outDofPath, runTime)
+        )
+      )
+
+    val writeRunTime =
+      ScalaTask(
+        s"""
+          | if (runTime.sum > .0) {
+          |   val csv = new java.io.File(s"$runTimeCsvPath")
+          |   val hdr = if (csv.exists) "" else "Target,Source,User,System,Total,Real\\n"
+          |   csv.getParentFile.mkdirs()
+          |   val fw  = new java.io.FileWriter(csv, true)
+          |   try {
+          |     fw.write(hdr + tgtId + "," + srcId)
+          |     runTime.foreach( t => fw.write(f",$$t%.2f") )
+          |     fw.write("\\n")
+          |   }
+          |   finally fw.close()
+          | }
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-RegEnd",
+        inputs  += (regId, parId, tgtId, srcId, runTime),
+        outputs += (regId, parId, tgtId, srcId, runTime)
       )
 
     val readTimeCsv =
@@ -189,21 +254,65 @@ object RunRegistration {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Workflow
-    val run =
-      forEachPar -< setParId -- Capsule(forEachImPair, strainer = true) -<
-        ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof) --
-        RegisterImages(reg, regId, parId, parVal, tgtId, tgtIm, srcId, srcIm,  affDof, phiDof, runTime) -- writeTimeCsv --
-        ConvertPhiToDof(reg, regId, parId, tgtId, srcId, phiDof, outDof) --
-      runEnd
 
-    val post =
-      // read time entries from CSV instead of using those from the regEnd aggregation as some registrations
-      // may not have been performed because the results were already available (i.e., runTime == 0)
-      (writeTimeCsv >- readTimeCsv -- Capsule(forEachImPair, strainer = true) -< getRunTime >- writeAvgTime) +
-      (runEnd -- DeformImage    (reg, regId, parId, tgtId, srcId, outDof, outIm )) +
-      (runEnd -- DeformLabels   (reg, regId, parId, tgtId, srcId, outDof, outSeg)) +
-      (runEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, outDof, outJac))
+    val convertDofToAff = if (skipPre) nop else
+      setRegId -- forEachImPair -< preBegin --
+        ConvertDofToAff(reg, regId, tgtId, srcId, iniDofPath, affDofPath) >-
+      preEnd
 
-    run + post
+    val registerImages =
+      setRegIdOrPreEnd -- forEachPar -< setParId -- forEachImPair -< runBegin --
+        Skip(
+          RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, runTime),
+          s"""
+            | def tgtIm  = tgtImPath.toFile()
+            | def srcIm  = srcImPath.toFile()
+            | def iniDof = new java.io.File(s"$iniDofPathTemplate")
+            | def outDof = new java.io.File(s"$outDofPathTemplate")
+            | def outIm  = new java.io.File(s"$outImPathTemplate")
+            | def outSeg = new java.io.File(s"$outSegPathTemplate")
+            | def outJac = new java.io.File(s"$outJacPathTemplate")
+            |
+            | def updateOutDof = $outDofEnabled &&
+            |   outDof.lastModified() < iniDof.lastModified() &&
+            |   outDof.lastModified() < tgtIm .lastModified() &&
+            |   outDof.lastModified() < srcIm .lastModified()
+            | def updateOutIm = $outImEnabled &&
+            |   outIm.lastModified() < iniDof.lastModified() &&
+            |   outIm.lastModified() < tgtIm .lastModified() &&
+            |   outIm.lastModified() < srcIm .lastModified()
+            | def updateOutSeg = $outSegEnabled &&
+            |   outSeg.lastModified() < iniDof.lastModified() &&
+            |   outSeg.lastModified() < tgtIm .lastModified() &&
+            |   outSeg.lastModified() < srcIm .lastModified()
+            | def updateOutJac = $outJacEnabled &&
+            |   outJac.lastModified() < iniDof.lastModified() &&
+            |   outJac.lastModified() < tgtIm .lastModified() &&
+            |   outJac.lastModified() < srcIm .lastModified()
+            |
+            | !(updateOutDof || updateOutIm || updateOutSeg || updateOutJac)
+          """.stripMargin
+        ) --
+      runEnd -- writeRunTime >- readTimeCsv -- forEachImPair -< getRunTime >- writeAvgTime
+
+    val deformImage =
+      if (outImEnabled)
+        runEnd -- DeformImage(reg, regId, parId, tgtId, srcId, tgtImPathTemplate, srcImPathTemplate, outDofPath, outImPath)
+      else
+        nop
+
+    val deformLabels =
+      if (outSegEnabled)
+        runEnd -- DeformLabels(reg, regId, parId, tgtId, srcId, tgtSegPathTemplate, srcSegPathTemplate, outDofPath, outSegPath)
+      else
+        nop
+
+    val calcDetJac =
+      if (outJacEnabled)
+        runEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, tgtImPathTemplate, outDofPath, outJacPath)
+      else
+        nop
+
+    convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
   }
 }

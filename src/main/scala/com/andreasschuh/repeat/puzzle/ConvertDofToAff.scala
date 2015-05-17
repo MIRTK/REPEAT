@@ -21,7 +21,7 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.{Path, Paths}
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
@@ -40,69 +40,56 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 object ConvertDofToAff {
 
   /**
-   * @param reg[in]        Registration info
-   * @param regId[in,out]  ID of registration
-   * @param tgtId[in,out]  ID of target
-   * @param srcId[in,out]  ID of source
-   * @param iniDof[in]     Affine IRTK transformation
-   * @param affDof[out]    Input transformation ("<aff>") for registration.
-   *                       If no dof2aff conversion is provided, the IRTK transformation is used directly.
+   * @param reg[in]            Registration info
+   * @param regId[in,out]      ID of registration
+   * @param tgtId[in,out]      ID of target image
+   * @param srcId[in,out]      ID of source image
+   * @param iniDofPath[in]     Path of affine transformation in IRTK format
+   * @param affDofPath[in,out] Path of input transformation for registration command
    *
-   * @return Puzzle puzzle piece for conversion from IRTK format to format required by registration
+   * @return Puzzle which converts affine IRTK transformation to format needed by registration command
    */
   def apply(reg: Registration, regId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
-            iniDof: Prototype[File], affDof: Prototype[File]) = {
-
-    import Workspace.{dofPre, dofSuf}
-
-    val affDofPath = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
-
-    val begin =
-      Capsule(
-        EmptyTask() set (
-          name    := s"${reg.id}-ConvertDofToAffBegin",
-          inputs  += (regId, tgtId, srcId),
-          outputs += (regId, tgtId, srcId, affDof)
-        ),
-        strainer = true
-      ) source FileSource(affDofPath, affDof)
-
-    val dof2aff = reg.dof2affCmd match {
-      case Some(command) =>
-        val template = Val[Cmd]
-        val task =
-          ScalaTask(
-            s"""
-              | val ${affDof.name} = new java.io.File(workDir, "aff${reg.affSuf}")
-              | val args = Map(
-              |   "regId" -> "${reg.id}",
-              |   "in"    -> ${iniDof.name}.getPath,
-              |   "dof"   -> ${iniDof.name}.getPath,
-              |   "dofin" -> ${iniDof.name}.getPath,
-              |   "aff"   -> ${affDof.name}.getPath,
-              |   "out"   -> ${affDof.name}.getPath
-              | )
-              | val cmd = Registration.command(template, args)
-              | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-              | print(str)
-              | val ret = cmd.!
-              | if (ret != 0) throw new Exception("Failed to convert affine transformation")
-            """.stripMargin
-          ) set(
-            name        := s"${reg.id}-ConvertDofToAff",
-            imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
-            usedClasses += Registration.getClass,
-            inputs      += (regId, tgtId, srcId),
-            inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
-            outputs     += (regId, tgtId, srcId, affDof),
-            template    := command
-          )
-        Capsule(task, strainer = true) on Env.short hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
-      case None =>
-        val task = EmptyTask() set (name := s"${reg.id}-UseDofAsAff")
-        Capsule(task, strainer = true).toPuzzlePiece
-    }
-
-    begin -- Skip(dof2aff, s"${affDof.name}.lastModified() > ${iniDof.name}.lastModified()")
-  }
+            iniDofPath: Prototype[Path], affDofPath: Prototype[Path]) =
+    Skip(
+      reg.dof2affCmd match {
+        case Some(dof2affCmd) =>
+          val template = Val[Cmd]
+          val task =
+            ScalaTask(
+              s"""
+                | val args = Map(
+                |   "regId" -> ${regId.name},
+                |   "in"    -> ${iniDofPath.name}.toString,
+                |   "dof"   -> ${iniDofPath.name}.toString,
+                |   "dofin" -> ${iniDofPath.name}.toString,
+                |   "aff"   -> ${affDofPath.name}.toString,
+                |   "out"   -> ${affDofPath.name}.toString
+                | )
+                | val cmd = command(template, args)
+                | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+                | print(str)
+                | val ret = cmd.!
+                | if (ret != 0) throw new Exception("Failed to convert affine transformation")
+              """.stripMargin
+            ) set(
+              name        := s"${reg.id}-ConvertDofToAff",
+              imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
+              usedClasses += Registration.getClass,
+              inputs      += (regId, tgtId, srcId, affDofPath, iniDofPath),
+              outputs     += (regId, tgtId, srcId, affDofPath),
+              template    := dof2affCmd
+            )
+          Capsule(task) on Env.short
+        case None =>
+          val task =
+            EmptyTask() set (
+              name    := s"${reg.id}-UseDofAsAff",
+              inputs  += (regId, tgtId, srcId, affDofPath, iniDofPath),
+              outputs += (regId, tgtId, srcId, affDofPath)
+            )
+          Capsule(task) on Env.local
+      },
+      s"${affDofPath.name}.toFile().lastModified() > ${iniDofPath.name}.toFile().lastModified()"
+    )
 }
