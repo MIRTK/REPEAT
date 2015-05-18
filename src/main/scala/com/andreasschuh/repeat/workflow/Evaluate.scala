@@ -157,6 +157,11 @@ object Evaluate {
     // -----------------------------------------------------------------------------------------------------------------
     // Auxiliaries
 
+    def backupTablePath(path: String) = {
+      val p = Paths.get(path)
+      p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
+    }
+
     // NOP puzzle
     val nop = Capsule(EmptyTask() set (name := s"${reg.id}-NOP")).toPuzzle
 
@@ -240,7 +245,7 @@ object Evaluate {
           ScalaTask(
             s"""
               | val from = Paths.get(s"$path")
-              | val to   = Paths.get(s"$path.bak")
+              | val to   = Paths.get(s"${backupTablePath(path)}")
               | if (Files.exists(from)) {
               |   Console.println("Backup " + from)
               |   Console.flush()
@@ -273,7 +278,7 @@ object Evaluate {
             | val ${p.name} =
             |   if ($enabled)
             |     try {
-            |       val file  = new File(s"$path.bak")
+            |       val file  = new File(s"${backupTablePath(path)}")
             |       val lines = fromFile(file).getLines().toList.view
             |       val row   = lines.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
             |       val ncols = ${n + 2}
@@ -346,7 +351,7 @@ object Evaluate {
             | println(s"Evaluate overlap for regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId==$$srcId")
             | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
             |
-            | val stats = IRTK.labelStats(${tgtSeg.name}, ${outSeg.name}, Some(Overlap.labels.toSet))
+            | val stats = IRTK.labelStats(${tgtSeg.name}.toFile, ${outSeg.name}.toFile, Some(Overlap.labels.toSet))
             |
             | val dscMetric = Overlap(stats, Overlap.DSC)
             | val dscValues = dscMetric.toArray
