@@ -402,6 +402,7 @@ object Evaluate {
         DisplayHook(s"${Prefix.INFO}Appended ${mean.name.capitalize} for $avgSet")
       )
 
+    /* TODO: Test this to close OpenMOLE issue #62. Either use it instead of separate calcMean and appendToMeanTable or remove.
     def calcMeanAndAppendToTable(path: String, result: Prototype[Array[Double]], mean: Prototype[Array[Double]], header: String) =
       ScalaTask(
         s"""
@@ -420,6 +421,7 @@ object Evaluate {
         ),
         DisplayHook(s"${Prefix.INFO}Appended ${mean.name.capitalize} for $avgSet")
       )
+    */
 
     def Display(prefix: String, message: String) =
       Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
@@ -497,14 +499,10 @@ object Evaluate {
             Case(s"!avgTimeValid && $timeEnabled", Display(Prefix.WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
           )
       /*
-      def writeMeanTime2 =
-        registerImagesEnd >-
-          calcMeanAndAppendToTable(avgTimeCsvPath, runTime, avgTime, "User,System,Total,Real")
-            s"""
-             | def valid = !runTimeValid.contains(false)
-             | println("${Prefix.INFO}" + (if (valid) "Have" else "Miss") + s" RunTime measurements for $avgSet")
-             | valid
-            """.stripMargin
+      def writeMeanTime =
+        registerImagesEnd >- (
+          calcMeanAndAppendToTable(avgTimeCsvPath, runTime, avgTime, "User,System,Total,Real") when "!runTimeValid.contains(false)"
+        )
       */
       run + writeTime + writeMeanTime
     }
