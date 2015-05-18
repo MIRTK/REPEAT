@@ -41,7 +41,7 @@ import org.openmole.plugin.source.file.FileSource
  * - Register all images to template, first rigid then affine
  * - Affinely register all pairs of images using composition of template transformation as initialization
  */
-object PreRegistration {
+object Init {
 
   /** Construct OpenMOLE workflow puzzle */
   def apply() = {

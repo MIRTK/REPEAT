@@ -42,46 +42,57 @@ object ComputeJacobian {
   /**
    * Computes Jacobian determinant map of output transformation
    *
-   * @param reg[in]            Registration info
-   * @param regId[in,out]      ID of registration
-   * @param parId[in,out]      ID parameter set
-   * @param tgtId[in,out]      ID of target image
-   * @param srcId[in,out]      ID of source image
-   * @param outDofPath[in]     Transformation from target to source
-   * @param outJacPath[in,out] Output Jacobian determinant map
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID parameter set
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param outDof[in]     Transformation from target to source
+   * @param outJac[in,out] Path of output Jacobian determinant map
+   * @param outJacPath[in] Template path of output jacobian determinant map
    *
    * @return Puzzle piece to compute Jacobian determinant map
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
-            tgtImPath: String, outDofPath: Prototype[Path], outJacPath: Prototype[Path]) = {
+            tgtImPath: String, outDof: Prototype[Path], outJac: Prototype[Path], outJacPath: String) = {
 
     val template = Val[Cmd]
+
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${outJac.name} = Paths.get(s"$outJacPath")
+        """.stripMargin
+      ) set (
+        name := s"${reg.id}-ComputeJacobianBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof, outJac)
+      )
 
     val task =
       ScalaTask(
         s"""
           | val args = Map(
           |   "target" -> s"$tgtImPath",
-          |   "phi"    -> ${outDofPath.name}.toString,
-          |   "out"    -> ${outJacPath.name}.toString
+          |   "phi"    -> ${outDof.name}.toString,
+          |   "out"    -> ${outJac.name}.toString
           | )
           | val cmd = command(template, args)
           | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
           | print(str)
           | val ret = cmd.!
-          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
+          | if (ret != 0) throw new Exception("Jacobian command returned non-zero exit code!")
         """.stripMargin
       ) set (
         name        := s"${reg.id}-ComputeJacobian",
         imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
         usedClasses += Registration.getClass,
-        inputs      += (regId, parId, tgtId, srcId, outJacPath, outDofPath, template),
-        outputs     += (regId, parId, tgtId, srcId, outJacPath),
+        inputs      += (regId, parId, tgtId, srcId, outJac, outDof, template),
+        outputs     += (regId, parId, tgtId, srcId, outJac),
         template    := reg.jacCmd
       )
 
-    Skip(task on Env.short, s"${outJacPath.name}.toFile().lastModified() > ${outDofPath.name}.toFile().lastModified()")
-
-    // TODO: Compute statistics of Jacobian determinant and store these in CSV file
+    begin -- Skip(task on Env.short, s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified")
   }
 }

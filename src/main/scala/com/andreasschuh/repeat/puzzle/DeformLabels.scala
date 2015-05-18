@@ -43,48 +43,72 @@ object DeformLabels {
   /**
    * Applies output transformation to propagate source labels
    *
-   * @param reg[in]            Registration info
-   * @param regId[in,out]      ID of registration
-   * @param parId[in,out]      ID of parameter set
-   * @param tgtId[in,out]      ID of target image
-   * @param srcId[in,out]      ID of source image
-   * @param tgtSegPath[in]     Path of target image segmentation
-   * @param srcSegPath[in]     Path of target image segmentation
-   * @param outDofPath[in]     Transformation from target to source
-   * @param outSegPath[in,out] Output segmentation image
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID of parameter set
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param tgtSegPath[in] Template path of target image segmentation
+   * @param srcSegPath[in] Template path of target image segmentation
+   * @param outDof[in]     Path of transformation from target to source
+   * @param outSeg[in,out] Path of output segmentation image
+   * @param outSegPath[in] Template path of output segmentation image
    *
    * @return Puzzle piece to propagate source labels
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
-            tgtId: Prototype[Int], srcId: Prototype[Int], tgtSegPath: String, srcSegPath: String,
-            outDofPath: Prototype[Path], outSegPath: Prototype[Path]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
+            tgtSeg: Prototype[Path], tgtSegPath: String, srcSegPath: String, outDof: Prototype[Path],
+            outSeg: Prototype[Path], outSegPath: String, modified: Prototype[Boolean]) = {
 
     val template = Val[Cmd]
+    val srcSeg   = Val[Path]
+
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${tgtSeg.name} = Paths.get(s"$tgtSegPath")
+          | val ${srcSeg.name} = Paths.get(s"$srcSegPath")
+          | val ${outSeg.name} = Paths.get(s"$outSegPath")
+        """.stripMargin
+      ) set (
+        name     := s"${reg.id}-DeformLabelsBegin",
+        imports  += "java.nio.file.Paths",
+        inputs   += (regId, parId, tgtId, srcId, outDof),
+        outputs  += (regId, parId, tgtId, srcId, outDof, tgtSeg, srcSeg, outSeg, modified),
+        modified := false
+      )
 
     val task =
       ScalaTask(
         s"""
           | val args = Map(
-          |   "target" -> s"$tgtSegPath",
-          |   "source" -> s"$srcSegPath",
-          |   "out"    -> ${outSegPath.name}.getPath,
-          |   "phi"    -> ${outDofPath.name}.getPath
+          |   "target" -> ${tgtSeg.name}.toString,
+          |   "source" -> ${srcSeg.name}.toString,
+          |   "out"    -> ${outSeg.name}.toString,
+          |   "phi"    -> ${outDof.name}.toString
           | )
           | val cmd = command(template, args)
           | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
           | print(str)
           | val ret = cmd.!
-          | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
+          | if (ret != 0) throw new Exception("Label deformation command returned non-zero exit code!")
         """.stripMargin
       ) set (
         name        := s"${reg.id}-DeformLabels",
-        imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
         usedClasses += Registration.getClass,
-        inputs      += (regId, parId, tgtId, srcId, outSegPath, outDofPath, template),
-        outputs     += (regId, parId, tgtId, srcId, outSegPath),
-        template    := reg.deformLabelsCmd
+        inputs      += (regId, parId, tgtId, srcId, tgtSeg, srcSeg, outDof, outSeg, template),
+        outputs     += (regId, parId, tgtId, srcId, tgtSeg, srcSeg, outDof, outSeg, modified),
+        template    := reg.deformLabelsCmd,
+        modified    := true
       )
 
-    Skip(task on Env.short, s"${outSegPath.name}.toFile().lastModified() > ${outDofPath.name}.toFile().lastModified()")
+    val cond =
+      s"""
+        | ${outSeg.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified &&
+        | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
+      """.stripMargin
+
+    begin -- Skip(task on Env.short, cond)
   }
 }

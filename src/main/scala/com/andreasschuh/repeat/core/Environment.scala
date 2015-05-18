@@ -105,10 +105,18 @@ object Environment extends Configurable("environment") {
   val local = getEnvironment("local")
 
   /** Environment on which to execute short running tasks */
-  val short = getEnvironment(getStringProperty("short"), queue = "short")
+  val short = getStringProperty("short").toLowerCase match {
+    case "local" => local
+    case name: String => getEnvironment(name, queue = "short")
+  }
 
   /** Environment on which to execute long running tasks */
-  val long = getEnvironment(getStringProperty("long"), queue = "long")
+  val long = {
+    val name = getStringProperty("long").toLowerCase
+    if (name == "local") local
+    else if (name == getStringProperty("short").toLowerCase) short
+    else getEnvironment(name, queue = "long")
+  }
 
   /** Get named execution environment with specified properties */
   def apply(name: Option[String] = None, memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) =

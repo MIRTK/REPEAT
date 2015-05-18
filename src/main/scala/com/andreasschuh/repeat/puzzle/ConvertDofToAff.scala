@@ -40,33 +40,47 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 object ConvertDofToAff {
 
   /**
-   * @param reg[in]            Registration info
-   * @param regId[in,out]      ID of registration
-   * @param tgtId[in,out]      ID of target image
-   * @param srcId[in,out]      ID of source image
-   * @param iniDofPath[in]     Path of affine transformation in IRTK format
-   * @param affDofPath[in,out] Path of input transformation for registration command
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param iniDof[in]     Path of affine transformation in IRTK format
+   * @param affDof[out]    Path of input transformation for registration command
+   * @param affDofPath[in] Template path of input transformation
    *
    * @return Puzzle which converts affine IRTK transformation to format needed by registration command
    */
   def apply(reg: Registration, regId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
-            iniDofPath: Prototype[Path], affDofPath: Prototype[Path]) =
-    Skip(
+            iniDof: Prototype[Path], affDof: Prototype[Path], affDofPath: String) = {
+
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${affDof.name} = Paths.get(s"$affDofPath")
+        """.stripMargin
+      ) set(
+        name    := s"${reg.id}-ConvertDofToAffBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, tgtId, srcId, iniDof),
+        outputs += (regId, tgtId, srcId, iniDof, affDof)
+      )
+
+    val puzzle =
       reg.dof2affCmd match {
         case Some(dof2affCmd) =>
-          val template = Val[Cmd]
+          val dof2aff = Val[Cmd]
           val task =
             ScalaTask(
               s"""
                 | val args = Map(
                 |   "regId" -> ${regId.name},
-                |   "in"    -> ${iniDofPath.name}.toString,
-                |   "dof"   -> ${iniDofPath.name}.toString,
-                |   "dofin" -> ${iniDofPath.name}.toString,
-                |   "aff"   -> ${affDofPath.name}.toString,
-                |   "out"   -> ${affDofPath.name}.toString
+                |   "in"    -> ${iniDof.name}.toString,
+                |   "dof"   -> ${iniDof.name}.toString,
+                |   "dofin" -> ${iniDof.name}.toString,
+                |   "aff"   -> ${affDof.name}.toString,
+                |   "out"   -> ${affDof.name}.toString
                 | )
-                | val cmd = command(template, args)
+                | val cmd = command(dof2aff, args)
                 | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
                 | print(str)
                 | val ret = cmd.!
@@ -76,20 +90,21 @@ object ConvertDofToAff {
               name        := s"${reg.id}-ConvertDofToAff",
               imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
               usedClasses += Registration.getClass,
-              inputs      += (regId, tgtId, srcId, affDofPath, iniDofPath),
-              outputs     += (regId, tgtId, srcId, affDofPath),
-              template    := dof2affCmd
+              inputs      += (regId, tgtId, srcId, iniDof, affDof),
+              outputs     += (regId, tgtId, srcId,         affDof),
+              dof2aff     := dof2affCmd
             )
           Capsule(task) on Env.short
         case None =>
           val task =
             EmptyTask() set (
               name    := s"${reg.id}-UseDofAsAff",
-              inputs  += (regId, tgtId, srcId, affDofPath, iniDofPath),
-              outputs += (regId, tgtId, srcId, affDofPath)
+              inputs  += (regId, tgtId, srcId, iniDof, affDof),
+              outputs += (regId, tgtId, srcId,         affDof)
             )
           Capsule(task) on Env.local
-      },
-      s"${affDofPath.name}.toFile().lastModified() > ${iniDofPath.name}.toFile().lastModified()"
-    )
+      }
+
+    begin -- Skip(puzzle, s"${affDof.name}.toFile.lastModified > ${iniDof.name}.toFile.lastModified")
+  }
 }

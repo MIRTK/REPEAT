@@ -50,15 +50,27 @@ object DeformImage {
    * @param srcId[in,out]     ID of source image
    * @param tgtImPath[in]     Path of target image
    * @param srcImPath[in]     Path of source image
-   * @param outDofPath[in]    Transformation from target to source
-   * @param outImPath[in,out] Output image
+   * @param outDof[in]    Transformation from target to source
+   * @param outIm[in,out] Output image
    *
    * @return Puzzle piece to deform source image
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
-            tgtImPath: String, srcImPath: String, outDofPath: Prototype[Path], outImPath: Prototype[Path]) = {
+            tgtImPath: String, srcImPath: String, outDof: Prototype[Path], outIm: Prototype[Path], outImPath: String) = {
 
     val template = Val[Cmd]
+
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${outIm.name} = Paths.get(s"$outImPath")
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-DeformImageBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof, outIm)
+      )
 
     val task =
       ScalaTask(
@@ -66,23 +78,24 @@ object DeformImage {
           | val args = Map(
           |   "target" -> s"$tgtImPath",
           |   "source" -> s"$srcImPath",
-          |   "out"    -> ${outImPath.name}.toString,
-          |   "phi"    -> ${outDofPath.name}.toString
+          |   "out"    -> ${outIm.name}.toString,
+          |   "phi"    -> ${outDof.name}.toString
           | )
           | val cmd = command(template, args)
           | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
           | print(str)
           | val ret = cmd.!
           | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
-        """.stripMargin) set (
-          name        := s"${reg.id}-DeformImage",
-          imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
-          usedClasses += Registration.getClass,
-          inputs      += (regId, parId, tgtId, srcId, outImPath, outDofPath, template),
-          outputs     += (regId, parId, tgtId, srcId, outImPath),
-          template    := reg.deformImageCmd
-        )
+        """.stripMargin
+      ) set (
+        name        := s"${reg.id}-DeformImage",
+        imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
+        usedClasses += Registration.getClass,
+        inputs      += (regId, parId, tgtId, srcId, outIm, outDof, template),
+        outputs     += (regId, parId, tgtId, srcId, outIm),
+        template    := reg.deformImageCmd
+      )
 
-    Skip(task on Env.short, s"${outImPath.name}.toFile().lastModified() > ${outDofPath.name}.toFile().lastModified()")
+    begin -- Skip(task on Env.short, s"${outIm.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified")
   }
 }

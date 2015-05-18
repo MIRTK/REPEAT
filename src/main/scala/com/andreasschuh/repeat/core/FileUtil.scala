@@ -60,7 +60,7 @@ object FileUtil {
   }
 
   /** Backup file if it exists */
-  def backup(f: File, rm: Boolean = false): Unit = {
+  def backup(f: File, rm: Boolean = false): Option[File] = {
     if (f.exists) {
       val ext  = getExtension(f)
       val base = f.getPath.dropRight(ext.length)
@@ -77,7 +77,9 @@ object FileUtil {
       }
       copy(f, bak)
       if (rm) f.delete()
+      Some(bak)
     }
+    else None
   }
 
   /** Backup file if it exists */

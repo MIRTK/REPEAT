@@ -44,7 +44,7 @@ object EvaluateOverlap {
 
   /**
    *
-   * @param regRegistration whose label overlap should be evaluated
+   * @param reg Registration whose label overlap should be evaluated
    */
   def apply(reg: Registration) = {
 
