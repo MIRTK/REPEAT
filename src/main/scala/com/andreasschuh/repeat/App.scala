@@ -19,32 +19,58 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.app
+package com.andreasschuh.repeat
 
+import java.io.{ByteArrayInputStream, File}
 import com.andreasschuh.repeat.core._
-import java.io.{ ByteArrayInputStream, File }
 import scala.sys.process._
 
 
 /**
  * REPEAT application which executes the OpenMOLE workflows
  */
-object Main extends App {
+object App extends scala.App {
+
+  /** OpenMOLE console output logger */
+  private class Logger extends ProcessLogger {
+
+    /**
+     * Ignore all output to STDOUT until OpenMOLE console is started up
+     * (in particular, don't print ASCII art OpenMOLE splash screen)
+     */
+    protected var startedUp: Boolean = false
+
+    /** Process STDOUT line */
+    def out(s: => String): Unit = {
+      startedUp = startedUp || s.startsWith("OpenMOLE>")
+      val ignore = !startedUp || s.contains("feature warning") ||
+        "OpenMOLE>|import |[a-zA-Z_][a-zA-Z0-9_]*: ".r.findPrefixOf(s) != None
+      if (!ignore) println(s)
+    }
+
+    /** Process STDERR line */
+    def err(s: => String): Unit = {
+      println(s)
+    }
+
+    /** Wrap process execution */
+    def buffer[T](f: => T): T = f
+  }
 
   // File path of the REPEAT OpenMOLE plugin .jar file itself
-  val repeatPluginJar = new File(Main.getClass.getProtectionDomain.getCodeSource.getLocation.toURI)
+  private def repeatPluginJar = new File(getClass.getProtectionDomain.getCodeSource.getLocation.toURI).getAbsolutePath
 
   // OpenMOLE script running the complete registration evaluation workflow
-  val script =
+  private def script =
     """
       | import com.andreasschuh.repeat
-      | repeat.init()
+      | //repeat.init()
       | repeat.evaluate(reg = args(0))
     """.stripMargin
 
   // Check arguments
   if (args.length != 1) {
-    System.err.println(
+    Console.err.println(
       """
         | Required arguments:
         |   reg   Name of registration whose performance should be assessed.
@@ -53,16 +79,16 @@ object Main extends App {
     System.exit(1)
   }
   try {
-    Registration(args(0))
+    new Registration(args(0))
   } catch {
     case e: Exception => {
-      System.err.println("Unknown registration: " + args(0))
+      Console.err.println("Unknown registration: " + args(0))
       System.exit(1)
     }
   }
 
   // Execute workflow script in OpenMOLE console
-  val stream = new ByteArrayInputStream(script.getBytes("UTF-8"))
-  val logger = new Logger
-  (Cmd("openmole", "-mem", "4G", "-c", "-p", repeatPluginJar.getAbsolutePath, "--") ++ args) #< stream ! logger
+  private val stream = new ByteArrayInputStream(script.getBytes("UTF-8"))
+  private val logger = new Logger
+  (Cmd("openmole", "-mem", "4G", "-c", "-p", repeatPluginJar, "--") ++ args) #< stream ! logger
 }
