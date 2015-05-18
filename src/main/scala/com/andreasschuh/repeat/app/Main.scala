@@ -31,18 +31,15 @@ import scala.sys.process._
  */
 object Main extends App {
 
-  /** File path of the REPEAT OpenMOLE plugin .jar file itself */
+  // File path of the REPEAT OpenMOLE plugin .jar file itself
   val repeatPluginJar = new File(Main.getClass.getProtectionDomain.getCodeSource.getLocation.toURI)
 
-  /** OpenMOLE script running the complete registration evaluation workflow */
+  // OpenMOLE script running the complete registration evaluation workflow
   val script =
     """
-      | import com.andreasschuh.repeat.workflow._
-      | import com.andreasschuh.repeat.core.Registration
-      | val reg = Registration(args(0))
-      | PreRegistration ()   .start.waitUntilEnded
-      | RunRegistration (reg).start.waitUntilEnded
-      | EvalRegistration(reg).start.waitUntilEnded
+      | import com.andreasschuh.repeat
+      | repeat.init()
+      | repeat.evaluate(reg = args(0))
     """.stripMargin
 
   // Check arguments
@@ -56,7 +53,7 @@ object Main extends App {
     System.exit(1)
   }
   try {
-    val reg = Registration(args(0))
+    Registration(args(0))
   } catch {
     case e: Exception => {
       System.err.println("Unknown registration: " + args(0))
@@ -65,7 +62,7 @@ object Main extends App {
   }
 
   // Execute workflow script in OpenMOLE console
-  val istream = new ByteArrayInputStream(script.getBytes("UTF-8"))
-  val logger  = new Logger
-  (Cmd("openmole", "-c", "-p", repeatPluginJar.getAbsolutePath, "--") ++ args) #< istream ! logger
+  val stream = new ByteArrayInputStream(script.getBytes("UTF-8"))
+  val logger = new Logger
+  (Cmd("openmole", "-c", "-p", repeatPluginJar.getAbsolutePath, "--") ++ args) #< stream ! logger
 }
