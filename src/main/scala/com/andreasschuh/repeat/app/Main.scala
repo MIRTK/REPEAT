@@ -64,5 +64,5 @@ object Main extends App {
   // Execute workflow script in OpenMOLE console
   val stream = new ByteArrayInputStream(script.getBytes("UTF-8"))
   val logger = new Logger
-  (Cmd("openmole", "-c", "-p", repeatPluginJar.getAbsolutePath, "--") ++ args) #< stream ! logger
+  (Cmd("openmole", "-mem", "4G", "-c", "-p", repeatPluginJar.getAbsolutePath, "--") ++ args) #< stream ! logger
 }

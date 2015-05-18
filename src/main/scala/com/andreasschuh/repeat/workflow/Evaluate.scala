@@ -30,11 +30,12 @@ import com.andreasschuh.repeat.puzzle._
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.tool.pattern.Skip
+import org.openmole.plugin.tool.pattern.{Skip, Switch, Case}
 
 
 /**
@@ -99,6 +100,9 @@ object Evaluate {
     val dscEnabled  = Overlap.measures contains Overlap.DSC
     val jsiEnabled  = Overlap.measures contains Overlap.JSI
 
+    val regSet = "{regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}"
+    val avgSet = "{regId=${regId}, parId=${parId}}"
+
     // -----------------------------------------------------------------------------------------------------------------
     // Variables
 
@@ -123,9 +127,11 @@ object Evaluate {
     val outSegModified = Val[Boolean]      // Whether deformed source segmentation was newly created
 
     // Evaluation results
-    val runTime      = Val[Array[Double]]  // Runtime of registration command
-    val avgTime      = Val[Array[Double]]  // Mean runtime over all registrations for a given set of parameters
+    val runTime = Val[Array[Double]]       // Runtime of registration command
+    val avgTime = Val[Array[Double]]       // Mean runtime over all registrations for a given set of parameters
+
     val runTimeValid = Val[Boolean]        // Whether runtime measurements read from previous results CSV are valid
+    val avgTimeValid = Val[Boolean]        // ...
 
     val dscValues = Val[Array[Double]]     // Dice similarity coefficient (DSC) for each label and segmentation
     val dscGrpAvg = Val[Array[Double]]     // Mean DSC for each label group and segmentation
@@ -134,8 +140,8 @@ object Evaluate {
 
     val dscValuesValid = Val[Boolean]      // Whether DSC values read from previous CSV are valid
     val dscGrpAvgValid = Val[Boolean]      // ...
-    val dscGrpStdValid = Val[Boolean]
-    val dscRegAvgValid = Val[Boolean]
+    val dscGrpStdValid = Val[Boolean]      // ...
+    val dscRegAvgValid = Val[Boolean]      // ...
 
     val jsiValues = Val[Array[Double]]     // Jaccard similarity index (JSI) for each label and segmentation
     val jsiGrpAvg = Val[Array[Double]]     // Mean JSI for each label group and segmentation
@@ -144,8 +150,8 @@ object Evaluate {
 
     val jsiValuesValid = Val[Boolean]      // Whether JSI values read from previous CSV are valid
     val jsiGrpAvgValid = Val[Boolean]      // ...
-    val jsiGrpStdValid = Val[Boolean]
-    val jsiRegAvgValid = Val[Boolean]
+    val jsiGrpStdValid = Val[Boolean]      // ...
+    val jsiRegAvgValid = Val[Boolean]      // ...
 
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
@@ -233,8 +239,8 @@ object Evaluate {
       Capsule(
         EmptyTask() set (
           name    := s"${reg.id}-RegisterImagesEnd",
-          inputs  += (regId, parId, tgtId, srcId, outDof, runTime),
-          outputs += (regId, parId, tgtId, srcId, outDof, runTime)
+          inputs  += (regId, parId, tgtId, srcId, outDof, runTime, runTimeValid),
+          outputs += (regId, parId, tgtId, srcId, outDof, runTime, runTimeValid)
         )
       )
 
@@ -247,8 +253,7 @@ object Evaluate {
               | val from = Paths.get(s"$path")
               | val to   = Paths.get(s"${backupTablePath(path)}")
               | if (Files.exists(from)) {
-              |   Console.println("Backup " + from)
-              |   Console.flush()
+              |   println("${Prefix.INFO}Backup " + from)
               |   Files.move(from, to, StandardCopyOption.REPLACE_EXISTING)
               | }
             """.stripMargin
@@ -292,8 +297,7 @@ object Evaluate {
             |
             | val ${isValid.name} = !${p.name}.isEmpty && !${p.name}.contains($invalid)
             |
-            | println((if (${isValid.name}) "Have" else "Miss") +
-            |   s" previous ${p.name} for regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId")
+            | println("${Prefix.INFO}" + (if (${isValid.name}) "Have" else "Miss") + s" previous ${p.name.capitalize} for $regSet")
           """.stripMargin
         ) set (
           name    := s"${reg.id}-Read${p.name.capitalize}",
@@ -304,51 +308,11 @@ object Evaluate {
         strainer = true
       )
 
-    // Write measured runtime of registration command
-    val writeRunTime =
-      EmptyTask() set (
-        name    := s"${reg.id}-WriteRunTime",
-        inputs  += (regId, parId, tgtId, srcId, runTime),
-        outputs += (regId, parId, tgtId, srcId, runTime)
-      ) hook (
-        AppendToCSVFileHook(runTimeCsvPath, tgtId, srcId, runTime) set (
-          csvHeader := "Target,Source,User,System,Total,Real",
-          singleRow := true
-        )
-      )
-
-    val writeAvgTime =
-      ScalaTask(
-        s"""
-          | val regId   = input.regId.head
-          | val parId   = input.parId.head
-          | val runTime = input.${runTime.name}.filter(t => t.sum > .0).transpose
-          | val numTime = runTime.head.size
-          | val avgTime = if (numTime > .0) runTime.map(_.sum / numTime) else Array.fill(runTime.size)(.0)
-          | if (numTime == 0)
-          |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) invalid because no registrations were performed")
-          | else if (numTime < input.${runTime.name}.size) {
-          |   val ratio = input.${runTime.name}.size.toDouble / numTime.toDouble
-          |   println(f"WARNING: Mean runtime for $$regId (parId=$$parId) calculated using only $${100 * ratio}%.0f%% of all registrations")
-          | }
-        """.stripMargin
-      ) set (
-        name    := s"${reg.id}-WriteAvgTime",
-        inputs  += (regId.toArray, parId.toArray, runTime.toArray),
-        outputs += (regId, parId, avgTime)
-      ) hook (
-        AppendToCSVFileHook(avgTimeCsvPath, regId, parId, avgTime) set (
-          csvHeader := "Registration,Parameters,User,System,Total,Real",
-          singleRow := true
-        )
-      )
-
     // Evaluate overlap between target segmentation and deformed source labels
     val evaluateOverlap =
       Capsule(
         ScalaTask(
           s"""
-            | println(s"Evaluate overlap for regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId==$$srcId")
             | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
             |
             | val stats = IRTK.labelStats(${tgtSeg.name}.toFile, ${outSeg.name}.toFile, Some(Overlap.labels.toSet))
@@ -394,16 +358,17 @@ object Evaluate {
       )
 
     // Write individual registration result to CSV table
-    def appendToTable(path: String, result: Prototype[Array[Double]], resultValid: Prototype[Boolean], header: String) =
+    def appendToTable(path: String, result: Prototype[Array[Double]], header: String) =
       EmptyTask() set (
         name    := s"${reg.id}-Write${result.name.capitalize}",
-        inputs  += (regId, parId, tgtId, srcId, result, resultValid),
-        outputs += (regId, parId, tgtId, srcId, result, resultValid)
+        inputs  += (regId, parId, tgtId, srcId, result),
+        outputs += (regId, parId, tgtId, srcId, result)
       ) hook (
         AppendToCSVFileHook(path, tgtId, srcId, result) set (
           csvHeader := "Target,Source," + header,
           singleRow := true
-        )
+        ),
+        DisplayHook(s"${Prefix.INFO}Appended ${result.name.capitalize} for $regSet")
       )
 
     // Calculate mean of values over all registration results computed with a fixed set of parameters
@@ -424,24 +389,48 @@ object Evaluate {
       )
 
     // Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table
-    def appendToMeanTable(path: String, mean: Prototype[Array[Double]], meanValid: Prototype[Boolean], header: String) =
+    def appendToMeanTable(path: String, mean: Prototype[Array[Double]], header: String) =
       EmptyTask() set (
         name    := s"${reg.id}-Write${mean.name.capitalize}",
-        inputs  += (regId, parId, mean, meanValid),
-        outputs += (regId, parId, mean, meanValid)
+        inputs  += (regId, parId, mean),
+        outputs += (regId, parId, mean)
       ) hook (
         AppendToCSVFileHook(path, regId, parId, mean) set (
           csvHeader := "Registration,Parameters," + header,
           singleRow := true
-        )
+        ),
+        DisplayHook(s"${Prefix.INFO}Appended ${mean.name.capitalize} for $avgSet")
       )
+
+    def calcMeanAndAppendToTable(path: String, result: Prototype[Array[Double]], mean: Prototype[Array[Double]], header: String) =
+      ScalaTask(
+        s"""
+          | val regId = input.regId.head
+          | val parId = input.parId.head
+          | val ${mean.name} = ${result.name}.transpose.map(_.sum / ${result.name}.head.size)
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-Calc${mean.name.capitalize}",
+        inputs  += (regId.toArray, parId.toArray, result.toArray),
+        outputs += (regId, parId, mean)
+      ) hook (
+        AppendToCSVFileHook(path, regId, parId, mean) set (
+          csvHeader := "Registration,Parameters," + header,
+          singleRow := true
+        ),
+        DisplayHook(s"${Prefix.INFO}Appended ${mean.name.capitalize} for $avgSet")
+      )
+
+    def Display(prefix: String, message: String) =
+      Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Workflow
     def convertDofToAff =
-      setRegId -- Capsule(forEachImPair, strainer = true) -< convertDofToAffBegin --
-        ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof, affDofPath) >-
-      convertDofToAffEnd
+      setRegId -- Capsule(forEachImPair, strainer = true) -<
+        convertDofToAffBegin --
+          ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof, affDofPath) >-
+        convertDofToAffEnd
 
     def backupTables =
       backupTable(runTimeCsvPath,   enabled = timeEnabled) --
@@ -455,47 +444,70 @@ object Evaluate {
       backupTable(jsiGrpStdCsvPath, enabled = jsiEnabled ) --
       backupTable(jsiRegAvgCsvPath, enabled = jsiEnabled )
 
-    def registerImages =
-      convertDofToAffEnd -- forEachPar -<
-        SetParId(reg, paramSampling, parIdx, parId) -- backupTables --
-        Capsule(forEachImPair, strainer = true) -<
-          registerImagesBegin --
-            readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
-            Skip(
-              RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime),
-              s"""
-                | val tgtIm  = input.tgtIm.toFile
-                | val srcIm  = input.srcIm.toFile
-                | val iniDof = new java.io.File(s"$iniDofPath")
-                | val outDof = new java.io.File(s"$outDofPath")
-                | val outIm  = new java.io.File(s"$outImPath")
-                | val outSeg = new java.io.File(s"$outSegPath")
-                | val outJac = new java.io.File(s"$outJacPath")
-                |
-                | def updateOutDof = $keepOutDof &&
-                |   outDof.lastModified() < iniDof.lastModified &&
-                |   outDof.lastModified() < tgtIm .lastModified &&
-                |   outDof.lastModified() < srcIm .lastModified
-                | def updateOutIm = $keepOutIm &&
-                |   outIm.lastModified() < iniDof.lastModified &&
-                |   outIm.lastModified() < tgtIm .lastModified &&
-                |   outIm.lastModified() < srcIm .lastModified
-                | def updateOutSeg = $keepOutSeg &&
-                |   outSeg.lastModified() < iniDof.lastModified &&
-                |   outSeg.lastModified() < tgtIm .lastModified &&
-                |   outSeg.lastModified() < srcIm .lastModified
-                | def updateOutJac = $keepOutJac &&
-                |   outJac.lastModified() < iniDof.lastModified &&
-                |   outJac.lastModified() < tgtIm .lastModified &&
-                |   outJac.lastModified() < srcIm .lastModified
-                |
-                | def skip = !(updateOutDof || updateOutIm || updateOutSeg || updateOutJac) && (!$timeEnabled || runTimeValid)
-                | if (skip) println(s"Skip registration regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId")
-                | skip
-              """.stripMargin
-            ) --
-          registerImagesEnd --
-        writeRunTime >- writeAvgTime
+    def registerImages = {
+      def run =
+        convertDofToAffEnd -- forEachPar -<
+          SetParId(reg, paramSampling, parIdx, parId) -- backupTables --
+          Capsule(forEachImPair, strainer = true) -<
+            registerImagesBegin --
+              readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
+              Skip(
+                RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid),
+                s"""
+                  | val tgtIm  = input.tgtIm.toFile
+                  | val srcIm  = input.srcIm.toFile
+                  | val iniDof = new java.io.File(s"$iniDofPath")
+                  | val outDof = new java.io.File(s"$outDofPath")
+                  | val outIm  = new java.io.File(s"$outImPath")
+                  | val outSeg = new java.io.File(s"$outSegPath")
+                  | val outJac = new java.io.File(s"$outJacPath")
+                  |
+                  | def updateOutDof = $keepOutDof &&
+                  |   outDof.lastModified() < iniDof.lastModified &&
+                  |   outDof.lastModified() < tgtIm .lastModified &&
+                  |   outDof.lastModified() < srcIm .lastModified
+                  | def updateOutIm = $keepOutIm &&
+                  |   outIm.lastModified() < iniDof.lastModified &&
+                  |   outIm.lastModified() < tgtIm .lastModified &&
+                  |   outIm.lastModified() < srcIm .lastModified
+                  | def updateOutSeg = $keepOutSeg &&
+                  |   outSeg.lastModified() < iniDof.lastModified &&
+                  |   outSeg.lastModified() < tgtIm .lastModified &&
+                  |   outSeg.lastModified() < srcIm .lastModified
+                  | def updateOutJac = $keepOutJac &&
+                  |   outJac.lastModified() < iniDof.lastModified &&
+                  |   outJac.lastModified() < tgtIm .lastModified &&
+                  |   outJac.lastModified() < srcIm .lastModified
+                  |
+                  | def skip = !(updateOutDof || updateOutIm || updateOutSeg || updateOutJac) && (!$timeEnabled || runTimeValid)
+                  | if (skip) println(s"${Prefix.INFO}Skip registration for $regSet")
+                  | skip
+                """.stripMargin
+              ) --
+            registerImagesEnd
+      def writeTime =
+        registerImagesEnd -- Switch(
+          Case(  "runTimeValid", appendToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
+          Case(s"!runTimeValid && $timeEnabled", Display(Prefix.WARN, s"Missing ${runTime.name.capitalize} for $regSet"))
+        )
+      def writeMeanTime =
+        registerImagesEnd >-
+          calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
+            Case(  "avgTimeValid", appendToMeanTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
+            Case(s"!avgTimeValid && $timeEnabled", Display(Prefix.WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
+          )
+      /*
+      def writeMeanTime2 =
+        registerImagesEnd >-
+          calcMeanAndAppendToTable(avgTimeCsvPath, runTime, avgTime, "User,System,Total,Real")
+            s"""
+             | def valid = !runTimeValid.contains(false)
+             | println("${Prefix.INFO}" + (if (valid) "Have" else "Miss") + s" RunTime measurements for $avgSet")
+             | valid
+            """.stripMargin
+      */
+      run + writeTime + writeMeanTime
+    }
 
     def deformImage =
       if (!keepOutIm) nop else
@@ -503,7 +515,7 @@ object Evaluate {
 
     def deformLabels =
       if (!keepOutSeg) nop else {
-        def deformSrcSeg =
+        def deformSource =
           registerImagesEnd --
             DeformLabels(reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath, outDof, outSeg, outSegPath, outSegModified)
         def calcOverlap =
@@ -514,32 +526,36 @@ object Evaluate {
           readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
           Skip(
-            evaluateOverlap,
+            evaluateOverlap hook DisplayHook(s"${Prefix.INFO}Evaluated overlap for $regSet"),
             s"""
               | def dscValid = dscValuesValid && dscGrpAvgValid && dscGrpStdValid
               | def jsiValid = jsiValuesValid && jsiGrpAvgValid && jsiGrpStdValid
               | def skip = (!$dscEnabled && !$jsiEnabled) || (!outSegModified && dscValid && jsiValid)
-              | if (skip) println(s"Skip overlap evaluation for regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId")
+              | if (skip) println(s"${Prefix.INFO}Skip overlap evaluation for $regSet")
               | skip
             """.stripMargin
           ) -- evaluateOverlapEnd
         def writeOverlap =
           evaluateOverlapEnd -- (
-            appendToTable(dscValuesCsvPath, dscValues, dscValuesValid, header = labels) when "dscValuesValid",
-            appendToTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, header = groups) when "dscGrpAvgValid",
-            appendToTable(dscGrpStdCsvPath, dscGrpStd, dscGrpStdValid, header = groups) when "dscGrpStdValid",
-            appendToTable(jsiValuesCsvPath, jsiValues, jsiValuesValid, header = labels) when "jsiValuesValid",
-            appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, header = groups) when "jsiGrpAvgValid",
-            appendToTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, header = groups) when "jsiGrpStdValid"
+            appendToTable(dscValuesCsvPath, dscValues, header = labels) when "dscValuesValid",
+            appendToTable(dscGrpAvgCsvPath, dscGrpAvg, header = groups) when "dscGrpAvgValid",
+            appendToTable(dscGrpStdCsvPath, dscGrpStd, header = groups) when "dscGrpStdValid",
+            appendToTable(jsiValuesCsvPath, jsiValues, header = labels) when "jsiValuesValid",
+            appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups) when "jsiGrpAvgValid",
+            appendToTable(jsiGrpStdCsvPath, jsiGrpStd, header = groups) when "jsiGrpStdValid"
           )
         def writeMeanOverlap =
           evaluateOverlapEnd >- (
-            calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) --
-              appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, dscRegAvgValid, header = groups) when "dscRegAvgValid",
-            calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) --
-              appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, jsiRegAvgValid, header = groups) when "jsiRegAvgValid"
+            calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
+              Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
+              Case(s"!dscRegAvgValid && $dscEnabled", Display(Prefix.WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
+            ),
+            calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
+              Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
+              Case(s"!jsiRegAvgValid && $jsiEnabled", Display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+            )
           )
-        (deformSrcSeg -- calcOverlap) + writeOverlap //+ writeMeanOverlap
+        (deformSource -- calcOverlap) + writeOverlap + writeMeanOverlap
       }
 
     def calcDetJac =

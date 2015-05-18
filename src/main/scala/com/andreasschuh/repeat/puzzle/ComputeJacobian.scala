@@ -26,9 +26,8 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -93,6 +92,9 @@ object ComputeJacobian {
         template    := reg.jacCmd
       )
 
-    begin -- Skip(task on Env.short, s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified")
+    val info =
+      DisplayHook(s"${Prefix.INFO}Calculated Jacobian determinants for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+
+    begin -- Skip(task on Env.short hook info, s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified")
   }
 }

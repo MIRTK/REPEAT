@@ -21,21 +21,11 @@
 
 package com.andreasschuh.repeat.core
 
-import java.io.File
-
-import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
-import org.openmole.core.workflow.sampling.Sampling
-
-
-object CSVToMapSampling {
-
-  def apply(file: File, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
-}
-
-abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
-
-  override def prototypes = List(p)
-
-  override def build(context: ⇒ Context)(implicit rng: RandomProvider): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
-
+/**
+ * Constants used as prefix in output messages
+ */
+object Prefix {
+  val NAME = "[REPEAT] "
+  val INFO = NAME + "Info: "
+  val WARN = NAME + "Warning: "
 }

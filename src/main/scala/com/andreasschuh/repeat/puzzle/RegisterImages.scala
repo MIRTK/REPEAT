@@ -26,9 +26,7 @@ import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file._
-import org.openmole.plugin.hook.display._
-import org.openmole.plugin.source.file._
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
 
@@ -56,7 +54,8 @@ object RegisterImages {
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], srcId: Prototype[Int], tgtImPath: Prototype[Path], srcImPath: Prototype[Path],
-            affDofPath: Prototype[Path], outDofPath: Prototype[Path], outLogPath: Prototype[Path], runTime: Prototype[Array[Double]]) = {
+            affDofPath: Prototype[Path], outDofPath: Prototype[Path], outLogPath: Prototype[Path],
+            runTime: Prototype[Array[Double]], runTimeValid: Prototype[Boolean]) = {
 
     val template = Val[Cmd]
     val phi2dof  = Val[Cmd]
@@ -89,7 +88,8 @@ object RegisterImages {
           | log.out(str)
           | val ret = cmd ! log
           | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
-          | val runTime = log.time
+          | val ${runTime.name} = log.time
+          | val ${runTimeValid.name} = (log.time.sum > .0)
           |
           | if (phi2dof.size > 0) {
           |   val args = Map(
@@ -114,11 +114,14 @@ object RegisterImages {
         imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
         usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
         inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
-        outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime),
+        outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),
         template    := reg.runCmd,
         phi2dof     := phi2dofCmd
       )
 
-    Capsule(task) on reg.runEnv
+    val info =
+      DisplayHook(s"${Prefix.INFO}Finished registration for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+
+    Capsule(task) on reg.runEnv hook info
   }
 }

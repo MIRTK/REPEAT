@@ -21,14 +21,13 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -94,7 +93,9 @@ object ConvertDofToAff {
               outputs     += (regId, tgtId, srcId,         affDof),
               dof2aff     := dof2affCmd
             )
-          Capsule(task) on Env.short
+          val info =
+            DisplayHook(s"${Prefix.INFO}Prepared input transformation for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+          Capsule(task) on Env.short hook info
         case None =>
           val task =
             EmptyTask() set (
