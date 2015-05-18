@@ -37,7 +37,7 @@ object FileUtil {
   }
 
   /** Prepend dot on Linux and "_" on Windows to make file/directory "hidden" */
-  def hidden(a: String) = (if (System.getProperty("os.name") == "Linux") "." else "_") + a
+  def hidden(a: String) = (if ("(Linux|Mac OS X)".r.findPrefixOf(System.getProperty("os.name")) != None) "." else "_") + a
 
   /**
    * Copy file if it was modified
