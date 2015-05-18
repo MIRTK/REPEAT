@@ -64,7 +64,7 @@ object App extends scala.App {
   private def script =
     """
       | import com.andreasschuh.repeat
-      | //repeat.init()
+      | repeat.init()
       | repeat.evaluate(reg = args(0))
     """.stripMargin
 
