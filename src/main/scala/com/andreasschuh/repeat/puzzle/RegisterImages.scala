@@ -109,6 +109,7 @@ object RegisterImages {
           |   val ret = cmd ! log
           |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
           | }
+          | log.close()
         """.stripMargin
       ) set (
         name        := s"${reg.id}-RegisterImages",
