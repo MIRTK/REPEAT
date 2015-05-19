@@ -168,21 +168,31 @@ object Evaluate {
     val nop = Capsule(EmptyTask() set (name := s"${reg.id}-NOP")).toPuzzle
 
     // Exploration tasks
-    val setRegId =
+    def setRegId =
       EmptyTask() set (
         name    := s"${reg.id}-SetRegId",
         outputs += regId,
         regId   := reg.id
       )
 
-    val forEachPar =
+    def demuxRegId(taskName: String) = // must *not* be a val!
+      Capsule(
+        ScalaTask("val regId = input.regId.head") set (
+          name    := s"${reg.id}-$taskName",
+          inputs  += regId.toArray,
+          outputs += regId
+        ),
+        strainer = true
+      )
+
+    def forEachPar =
       ExplorationTask(paramSampling zipWithIndex parIdx) set (
         name    := s"${reg.id}-ForEachPar",
         inputs  += regId,
         outputs += regId
       )
 
-    val setParId =
+    def setParId =
       ScalaTask(
         """
           | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
@@ -194,7 +204,21 @@ object Evaluate {
         outputs += (regId, parId, parVal)
       )
 
-    val forEachImPair = // must *not* be a capsule as it is used more than once!
+    def demuxParId(taskName: String) = // must *not* be a val!
+      Capsule(
+        ScalaTask(
+          """
+            | val regId = input.regId.head
+            | val parId = input.parId.head
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-$taskName",
+          inputs  += (regId.toArray, parId.toArray),
+          outputs += (regId, parId)
+        )
+      )
+
+    def forEachImPair =
       ExplorationTask(imageSampling) set (
         name    := s"${reg.id}-ForEachImPair",
         inputs  += regId,
@@ -207,37 +231,45 @@ object Evaluate {
     }
 
     // Generators for auxiliary tasks used to avoid unnecessary re-computation of result measures
-    def backupTable(path: String, enabled: Boolean = true) =
-      if (enabled)
-        ScalaTask(
-          s"""
-            | val from = new File(s"$path")
-            | val to   = new File(s"${backupTablePath(path)}")
-            | if (from.exists) {
-            |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
-            |   val l2 = fromFile(from).getLines().toList
-            |   val fw = new FileWriter(to)
-            |   try {
-            |     fw.write(l2.head + "\\n")
-            |     val l: List[String] = (l1 ::: l2.tail).groupBy(_.split(",").take(2).mkString(",")).map(_._2.last)(breakOut)
-            |     l.sortBy(_.split(",").take(2).mkString(",")).foreach(row => fw.write(row + "\\n"))
-            |   }
-            |   finally fw.close()
-            |   println("${Prefix.DONE}Backup " + from.getPath)
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-MovePrevResult",
-          imports += ("java.io.{File, FileWriter}", "scala.io.Source.fromFile", "scala.collection.breakOut"),
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := s"${reg.id}-KeepPrevResult",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
+    def backupTable(path: String, enabled: Boolean, input: Prototype[String]*) = {
+      val task =
+        if (enabled)
+          ScalaTask(
+            s"""
+              | val from = new File(s"$path")
+              | val to   = new File(s"${backupTablePath(path)}")
+              | if (from.exists) {
+              |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
+              |   val l2 = fromFile(from).getLines().toList
+              |   val fw = new FileWriter(to)
+              |   try {
+              |     fw.write(l2.head + "\\n")
+              |     val l: List[String] = (l1 ::: l2.tail).groupBy(_.split(",").take(2).mkString(",")).map(_._2.last)(breakOut)
+              |     l.sortBy(_.split(",").take(2).mkString(",")).foreach(row => fw.write(row + "\\n"))
+              |   }
+              |   finally fw.close()
+              |   Files.delete(from.toPath)
+              |   println("${Prefix.DONE}Backup " + from.getPath)
+              | }
+            """.stripMargin
+          ) set (
+            name    := s"${reg.id}-BackupTable",
+            imports += ("java.io.{File, FileWriter}", "java.nio.file.Files", "scala.io.Source.fromFile", "scala.collection.breakOut"),
+            inputs  += regId,
+            outputs += regId
+          )
+        else
+          EmptyTask() set (
+            name    := s"${reg.id}-KeepTable",
+            inputs  += regId,
+            outputs += regId
+          )
+      input.foreach(p => {
+        task.addInput(p)
+        task.addOutput(p)
+      })
+      task
+    }
 
     val backupTablesEnd =
       Capsule(
@@ -248,8 +280,36 @@ object Evaluate {
         )
       )
 
+    // Remove backup tables once no longer needed
+    def deleteBackupTable(path: String, enabled: Boolean, input: Prototype[String]*) = {
+      val task =
+        if (enabled)
+          ScalaTask(
+            s"""
+              | val backupTable = Paths.get(s"${backupTablePath(path)}")
+              | Files.deleteIfExists(backupTable)
+            """.stripMargin
+          ) set (
+            name    := s"${reg.id}-DeleteBackupTable",
+            imports += "java.nio.file.{Paths, Files}",
+            inputs  += regId,
+            outputs += regId
+          )
+        else
+          EmptyTask() set (
+            name    := s"${reg.id}-KeepBackupTable",
+            inputs  += regId,
+            outputs += regId
+          )
+      input.foreach(p => {
+        task.addInput(p)
+        task.addOutput(p)
+      })
+      task
+    }
+
     // Initial conversion of affine input transformation
-    val convertDofToAffBegin =
+    def convertDofToAffBegin =
       ScalaTask(
         s"""
           | val iniDof = Paths.get(s"$iniDofPath")
@@ -332,7 +392,7 @@ object Evaluate {
       )
 
     // Evaluate overlap between target segmentation and deformed source labels
-    val evaluateOverlap =
+    def evaluateOverlap =
       Capsule(
         ScalaTask(
           s"""
@@ -430,21 +490,21 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables
-    // TODO: Append last results to previous backup to not loose results of incomplete workflow execution
     def backupTables =
-      setRegId -- forEachPar -< setParId --
-        // Results of individual registrations
-        backupTable(runTimeCsvPath,   enabled = timeEnabled) --
-        backupTable(dscValuesCsvPath, enabled = dscEnabled ) --
-        backupTable(dscGrpAvgCsvPath, enabled = dscEnabled ) --
-        backupTable(dscGrpStdCsvPath, enabled = dscEnabled ) --
-        backupTable(jsiValuesCsvPath, enabled = jsiEnabled ) --
-        backupTable(jsiGrpAvgCsvPath, enabled = jsiEnabled ) --
-        backupTable(jsiGrpStdCsvPath, enabled = jsiEnabled ) --
-        // Summary tables with mean values
-        backupTable(avgTimeCsvPath,   enabled = timeEnabled && !Overlap.append) --
-        backupTable(dscRegAvgCsvPath, enabled = dscEnabled  && !Overlap.append) --
-        backupTable(jsiRegAvgCsvPath, enabled = jsiEnabled  && !Overlap.append) >-
+      setRegId --
+      // Summary tables with mean values
+      backupTable(avgTimeCsvPath,   timeEnabled && !Overlap.append) --
+      backupTable(dscRegAvgCsvPath, dscEnabled  && !Overlap.append) --
+      backupTable(jsiRegAvgCsvPath, jsiEnabled  && !Overlap.append) --
+      // Results of individual registrations
+      forEachPar -< setParId --
+        backupTable(runTimeCsvPath,   timeEnabled, parId) --
+        backupTable(dscValuesCsvPath, dscEnabled,  parId) --
+        backupTable(dscGrpAvgCsvPath, dscEnabled,  parId) --
+        backupTable(dscGrpStdCsvPath, dscEnabled,  parId) --
+        backupTable(jsiValuesCsvPath, jsiEnabled,  parId) --
+        backupTable(jsiGrpAvgCsvPath, jsiEnabled,  parId) --
+        backupTable(jsiGrpStdCsvPath, jsiEnabled,  parId) >-
       backupTablesEnd
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -458,6 +518,7 @@ object Evaluate {
     // -----------------------------------------------------------------------------------------------------------------
     // Run registration command
     def registerImages = {
+      // Execute pairwise registration
       val regCond =
         Condition(
           s"""
@@ -501,18 +562,28 @@ object Evaluate {
                 Case(!regCond, display(Prefix.SKIP, s"Registration for $regSet"))
               ) --
             registerImagesEnd
+      // Write runtime measurements
+      val writeTimeEnd = demuxParId("WriteTimeEnd")
       def writeTime =
         registerImagesEnd -- Switch(
           Case(  "runTimeValid", appendToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
           Case(s"!runTimeValid && $timeEnabled", display(Prefix.WARN, s"Missing ${runTime.name.capitalize} for $regSet"))
-        )
+        ) >- writeTimeEnd
+      def deleteTables =
+        writeTimeEnd -- deleteBackupTable(runTimeCsvPath, timeEnabled, parId)
+      // Write mean of runtime measurements
+      val writeMeanTimeEnd = demuxParId("WriteMeanTimeEnd")
       def writeMeanTime =
         registerImagesEnd >-
           calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
             Case(  "avgTimeValid", appendToMeanTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
             Case(s"!avgTimeValid && $timeEnabled", display(Prefix.WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
-          )
-      runReg + writeTime + writeMeanTime
+          ) >-
+        writeMeanTimeEnd
+      def deleteMeanTables =
+        writeMeanTimeEnd -- deleteBackupTable(avgTimeCsvPath, timeEnabled)
+      // Assemble sub-workflow
+      runReg + writeTime + writeMeanTime + deleteTables + deleteMeanTables
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -529,6 +600,7 @@ object Evaluate {
     // Deform source segmentation and evaluate overlap with target labels
     def deformLabels =
       if (!keepOutSeg && !dscEnabled && !jsiEnabled) nop else {
+        // Deform source and evaluate overlap
         val evalCond =
           Condition(
             s"""
@@ -552,28 +624,49 @@ object Evaluate {
             Case(!evalCond, display(Prefix.SKIP, s"Overlap evaluation for $regSet"))
           ) --
           evaluateOverlapEnd
-        def writeOverlap =
-          evaluateOverlapEnd -- (
-            appendToTable(dscValuesCsvPath, dscValues, header = labels) when "dscValuesValid",
-            appendToTable(dscGrpAvgCsvPath, dscGrpAvg, header = groups) when "dscGrpAvgValid",
-            appendToTable(dscGrpStdCsvPath, dscGrpStd, header = groups) when "dscGrpStdValid",
-            appendToTable(jsiValuesCsvPath, jsiValues, header = labels) when "jsiValuesValid",
-            appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups) when "jsiGrpAvgValid",
-            appendToTable(jsiGrpStdCsvPath, jsiGrpStd, header = groups) when "jsiGrpStdValid"
-          )
-        def writeMeanOverlap =
-          evaluateOverlapEnd >- (
-            calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
-              Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
-              Case(s"!dscRegAvgValid && $dscEnabled", display(Prefix.WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
-            ),
-            calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
-              Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
-              Case(s"!jsiRegAvgValid && $jsiEnabled", display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+        // Write overlap measures
+        val writeOverlapEnd = demuxParId("WriteOverlapEnd")
+        def writeOverlap = (
+            evaluateOverlapEnd -- (
+              appendToTable(dscValuesCsvPath, dscValues, header = labels) when "dscValuesValid",
+              appendToTable(dscGrpAvgCsvPath, dscGrpAvg, header = groups) when "dscGrpAvgValid",
+              appendToTable(dscGrpStdCsvPath, dscGrpStd, header = groups) when "dscGrpStdValid",
+              appendToTable(jsiValuesCsvPath, jsiValues, header = labels) when "jsiValuesValid",
+              appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups) when "jsiGrpAvgValid",
+              appendToTable(jsiGrpStdCsvPath, jsiGrpStd, header = groups) when "jsiGrpStdValid"
             )
+          ) >- writeOverlapEnd
+        def deleteTables =
+          writeOverlapEnd -- (
+            deleteBackupTable(dscValuesCsvPath, dscEnabled, parId),
+            deleteBackupTable(dscGrpAvgCsvPath, dscEnabled, parId),
+            deleteBackupTable(dscGrpStdCsvPath, dscEnabled, parId),
+            deleteBackupTable(jsiValuesCsvPath, jsiEnabled, parId),
+            deleteBackupTable(jsiGrpAvgCsvPath, jsiEnabled, parId),
+            deleteBackupTable(jsiGrpStdCsvPath, jsiEnabled, parId)
+          )
+        // Write mean of overlap measures
+        val writeMeanOverlapEnd = demuxParId("WriteMeanOverlapEnd")
+        def writeMeanOverlap = (
+            evaluateOverlapEnd >- (
+              calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
+                Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
+                Case(s"!dscRegAvgValid && $dscEnabled", display(Prefix.WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
+              ),
+              calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
+                Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
+                Case(s"!jsiRegAvgValid && $jsiEnabled", display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+              )
+            )
+          ) >- writeMeanOverlapEnd
+        def deleteMeanTables =
+          writeMeanOverlapEnd -- (
+            deleteBackupTable(dscRegAvgCsvPath, dscEnabled),
+            deleteBackupTable(jsiRegAvgCsvPath, jsiEnabled)
           )
         // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
-        (deformSource -- calcOverlap) + writeOverlap + writeMeanOverlap
+        // Assemble sub-workflow
+        (deformSource -- calcOverlap) + writeOverlap + writeMeanOverlap + deleteTables + deleteMeanTables
       }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -589,7 +682,7 @@ object Evaluate {
       }
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Complete registration evaluation workflow
+    // Assemble complete registration evaluation workflow
     backupTables + convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
   }
 }
