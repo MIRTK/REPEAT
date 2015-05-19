@@ -109,6 +109,7 @@ object Evaluate {
 
     // Input/output variables
     val regId   = Val[String]              // ID of registration
+    val parIdx  = Val[Int]                 // Row index of parameter set
     val parId   = Val[String]              // ID of parameter set
     val parVal  = Val[Map[String, String]] // Map from parameter name to value
     val tgtId   = Val[Int]                 // ID of target image
@@ -175,7 +176,7 @@ object Evaluate {
       )
 
     val forEachPar =
-      ExplorationTask(paramSampling) set (
+      ExplorationTask(paramSampling zipWithIndex parIdx) set (
         name    := s"${reg.id}-ForEachPar",
         inputs  += regId,
         outputs += regId
@@ -184,12 +185,12 @@ object Evaluate {
     val setParId =
       ScalaTask(
         """
-          | val parId  = input.parVal("ID")
+          | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
           | val parVal = input.parVal - "ID"
         """.stripMargin
       ) set (
         name    := s"${reg.id}-SetParId",
-        inputs  += (regId, parVal),
+        inputs  += (regId, parIdx, parVal),
         outputs += (regId, parId, parVal)
       )
 
