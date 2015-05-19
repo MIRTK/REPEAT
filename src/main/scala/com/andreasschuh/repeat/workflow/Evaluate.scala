@@ -211,16 +211,24 @@ object Evaluate {
       if (enabled)
         ScalaTask(
           s"""
-            | val from = Paths.get(s"$path")
-            | val to   = Paths.get(s"${backupTablePath(path)}")
-            | if (Files.exists(from)) {
-            |   println("${Prefix.INFO}Backup " + from)
-            |   Files.move(from, to, StandardCopyOption.REPLACE_EXISTING)
+            | val from = new File(s"$path")
+            | val to   = new File(s"${backupTablePath(path)}")
+            | if (from.exists) {
+            |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
+            |   val l2 = fromFile(from).getLines().toList
+            |   val fw = new FileWriter(to)
+            |   try {
+            |     fw.write(l2.head + "\\n")
+            |     val l: List[String] = (l1 ::: l2.tail).groupBy(_.split(",").take(2).mkString(",")).map(_._2.last)(breakOut)
+            |     l.sortBy(_.split(",").take(2).mkString(",")).foreach(row => fw.write(row + "\\n"))
+            |   }
+            |   finally fw.close()
+            |   println("${Prefix.DONE}Backup " + from.getPath)
             | }
           """.stripMargin
         ) set (
           name    := s"${reg.id}-MovePrevResult",
-          imports += "java.nio.file.{Paths, Files, StandardCopyOption}",
+          imports += ("java.io.{File, FileWriter}", "scala.io.Source.fromFile", "scala.collection.breakOut"),
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
