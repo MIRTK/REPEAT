@@ -57,7 +57,7 @@ object DeformLabels {
    */
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
             tgtSeg: Prototype[Path], tgtSegPath: String, srcSegPath: String, outDof: Prototype[Path],
-            outSeg: Prototype[Path], outSegPath: String, modified: Prototype[Boolean], enabled: Boolean = true) = {
+            outSeg: Prototype[Path], outSegPath: String, modified: Prototype[Boolean]) = {
 
     val template = Val[Cmd]
     val srcSeg   = Val[Path]
@@ -107,7 +107,6 @@ object DeformLabels {
 
     val cond =
       s"""
-        | $enabled &&
         | ${outSeg.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified &&
         | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
       """.stripMargin

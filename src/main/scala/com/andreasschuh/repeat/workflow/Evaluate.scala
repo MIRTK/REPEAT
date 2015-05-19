@@ -518,7 +518,7 @@ object Evaluate {
     // -----------------------------------------------------------------------------------------------------------------
     // Deform source segmentation and evaluate overlap with target labels
     def deformLabels =
-      if (!keepOutSeg) nop else {
+      if (!keepOutSeg && !dscEnabled && !jsiEnabled) nop else {
         val evalCond =
           Condition(
             s"""
@@ -529,11 +529,7 @@ object Evaluate {
           )
         def deformSource =
           registerImagesEnd --
-            DeformLabels(
-              reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath,
-              outDof, outSeg, outSegPath, outSegModified,
-              enabled = dscEnabled && jsiEnabled
-            )
+            DeformLabels(reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath, outDof, outSeg, outSegPath, outSegModified)
         def calcOverlap =
           readFromTable(dscValuesCsvPath, dscValues, dscValuesValid, enabled = dscEnabled) --
           readFromTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, enabled = dscEnabled) --
