@@ -97,7 +97,7 @@ object ConvertDofToAff {
               dof2aff     := dof2affCmd
             )
           val info =
-          DisplayHook(s"${Prefix.DONE}Prepare input transformation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+          DisplayHook(Prefix.DONE + "Prepare input transformation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
           Capsule(task) on Env.short hook info
         case None =>
           val task =
