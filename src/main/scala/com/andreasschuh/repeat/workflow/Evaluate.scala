@@ -107,10 +107,9 @@ object Evaluate {
     // Variables
 
     // Input/output variables
-    val regId   = Val[String]              // ID/name of registration
-    val parIdx  = Val[Int]                 // Parameter set ID ("params" CSV row index)
-    val parId   = Val[String]              // Parameter set ID with leading zeros
-    val parVal  = Val[Map[String, String]] // Map from parameter name to result
+    val regId   = Val[String]              // ID of registration
+    val parId   = Val[String]              // ID of parameter set
+    val parVal  = Val[Map[String, String]] // Map from parameter name to value
     val tgtId   = Val[Int]                 // ID of target image
     val tgtIm   = Val[Path]                // Fixed target image
     val tgtSeg  = Val[Path]                // Segmentation of target image
@@ -180,10 +179,22 @@ object Evaluate {
       )
 
     val forEachPar =
-      ExplorationTask(paramSampling zipWithIndex parIdx) set (
+      ExplorationTask(paramSampling) set (
         name    := s"${reg.id}-ForEachPar",
         inputs  += regId,
         outputs += regId
+      )
+
+    val setParId =
+      ScalaTask(
+        """
+          | val parId  = input.parVal("ID")
+          | val parVal = input.parVal - "ID"
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-SetParId",
+        inputs  += (regId, parVal),
+        outputs += (regId, parId, parVal)
       )
 
     val forEachImPair = // must *not* be a capsule as it is used more than once!
@@ -449,8 +460,7 @@ object Evaluate {
     def registerImages = {
       def run =
         convertDofToAffEnd -- forEachPar -<
-          SetParId(reg, paramSampling, parIdx, parId) -- backupTables --
-          Capsule(forEachImPair, strainer = true) -<
+          setParId -- backupTables -- Capsule(forEachImPair, strainer = true) -<
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
               Skip(
