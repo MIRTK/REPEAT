@@ -394,7 +394,7 @@ object Evaluate {
           | val parId = input.parId.head
           | val ${meanValid.name} = !${resultValid.name}.contains(false)
           | val ${mean.name} = if (!${meanValid.name}) Double.NaN else
-          |   ${result.name}.transpose.map(_.sum / ${result.name}.head.size)
+          |   ${result.name}.transpose.map(_.sum / ${result.name}.size)
         """.stripMargin
       ) set (
         name    := s"${reg.id}-Calc${mean.name.capitalize}",
