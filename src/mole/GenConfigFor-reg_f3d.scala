@@ -44,5 +44,6 @@ val params = {
 
 val sample = ExplorationTask(params zipWithIndex i)
 val setID  = Capsule(ScalaTask("""val ID = f"${i + 1}%02d" """) set (inputs += i, outputs += ID), strainer = true)
-val write  = AppendToCSVFileHook(csvFile, ID, ds, be, ln, maxit)
-val exec   = (sample -< (setID hook write)).start.waitUntilEnded
+val append = AppendToCSVFileHook(csvFile, ID.toArray, ds.toArray, be.toArray, ln.toArray, maxit.toArray)
+val write  = Capsule(EmptyTask(), strainer = true) hook append
+val exec   = (sample -< setID >- write).start.waitUntilEnded
