@@ -477,7 +477,7 @@ object Evaluate {
             |   outJac.lastModified() < tgtIm .lastModified &&
             |   outJac.lastModified() < srcIm .lastModified
             |
-            | (updateOutDof || updateOutIm || updateOutSeg || updateOutJac) || ($timeEnabled && !runTimeValid)
+            | updateOutDof || (!outDof.exists && (updateOutIm || updateOutSeg || updateOutJac)) || ($timeEnabled && !runTimeValid)
           """.stripMargin
         )
       def regImPair =
