@@ -96,7 +96,7 @@ object ComputeJacobian {
       )
 
     val info =
-      DisplayHook(Prefix.DONE + "Calculate Jacobian determinants for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+      DisplayHook(Prefix.DONE + "Calculate Jacobian for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
     val cond =
       s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified"
