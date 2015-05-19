@@ -78,12 +78,13 @@ object ComputeJacobian {
           |   "out"    -> ${outJac.name}.toString
           | )
           | val cmd = command(template, args)
-          | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-          | print(str)
           | val outDir = ${outJac.name}.getParent
           | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
           | val ret = cmd.!
-          | if (ret != 0) throw new Exception("Jacobian command returned non-zero exit code!")
+          | if (ret != 0) {
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   throw new Exception("Jacobian command returned non-zero exit code: " + str)
+          | }
         """.stripMargin
       ) set (
         name        := s"${reg.id}-ComputeJacobian",
@@ -95,8 +96,11 @@ object ComputeJacobian {
       )
 
     val info =
-      DisplayHook(s"${Prefix.INFO}Calculated Jacobian determinants for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+      DisplayHook(Prefix.DONE + "Calculate Jacobian determinants for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
-    begin -- Skip(task on Env.short hook info, s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified")
+    val cond =
+      s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified"
+
+    begin -- Skip(task on Env.short hook info, cond)
   }
 }

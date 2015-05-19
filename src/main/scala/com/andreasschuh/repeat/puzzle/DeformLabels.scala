@@ -87,10 +87,13 @@ object DeformLabels {
           |   "phi"    -> ${outDof.name}.toString
           | )
           | val cmd = command(template, args)
-          | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-          | print(str)
+          | val outDir = ${outSeg.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
           | val ret = cmd.!
-          | if (ret != 0) throw new Exception("Label deformation command returned non-zero exit code!")
+          | if (ret != 0) {
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   throw new Exception("Label deformation command returned non-zero exit code: " + str)
+          | }
         """.stripMargin
       ) set (
         name        := s"${reg.id}-DeformLabels",
@@ -103,11 +106,12 @@ object DeformLabels {
       )
 
     val info =
-      DisplayHook(s"${Prefix.INFO}Transformed segmentation for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+      DisplayHook(Prefix.DONE + "Transform segmentation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
     val cond =
       s"""
         | ${outSeg.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified &&
+        | ${outSeg.name}.toFile.lastModified > ${tgtSeg.name}.toFile.lastModified &&
         | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
       """.stripMargin
 

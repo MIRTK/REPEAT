@@ -28,5 +28,7 @@ object Prefix {
   val NAME = "[REPEAT] "
   val INFO = NAME + "Info: "
   val SKIP = NAME + "Skip: "
-  val WARN = NAME + "Warning: "
+  val QSUB = NAME + "QSub: "
+  val DONE = NAME + "Done: "
+  val WARN = NAME + "Warn: "
 }

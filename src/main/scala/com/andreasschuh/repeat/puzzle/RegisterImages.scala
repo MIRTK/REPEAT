@@ -67,6 +67,9 @@ object RegisterImages {
         s"""
           | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
           |
+          | val outDofDir = ${outDofPath.name}.getParent
+          | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
+          |
           | val phiDofPath =
           |   if (phi2dof.size > 0)
           |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
@@ -82,12 +85,11 @@ object RegisterImages {
           |   "phi"    -> phiDofPath.toString
           | )
           | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
-          | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
+          | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
           | val log = new TaskLogger(${outLogPath.name}.toFile)
-          | if (!log.tee) print(str)
           | log.out(str)
           | val ret = cmd ! log
-          | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
+          | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
           | val ${runTime.name} = log.time
           | val ${runTimeValid.name} = (log.time.sum > .0)
           |
@@ -102,11 +104,10 @@ object RegisterImages {
           |     "phi"    -> phiDofPath.toString
           |   )
           |   val cmd = Registration.command(phi2dof, args)
-          |   val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-          |   if (!log.tee) print(str)
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
           |   log.out(str)
           |   val ret = cmd ! log
-          |   if (ret != 0) throw new Exception("Failed to convert output transformation")
+          |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
           | }
         """.stripMargin
       ) set (
@@ -120,7 +121,7 @@ object RegisterImages {
       )
 
     val info =
-      DisplayHook(s"${Prefix.INFO}Finished registration for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+      DisplayHook(s"${Prefix.DONE}Registration for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
 
     Capsule(task) on reg.runEnv hook info
   }

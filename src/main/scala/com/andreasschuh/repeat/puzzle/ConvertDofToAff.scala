@@ -80,12 +80,13 @@ object ConvertDofToAff {
                 |   "out"   -> ${affDof.name}.toString
                 | )
                 | val cmd = command(dof2aff, args)
-                | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-                | print(str)
                 | val outDir = ${affDof.name}.getParent
                 | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
                 | val ret = cmd.!
-                | if (ret != 0) throw new Exception("Failed to convert affine transformation")
+                | if (ret != 0) {
+                |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+                |   throw new Exception("Input conversion command returned non-zero exit code: " + str)
+                | }
               """.stripMargin
             ) set(
               name        := s"${reg.id}-ConvertDofToAff",
@@ -96,7 +97,7 @@ object ConvertDofToAff {
               dof2aff     := dof2affCmd
             )
           val info =
-            DisplayHook(s"${Prefix.INFO}Prepared input transformation for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+            DisplayHook(s"${Prefix.DONE}Prepare input transformation for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
           Capsule(task) on Env.short hook info
         case None =>
           val task =

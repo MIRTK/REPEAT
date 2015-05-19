@@ -370,7 +370,7 @@ object Evaluate {
           outputs += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
         ),
         strainer = true
-      )
+      ) hook DisplayHook(s"${Prefix.DONE}Overlap evaluation for $regSet")
 
     // Write individual registration result to CSV table
     def appendToTable(path: String, result: Prototype[Array[Double]], header: String) =
@@ -383,7 +383,7 @@ object Evaluate {
           csvHeader := "Target,Source," + header,
           singleRow := true
         ),
-        DisplayHook(s"${Prefix.INFO}Appended ${result.name.capitalize} for $regSet")
+        DisplayHook(s"${Prefix.DONE}Append ${result.name.capitalize} for $regSet")
       )
 
     // Calculate mean of values over all registration results computed with a fixed set of parameters
@@ -414,14 +414,15 @@ object Evaluate {
           csvHeader := "Registration,Parameters," + header,
           singleRow := true
         ),
-        DisplayHook(s"${Prefix.INFO}Appended ${mean.name.capitalize} for $avgSet")
+        DisplayHook(s"${Prefix.DONE}Append ${mean.name.capitalize} for $avgSet")
       )
 
-    def Display(prefix: String, message: String) =
+    def display(prefix: String, message: String) =
       Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables
+    // TODO: Append last results to previous backup to not loose results of incomplete workflow execution
     def backupTables =
       setRegId -- forEachPar -< setParId --
         // Results of individual registrations
@@ -488,20 +489,20 @@ object Evaluate {
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
               Switch(
-                Case( regCond, regImPair),
-                Case(!regCond, Display(Prefix.SKIP, s"Registration for $regSet"))
+                Case( regCond, display(Prefix.QSUB, s"Registration for $regSet") -- regImPair),
+                Case(!regCond, display(Prefix.SKIP, s"Registration for $regSet"))
               ) --
             registerImagesEnd
       def writeTime =
         registerImagesEnd -- Switch(
           Case(  "runTimeValid", appendToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
-          Case(s"!runTimeValid && $timeEnabled", Display(Prefix.WARN, s"Missing ${runTime.name.capitalize} for $regSet"))
+          Case(s"!runTimeValid && $timeEnabled", display(Prefix.WARN, s"Missing ${runTime.name.capitalize} for $regSet"))
         )
       def writeMeanTime =
         registerImagesEnd >-
           calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
             Case(  "avgTimeValid", appendToMeanTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
-            Case(s"!avgTimeValid && $timeEnabled", Display(Prefix.WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
+            Case(s"!avgTimeValid && $timeEnabled", display(Prefix.WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
           )
       runReg + writeTime + writeMeanTime
     }
@@ -510,7 +511,8 @@ object Evaluate {
     // Deform source image for visual comparison and to measure residual distance
     def deformImage =
       if (!keepOutIm) nop else {
-        registerImagesEnd -- DeformImage(reg, regId, parId, tgtId, srcId, tgtImPath, srcImPath, outDof, outIm, outImPath)
+        registerImagesEnd --
+          DeformImage(reg, regId, parId, tgtId, srcId, tgtIm, tgtImPath, srcImPath, outDof, outIm, outImPath)
         // TODO: Measure residual intensity error using different similarity metrics such as SSD, CC, and MI
         // TODO: Create PNG snapshots of exemplary slices for visual comparison
       }
@@ -538,8 +540,8 @@ object Evaluate {
           readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
           Switch(
-            Case( evalCond, evaluateOverlap hook DisplayHook(s"${Prefix.INFO}Evaluated overlap for $regSet")),
-            Case(!evalCond, Display(Prefix.SKIP, s"Overlap evaluation for $regSet"))
+            Case( evalCond, display(Prefix.QSUB, s"Overlap evaluation for $regSet") -- evaluateOverlap),
+            Case(!evalCond, display(Prefix.SKIP, s"Overlap evaluation for $regSet"))
           ) --
           evaluateOverlapEnd
         def writeOverlap =
@@ -555,11 +557,11 @@ object Evaluate {
           evaluateOverlapEnd >- (
             calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
               Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
-              Case(s"!dscRegAvgValid && $dscEnabled", Display(Prefix.WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
+              Case(s"!dscRegAvgValid && $dscEnabled", display(Prefix.WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
             ),
             calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
               Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
-              Case(s"!jsiRegAvgValid && $jsiEnabled", Display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+              Case(s"!jsiRegAvgValid && $jsiEnabled", display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
             )
           )
         // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
