@@ -82,6 +82,8 @@ object ConvertDofToAff {
                 | val cmd = command(dof2aff, args)
                 | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
                 | print(str)
+                | val outDir = ${affDof.name}.getParent
+                | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
                 | val ret = cmd.!
                 | if (ret != 0) throw new Exception("Failed to convert affine transformation")
               """.stripMargin

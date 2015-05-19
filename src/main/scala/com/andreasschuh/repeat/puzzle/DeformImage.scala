@@ -83,6 +83,8 @@ object DeformImage {
           | val cmd = command(template, args)
           | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
           | print(str)
+          | val outDir = ${outIm.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
           | val ret = cmd.!
           | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
         """.stripMargin

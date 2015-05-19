@@ -80,6 +80,8 @@ object ComputeJacobian {
           | val cmd = command(template, args)
           | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
           | print(str)
+          | val outDir = ${outJac.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
           | val ret = cmd.!
           | if (ret != 0) throw new Exception("Jacobian command returned non-zero exit code!")
         """.stripMargin
