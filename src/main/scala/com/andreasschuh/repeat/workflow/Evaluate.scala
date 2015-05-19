@@ -635,7 +635,7 @@ object Evaluate {
               appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups) when "jsiGrpAvgValid",
               appendToTable(jsiGrpStdCsvPath, jsiGrpStd, header = groups) when "jsiGrpStdValid"
             )
-          ) >- writeOverlapEnd
+          ) -- demuxParId("WriteOverlapDemuxParId") >- writeOverlapEnd
         def deleteTables =
           writeOverlapEnd -- (
             deleteBackupTable(dscValuesCsvPath, dscEnabled, parId),
@@ -658,7 +658,7 @@ object Evaluate {
                 Case(s"!jsiRegAvgValid && $jsiEnabled", display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
               )
             )
-          ) >- writeMeanOverlapEnd
+          ) -- demuxParId("WriteMeanOverlapDemuxParId") >- writeMeanOverlapEnd
         def deleteMeanTables =
           writeMeanOverlapEnd -- (
             deleteBackupTable(dscRegAvgCsvPath, dscEnabled),
