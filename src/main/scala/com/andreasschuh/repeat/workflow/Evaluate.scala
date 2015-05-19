@@ -501,7 +501,7 @@ object Evaluate {
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
               Switch(
                 Case( regCond, registerImagesBody),
-                Case(!regCond, Display(Prefix.INFO, s"Skip registration for $regSet"))
+                Case(!regCond, Display(Prefix.SKIP, s"Registration for $regSet"))
               ) --
             registerImagesEnd
       def writeTime =
@@ -561,7 +561,7 @@ object Evaluate {
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
           Switch(
             Case( evalCond, evaluateOverlap hook DisplayHook(s"${Prefix.INFO}Evaluated overlap for $regSet")),
-            Case(!evalCond, Display(Prefix.INFO, s"Skip overlap evaluation for $regSet"))
+            Case(!evalCond, Display(Prefix.SKIP, s"Overlap evaluation for $regSet"))
           ) --
           evaluateOverlapEnd
         def writeOverlap =

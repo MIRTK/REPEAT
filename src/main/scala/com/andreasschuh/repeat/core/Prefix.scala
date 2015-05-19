@@ -27,5 +27,6 @@ package com.andreasschuh.repeat.core
 object Prefix {
   val NAME = "[REPEAT] "
   val INFO = NAME + "Info: "
+  val SKIP = NAME + "Skip: "
   val WARN = NAME + "Warning: "
 }
