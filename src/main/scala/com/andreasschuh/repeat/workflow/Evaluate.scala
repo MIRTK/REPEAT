@@ -163,11 +163,6 @@ object Evaluate {
     // -----------------------------------------------------------------------------------------------------------------
     // Auxiliaries
 
-    def backupTablePath(path: String) = {
-      val p = Paths.get(path)
-      p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
-    }
-
     // NOP puzzle
     val nop = Capsule(EmptyTask() set (name := s"${reg.id}-NOP")).toPuzzle
 
@@ -203,6 +198,45 @@ object Evaluate {
         name    := s"${reg.id}-ForEachImPair",
         inputs  += regId,
         outputs += regId
+      )
+
+    def backupTablePath(path: String) = {
+      val p = Paths.get(path)
+      p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
+    }
+
+    // Generators for auxiliary tasks used to avoid unnecessary re-computation of result measures
+    def backupTable(path: String, enabled: Boolean = true) =
+      if (enabled)
+        ScalaTask(
+          s"""
+            | val from = Paths.get(s"$path")
+            | val to   = Paths.get(s"${backupTablePath(path)}")
+            | if (Files.exists(from)) {
+            |   println("${Prefix.INFO}Backup " + from)
+            |   Files.move(from, to, StandardCopyOption.REPLACE_EXISTING)
+            | }
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-MovePrevResult",
+          imports += "java.nio.file.{Paths, Files, StandardCopyOption}",
+          inputs  += (regId, parId),
+          outputs += (regId, parId)
+        )
+      else
+        EmptyTask() set (
+          name    := s"${reg.id}-KeepPrevResult",
+          inputs  += (regId, parId),
+          outputs += (regId, parId)
+        )
+
+    val backupTablesEnd =
+      Capsule(
+        ScalaTask("val regId = input.regId.head") set (
+          name    := s"${reg.id}-BackupTablesEnd",
+          inputs  += regId.toArray,
+          outputs += regId
+        )
       )
 
     // Initial conversion of affine input transformation
@@ -255,37 +289,6 @@ object Evaluate {
           outputs += (regId, parId, tgtId, srcId, outDof, runTime, runTimeValid)
         )
       )
-
-    // Generators for auxiliary tasks used to avoid unnecessary re-computation of result measures
-    def backupTable(path: String, enabled: Boolean = true) =
-      if (enabled)
-        Capsule(
-          ScalaTask(
-            s"""
-              | val from = Paths.get(s"$path")
-              | val to   = Paths.get(s"${backupTablePath(path)}")
-              | if (Files.exists(from)) {
-              |   println("${Prefix.INFO}Backup " + from)
-              |   Files.move(from, to, StandardCopyOption.REPLACE_EXISTING)
-              | }
-            """.stripMargin
-          ) set (
-            name    := s"${reg.id}-MovePrevResult",
-            imports += "java.nio.file.{Paths, Files, StandardCopyOption}",
-            inputs  += (regId, parId),
-            outputs += (regId, parId)
-          ),
-          strainer = true
-        )
-      else
-        Capsule(
-          EmptyTask() set (
-            name    := s"${reg.id}-KeepPrevResult",
-            inputs  += (regId, parId),
-            outputs += (regId, parId)
-          ),
-          strainer = true
-        )
 
     def readFromTable(path: String, p: Prototype[Array[Double]], isValid: Prototype[Boolean],
                       n: Int = 0, invalid: Double = Double.NaN, enabled: Boolean = true) =
@@ -438,27 +441,33 @@ object Evaluate {
       Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
 
     // -----------------------------------------------------------------------------------------------------------------
+    // Backup previous result tables
+    def backupTables =
+      setRegId -- forEachPar -< setParId --
+        // Results of individual registrations
+        backupTable(runTimeCsvPath,   enabled = timeEnabled) --
+        backupTable(dscValuesCsvPath, enabled = dscEnabled ) --
+        backupTable(dscGrpAvgCsvPath, enabled = dscEnabled ) --
+        backupTable(dscGrpStdCsvPath, enabled = dscEnabled ) --
+        backupTable(jsiValuesCsvPath, enabled = jsiEnabled ) --
+        backupTable(jsiGrpAvgCsvPath, enabled = jsiEnabled ) --
+        backupTable(jsiGrpStdCsvPath, enabled = jsiEnabled ) --
+        // Summary tables with mean values
+        backupTable(avgTimeCsvPath,   enabled = timeEnabled && !Overlap.append) --
+        backupTable(dscRegAvgCsvPath, enabled = dscEnabled  && !Overlap.append) --
+        backupTable(jsiRegAvgCsvPath, enabled = jsiEnabled  && !Overlap.append) >-
+      backupTablesEnd
+
+    // -----------------------------------------------------------------------------------------------------------------
     // Prepare input transformation
     def convertDofToAff =
-      setRegId -- Capsule(forEachImPair, strainer = true) -<
+      backupTablesEnd -- Capsule(forEachImPair, strainer = true) -<
         convertDofToAffBegin --
           ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof, affDofPath) >-
         convertDofToAffEnd
 
     // -----------------------------------------------------------------------------------------------------------------
     // Run registration command
-    def backupTables =
-      backupTable(runTimeCsvPath,   enabled = timeEnabled) --
-      backupTable(avgTimeCsvPath,   enabled = timeEnabled) --
-      backupTable(dscValuesCsvPath, enabled = dscEnabled ) --
-      backupTable(dscGrpAvgCsvPath, enabled = dscEnabled ) --
-      backupTable(dscGrpStdCsvPath, enabled = dscEnabled ) --
-      backupTable(dscRegAvgCsvPath, enabled = dscEnabled ) --
-      backupTable(jsiValuesCsvPath, enabled = jsiEnabled ) --
-      backupTable(jsiGrpAvgCsvPath, enabled = jsiEnabled ) --
-      backupTable(jsiGrpStdCsvPath, enabled = jsiEnabled ) --
-      backupTable(jsiRegAvgCsvPath, enabled = jsiEnabled )
-
     def registerImages = {
       val regCond =
         Condition(
@@ -491,15 +500,15 @@ object Evaluate {
             | (updateOutDof || updateOutIm || updateOutSeg || updateOutJac) || ($timeEnabled && !runTimeValid)
           """.stripMargin
         )
-      def registerImagesBody =
+      def regImPair =
         RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid)
-      def runRegistration =
-        convertDofToAffEnd -- forEachPar -<
-          setParId -- backupTables -- Capsule(forEachImPair, strainer = true) -<
+      def runReg =
+        convertDofToAffEnd -- forEachPar -< setParId --
+          Capsule(forEachImPair, strainer = true) -<
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
               Switch(
-                Case( regCond, registerImagesBody),
+                Case( regCond, regImPair),
                 Case(!regCond, Display(Prefix.SKIP, s"Registration for $regSet"))
               ) --
             registerImagesEnd
@@ -520,7 +529,7 @@ object Evaluate {
           calcMeanAndAppendToTable(avgTimeCsvPath, runTime, avgTime, "User,System,Total,Real") when "!runTimeValid.contains(false)"
         )
       */
-      runRegistration + writeTime + writeMeanTime
+      runReg + writeTime + writeMeanTime
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -601,6 +610,6 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Complete registration evaluation workflow
-    convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
+    backupTables + convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
   }
 }
