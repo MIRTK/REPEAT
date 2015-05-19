@@ -70,6 +70,8 @@ object RegisterImages {
           | val outDofDir = ${outDofPath.name}.getParent
           | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
           |
+          | val log = new TaskLogger(${outLogPath.name}.toFile)
+          |
           | val phiDofPath =
           |   if (phi2dof.size > 0)
           |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
@@ -86,7 +88,6 @@ object RegisterImages {
           | )
           | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
           | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
-          | val log = new TaskLogger(${outLogPath.name}.toFile)
           | log.out(str)
           | val ret = cmd ! log
           | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
@@ -109,6 +110,7 @@ object RegisterImages {
           |   val ret = cmd ! log
           |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
           | }
+          |
           | log.close()
         """.stripMargin
       ) set (
