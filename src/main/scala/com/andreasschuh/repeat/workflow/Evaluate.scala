@@ -30,6 +30,7 @@ import com.andreasschuh.repeat.puzzle._
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.core.workflow.transition.Condition
 import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
@@ -438,13 +439,15 @@ object Evaluate {
       Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Workflow
+    // Prepare input transformation
     def convertDofToAff =
       setRegId -- Capsule(forEachImPair, strainer = true) -<
         convertDofToAffBegin --
           ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof, affDofPath) >-
         convertDofToAffEnd
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Run registration command
     def backupTables =
       backupTable(runTimeCsvPath,   enabled = timeEnabled) --
       backupTable(avgTimeCsvPath,   enabled = timeEnabled) --
@@ -458,43 +461,47 @@ object Evaluate {
       backupTable(jsiRegAvgCsvPath, enabled = jsiEnabled )
 
     def registerImages = {
-      def run =
+      val regCond =
+        Condition(
+          s"""
+            | val tgtIm  = input.tgtIm.toFile
+            | val srcIm  = input.srcIm.toFile
+            | val iniDof = new java.io.File(s"$iniDofPath")
+            | val outDof = new java.io.File(s"$outDofPath")
+            | val outIm  = new java.io.File(s"$outImPath")
+            | val outSeg = new java.io.File(s"$outSegPath")
+            | val outJac = new java.io.File(s"$outJacPath")
+            |
+            | def updateOutDof = $keepOutDof &&
+            |   outDof.lastModified() < iniDof.lastModified &&
+            |   outDof.lastModified() < tgtIm .lastModified &&
+            |   outDof.lastModified() < srcIm .lastModified
+            | def updateOutIm = $keepOutIm &&
+            |   outIm.lastModified() < iniDof.lastModified &&
+            |   outIm.lastModified() < tgtIm .lastModified &&
+            |   outIm.lastModified() < srcIm .lastModified
+            | def updateOutSeg = $keepOutSeg &&
+            |   outSeg.lastModified() < iniDof.lastModified &&
+            |   outSeg.lastModified() < tgtIm .lastModified &&
+            |   outSeg.lastModified() < srcIm .lastModified
+            | def updateOutJac = $keepOutJac &&
+            |   outJac.lastModified() < iniDof.lastModified &&
+            |   outJac.lastModified() < tgtIm .lastModified &&
+            |   outJac.lastModified() < srcIm .lastModified
+            |
+            | (updateOutDof || updateOutIm || updateOutSeg || updateOutJac) || ($timeEnabled && !runTimeValid)
+          """.stripMargin
+        )
+      def registerImagesBody =
+        RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid)
+      def runRegistration =
         convertDofToAffEnd -- forEachPar -<
           setParId -- backupTables -- Capsule(forEachImPair, strainer = true) -<
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
-              Skip(
-                RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid),
-                s"""
-                  | val tgtIm  = input.tgtIm.toFile
-                  | val srcIm  = input.srcIm.toFile
-                  | val iniDof = new java.io.File(s"$iniDofPath")
-                  | val outDof = new java.io.File(s"$outDofPath")
-                  | val outIm  = new java.io.File(s"$outImPath")
-                  | val outSeg = new java.io.File(s"$outSegPath")
-                  | val outJac = new java.io.File(s"$outJacPath")
-                  |
-                  | def updateOutDof = $keepOutDof &&
-                  |   outDof.lastModified() < iniDof.lastModified &&
-                  |   outDof.lastModified() < tgtIm .lastModified &&
-                  |   outDof.lastModified() < srcIm .lastModified
-                  | def updateOutIm = $keepOutIm &&
-                  |   outIm.lastModified() < iniDof.lastModified &&
-                  |   outIm.lastModified() < tgtIm .lastModified &&
-                  |   outIm.lastModified() < srcIm .lastModified
-                  | def updateOutSeg = $keepOutSeg &&
-                  |   outSeg.lastModified() < iniDof.lastModified &&
-                  |   outSeg.lastModified() < tgtIm .lastModified &&
-                  |   outSeg.lastModified() < srcIm .lastModified
-                  | def updateOutJac = $keepOutJac &&
-                  |   outJac.lastModified() < iniDof.lastModified &&
-                  |   outJac.lastModified() < tgtIm .lastModified &&
-                  |   outJac.lastModified() < srcIm .lastModified
-                  |
-                  | def skip = !(updateOutDof || updateOutIm || updateOutSeg || updateOutJac) && (!$timeEnabled || runTimeValid)
-                  | if (skip) println(s"${Prefix.INFO}Skip registration for $regSet")
-                  | skip
-                """.stripMargin
+              Switch(
+                Case( regCond, registerImagesBody),
+                Case(!regCond, Display(Prefix.INFO, s"Skip registration for $regSet"))
               ) --
             registerImagesEnd
       def writeTime =
@@ -514,18 +521,37 @@ object Evaluate {
           calcMeanAndAppendToTable(avgTimeCsvPath, runTime, avgTime, "User,System,Total,Real") when "!runTimeValid.contains(false)"
         )
       */
-      run + writeTime + writeMeanTime
+      runRegistration + writeTime + writeMeanTime
     }
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Deform source image for visual comparison and to measure residual distance
     def deformImage =
-      if (!keepOutIm) nop else
+      if (!keepOutIm) nop else {
         registerImagesEnd -- DeformImage(reg, regId, parId, tgtId, srcId, tgtImPath, srcImPath, outDof, outIm, outImPath)
+        // TODO: Measure residual intensity error using various image similarity metrics such as SSD, CC, and MI
+        // TODO: Create PNG snapshots of exemplary slices for visual comparison
+      }
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Deform source segmentation and evaluate overlap with target labels
     def deformLabels =
       if (!keepOutSeg) nop else {
+        val evalCond =
+          Condition(
+            s"""
+              | def dscValid = dscValuesValid && dscGrpAvgValid && dscGrpStdValid
+              | def jsiValid = jsiValuesValid && jsiGrpAvgValid && jsiGrpStdValid
+              | ($dscEnabled || $jsiEnabled) && (outSegModified || !dscValid || !jsiValid)
+            """.stripMargin
+          )
         def deformSource =
           registerImagesEnd --
-            DeformLabels(reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath, outDof, outSeg, outSegPath, outSegModified)
+            DeformLabels(
+              reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath,
+              outDof, outSeg, outSegPath, outSegModified,
+              enabled = dscEnabled && jsiEnabled
+            )
         def calcOverlap =
           readFromTable(dscValuesCsvPath, dscValues, dscValuesValid, enabled = dscEnabled) --
           readFromTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, enabled = dscEnabled) --
@@ -533,16 +559,11 @@ object Evaluate {
           readFromTable(jsiValuesCsvPath, jsiValues, jsiValuesValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
-          Skip(
-            evaluateOverlap hook DisplayHook(s"${Prefix.INFO}Evaluated overlap for $regSet"),
-            s"""
-              | def dscValid = dscValuesValid && dscGrpAvgValid && dscGrpStdValid
-              | def jsiValid = jsiValuesValid && jsiGrpAvgValid && jsiGrpStdValid
-              | def skip = (!$dscEnabled && !$jsiEnabled) || (!outSegModified && dscValid && jsiValid)
-              | if (skip) println(s"${Prefix.INFO}Skip overlap evaluation for $regSet")
-              | skip
-            """.stripMargin
-          ) -- evaluateOverlapEnd
+          Switch(
+            Case( evalCond, evaluateOverlap hook DisplayHook(s"${Prefix.INFO}Evaluated overlap for $regSet")),
+            Case(!evalCond, Display(Prefix.INFO, s"Skip overlap evaluation for $regSet"))
+          ) --
+          evaluateOverlapEnd
         def writeOverlap =
           evaluateOverlapEnd -- (
             appendToTable(dscValuesCsvPath, dscValues, header = labels) when "dscValuesValid",
@@ -563,15 +584,23 @@ object Evaluate {
               Case(s"!jsiRegAvgValid && $jsiEnabled", Display(Prefix.WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
             )
           )
+        // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
         (deformSource -- calcOverlap) + writeOverlap + writeMeanOverlap
       }
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // TODO: Deform grid for visual assessment of deformation
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Calculate map of Jacobian determinants for qualitative assessment of volume changes and invertibility
     def calcDetJac =
       if (!keepOutJac) nop else {
         registerImagesEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, tgtImPath, outDof, outJac, outJacPath)
         // TODO: Compute statistics of Jacobian determinant and store these in CSV file
       }
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Complete registration evaluation workflow
     convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
   }
 }
