@@ -34,7 +34,7 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
   var t = Array.fill(3)(.0)
 
   /** Get runtime measurements in seconds: user, system, total, real */
-  def time = Array(t(0), t(1), t(0) + t(1), t(2))
+  def time = Array(t(0), t(1), (100.0 * (t(0) + t(1))).toInt.toDouble / 100.0, t(2))
 
   /** File writer object */
   protected val writer = {
