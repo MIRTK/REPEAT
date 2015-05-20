@@ -81,9 +81,6 @@ object Overlap extends Configurable("evaluation.overlap") {
   /** Name of CSV file for mean overlap evaluation results */
   val summary = getStringProperty("summary")
 
-  /** Whether to append results to existing summary */
-  val append = getBooleanProperty("append")
-
   /**
    * Compute overlap measures for each label
    * @param a Segmentation a.

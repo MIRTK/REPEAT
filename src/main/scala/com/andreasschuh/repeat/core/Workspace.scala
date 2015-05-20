@@ -32,6 +32,9 @@ object Workspace extends Configurable("workspace") {
   /** Whether workspace directory is readable/writeable by all remote compute nodes */
   val shared = getBooleanProperty("shared")
 
+  /** Whether to append mean results to existing summary tables */
+  val append = getBooleanProperty("output.append")
+
   /** Top-level directory of workspace */
   val dir = getFileProperty("dir")
 

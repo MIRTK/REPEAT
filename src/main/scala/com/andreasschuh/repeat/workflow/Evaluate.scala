@@ -508,9 +508,9 @@ object Evaluate {
     def backupTables =
       setRegId --
       // Delete summary tables with mean values
-      deleteTable(avgTimeCsvPath,   timeEnabled && !Overlap.append) --
-      deleteTable(dscRegAvgCsvPath, dscEnabled  && !Overlap.append) --
-      deleteTable(jsiRegAvgCsvPath, jsiEnabled  && !Overlap.append) --
+      deleteTable(avgTimeCsvPath,   timeEnabled && !Workspace.append) --
+      deleteTable(dscRegAvgCsvPath, dscEnabled  && !Workspace.append) --
+      deleteTable(jsiRegAvgCsvPath, jsiEnabled  && !Workspace.append) --
       // Results of individual registrations
       forEachPar -< setParId --
         backupTable(runTimeCsvPath,   timeEnabled) --
