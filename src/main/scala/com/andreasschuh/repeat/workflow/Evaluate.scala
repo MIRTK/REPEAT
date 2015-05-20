@@ -224,7 +224,7 @@ object Evaluate {
             | val table = Paths.get(s"$path")
             | if (Files.exists(table)) {
             |   Files.delete(table)
-            |   println("${DONE}Delete " + table.toString)
+            |   println(s"${DONE}Delete $${table.getFileName} for {regId=$${regId}}")
             | }
           """.stripMargin
         ) set (
@@ -263,7 +263,7 @@ object Evaluate {
             |   }
             |   finally fw.close()
             |   Files.delete(from.toPath)
-            |   println("${DONE}Backup " + from.getPath)
+            |   println(s"${DONE}Backup $${from.getName} for $regSet")
             | }
           """.stripMargin
         ) set (
@@ -306,7 +306,7 @@ object Evaluate {
             |   }
             |   finally fw.close()
             |   Files.delete(from.toPath)
-            |   println("${DONE}Finalize " + to.getPath)
+            |   println(s"${DONE}Finalize $${to.getName} for $regSet")
             | }
           """.stripMargin
         ) set (
