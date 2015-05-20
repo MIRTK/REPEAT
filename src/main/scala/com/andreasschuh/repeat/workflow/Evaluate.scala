@@ -432,6 +432,8 @@ object Evaluate {
             | val jsiValuesValid = $jsiEnabled
             | val jsiGrpAvgValid = $jsiEnabled
             | val jsiGrpStdValid = $jsiEnabled
+            |
+            | println(s"${DONE}Overlap evaluation for $regSet")
           """.stripMargin
         ) set (
           name        := s"${reg.id}-EvaluateOverlap",
@@ -454,7 +456,7 @@ object Evaluate {
           outputs += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
         ),
         strainer = true
-      ) hook DisplayHook(s"${DONE}Overlap evaluation for $regSet")
+      )
 
     // Write individual registration result to CSV table
     def appendToTable(path: String, result: Prototype[Array[Double]], header: String) =
