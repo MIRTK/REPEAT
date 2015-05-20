@@ -113,6 +113,6 @@ object DeformImage {
         | ${outIm.name}.toFile.lastModified > ${srcIm.name }.toFile.lastModified
       """.stripMargin
 
-    begin -- Skip(task on Env.short hook info, cond)
+    begin -- Skip(task on Env.short by 10 hook info, cond)
   }
 }

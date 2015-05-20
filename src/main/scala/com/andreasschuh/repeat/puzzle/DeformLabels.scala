@@ -115,6 +115,6 @@ object DeformLabels {
         | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
       """.stripMargin
 
-    begin -- Skip(task on Env.short hook info, cond)
+    begin -- Skip(task on Env.short by 10 hook info, cond)
   }
 }
