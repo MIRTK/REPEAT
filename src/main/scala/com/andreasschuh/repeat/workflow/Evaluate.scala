@@ -32,7 +32,6 @@ import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.transition.Condition
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
 import org.openmole.plugin.sampling.csv._
@@ -56,7 +55,6 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Constants
-    import Prefix._
     import Dataset.{imgDir => _, segDir => _, _}
     import Workspace.{imgDir, segDir, dofAff, dofPre, dofSuf, logDir, logSuf}
 
@@ -224,12 +222,12 @@ object Evaluate {
             | val table = Paths.get(s"$path")
             | if (Files.exists(table)) {
             |   Files.delete(table)
-            |   println(s"${DONE}Delete $${table.getFileName} for {regId=$${regId}}")
+            |   println(s"$${DONE}Delete $${table.getFileName} for {regId=$${regId}}")
             | }
           """.stripMargin
         ) set (
           name    := s"${reg.id}-DeleteTable",
-          imports += "java.nio.file.{Paths, Files}",
+          imports += ("java.nio.file.{Paths, Files}", "com.andreasschuh.repeat.core.Prefix.DONE"),
           inputs  += regId,
           outputs += regId
         )
@@ -250,25 +248,25 @@ object Evaluate {
       if (enabled)
         ScalaTask(
           s"""
-            | val from = new File(s"$path")
-            | val to   = new File(s"${backupTablePath(path)}")
+            | val from = new java.io.File(s"$path")
+            | val to   = new java.io.File(s"${backupTablePath(path)}")
             | if (from.exists) {
             |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
             |   val l2 = fromFile(from).getLines().toList
-            |   val fw = new FileWriter(to)
+            |   val fw = new java.io.FileWriter(to)
             |   try {
             |     fw.write(l2.head + "\\n")
             |     val l: List[String] = (l1 ::: l2.tail).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
             |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
             |   }
             |   finally fw.close()
-            |   Files.delete(from.toPath)
-            |   println(s"${DONE}Backup $${from.getName} for $avgSet")
+            |   java.nio.file.Files.delete(from.toPath)
+            |   println(s"$${DONE}Backup $${from.getName} for $avgSet")
             | }
           """.stripMargin
         ) set (
           name    := s"${reg.id}-BackupTable",
-          imports += ("java.io.{File, FileWriter}", "java.nio.file.Files", "scala.io.Source.fromFile", "scala.collection.breakOut"),
+          imports += ("com.andreasschuh.repeat.core.Prefix.DONE", "scala.io.Source.fromFile", "scala.collection.breakOut"),
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
@@ -293,25 +291,25 @@ object Evaluate {
       if (enabled)
         ScalaTask(
           s"""
-            | val from = new File(s"${backupTablePath(path)}")
-            | val to   = new File(s"$path")
+            | val from = new java.io.File(s"${backupTablePath(path)}")
+            | val to   = new java.io.File(s"$path")
             | if (from.exists) {
             |   val l1 = fromFile(from).getLines().toList
             |   val l2 = if (to.exists) fromFile(to).getLines().toList.tail else List[String]()
-            |   val fw = new FileWriter(to)
+            |   val fw = new java.io.FileWriter(to)
             |   try {
             |     fw.write(l1.head + "\\n")
             |     val l: List[String] = (l1.tail ::: l2).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
             |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
             |   }
             |   finally fw.close()
-            |   Files.delete(from.toPath)
-            |   println(s"${DONE}Finalize $${to.getName} for $avgSet")
+            |   java.nio.file.Files.delete(from.toPath)
+            |   println(s"$${DONE}Finalize $${to.getName} for $avgSet")
             | }
           """.stripMargin
         ) set (
           name    := s"${reg.id}-FinalizeTable",
-          imports += ("java.io.{File, FileWriter}", "java.nio.file.Files", "scala.io.Source.fromFile", "scala.collection.breakOut"),
+          imports += ("scala.io.Source.fromFile", "scala.collection.breakOut", "com.andreasschuh.repeat.core.Prefix.DONE"),
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
@@ -384,7 +382,7 @@ object Evaluate {
             | val ${p.name} =
             |   if ($enabled)
             |     try {
-            |       val file  = new File(s"${backupTablePath(path)}")
+            |       val file  = new java.io.File(s"${backupTablePath(path)}")
             |       val lines = fromFile(file).getLines().toList.view
             |       val row   = lines.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
             |       val ncols = ${n + 2}
@@ -397,11 +395,11 @@ object Evaluate {
             |   else Array[Double]()
             |
             | val ${isValid.name} = !${p.name}.isEmpty && !${p.name}.contains($invalid)
-            | if (${isValid.name}) println(s"${INFO}Have ${p.name.capitalize} for $regSet")
+            | if (${isValid.name}) println(s"$${HAVE}${p.name.capitalize} for $regSet")
           """.stripMargin
         ) set (
           name    := s"${reg.id}-Read${p.name.capitalize}",
-          imports += ("scala.io.Source.fromFile", "java.io.File", "Double.NaN"),
+          imports += ("scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
           inputs  += (regId, parId, tgtId, srcId),
           outputs += (regId, parId, tgtId, srcId, p, isValid)
         ),
@@ -434,11 +432,11 @@ object Evaluate {
             | val jsiGrpAvgValid = $jsiEnabled
             | val jsiGrpStdValid = $jsiEnabled
             |
-            | println(s"${DONE}Overlap evaluation for $regSet")
+            | println(s"$${Prefix.DONE}Overlap evaluation for $regSet")
           """.stripMargin
         ) set (
           name        := s"${reg.id}-EvaluateOverlap",
-          imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
+          imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap, Prefix}",
           usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
           inputs      += (regId, parId, tgtId, srcId, tgtSeg, outSeg),
           outputs     += (regId, parId, tgtId, srcId, dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
@@ -461,16 +459,16 @@ object Evaluate {
 
     // Write individual registration result to CSV table
     def appendToTable(path: String, result: Prototype[Array[Double]], header: String) =
-      EmptyTask() set (
-        name    := s"${reg.id}-Write${result.name.capitalize}",
+      ScalaTask(s"""println(s"$${SAVE}${result.name.capitalize} for $regSet") """) set (
+        name    := s"${reg.id}-Save${result.name.capitalize}",
+        imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, tgtId, srcId, result),
         outputs += (regId, parId, tgtId, srcId, result)
       ) hook (
         AppendToCSVFileHook(path, tgtId, srcId, result) set (
           csvHeader := "Target,Source," + header,
           singleRow := true
-        ),
-        DisplayHook(s"${DONE}Append ${result.name.capitalize} for $regSet")
+        )
       )
 
     // Calculate mean of values over all registration results computed with a fixed set of parameters
@@ -480,32 +478,30 @@ object Evaluate {
         s"""
           | val regId = input.regId.head
           | val parId = input.parId.head
-          | val ${meanValid.name} = !${resultValid.name}.contains(false)
-          | val ${mean.name} = if (!${meanValid.name}) Double.NaN else
-          |   ${result.name}.transpose.map(_.sum / ${result.name}.size)
+          | val ${meanValid.name} = ${result.name}.size > 0 && !${resultValid.name}.contains(false)
+          | val ${mean.name} =
+          |   if (!${meanValid.name}) Double.NaN
+          |   else ${result.name}.transpose.map(_.sum / ${result.name}.size)
         """.stripMargin
       ) set (
-        name    := s"${reg.id}-Calc${mean.name.capitalize}",
+        name    := s"${reg.id}-Save${mean.name.capitalize}",
         inputs  += (regId.toArray, parId.toArray, result.toArray, resultValid.toArray),
         outputs += (regId, parId, mean, meanValid)
       )
 
     // Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table
     def appendToMeanTable(path: String, mean: Prototype[Array[Double]], header: String) =
-      EmptyTask() set (
-        name    := s"${reg.id}-Write${mean.name.capitalize}",
+      ScalaTask(s"""println(s"$${SAVE}${mean.name.capitalize} for $avgSet") """) set (
+        name    := s"${reg.id}-Save${mean.name.capitalize}",
+        imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, mean),
         outputs += (regId, parId, mean)
       ) hook (
         AppendToCSVFileHook(path, regId, parId, mean) set (
           csvHeader := "Registration,Parameters," + header,
           singleRow := true
-        ),
-        DisplayHook(s"${DONE}Append ${mean.name.capitalize} for $avgSet")
+        )
       )
-
-    def display(prefix: String, message: String) =
-      Capsule(EmptyTask(), strainer = true) hook DisplayHook(prefix + message)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables
@@ -577,22 +573,22 @@ object Evaluate {
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
               Switch(
-                Case( regCond, display(QSUB, s"Registration for $regSet") -- regImPair),
-                Case(!regCond, display(SKIP, s"Registration for $regSet"))
+                Case( regCond, Display.QSUB(s"Registration for $regSet") -- (regImPair on reg.runEnv) -- Display.DONE(s"Registration for $regSet")),
+                Case(!regCond, Display.SKIP(s"Registration for $regSet"))
               ) --
             registerImagesEnd
       // Write runtime measurements
       def writeTime =
         registerImagesEnd -- Switch(
           Case(  "runTimeValid", appendToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
-          Case(s"!runTimeValid && $timeEnabled", display(WARN, s"Missing ${runTime.name.capitalize} for $regSet"))
+          Case(s"!runTimeValid && $timeEnabled", Display.WARN(s"Missing ${runTime.name.capitalize} for $regSet"))
         ) >- demux("WriteTimeDemux", regId, parId) -- finalizeTable(runTimeCsvPath, timeEnabled)
       // Write mean of runtime measurements
       def writeMeanTime =
         registerImagesEnd >-
           calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
             Case(  "avgTimeValid", appendToMeanTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
-            Case(s"!avgTimeValid && $timeEnabled", display(WARN, s"Invalid ${avgTime.name.capitalize} for $avgSet"))
+            Case(s"!avgTimeValid && $timeEnabled", Display.WARN(s"Invalid ${avgTime.name.capitalize} for $avgSet"))
           )
       // Assemble sub-workflow
       runReg + writeTime + writeMeanTime
@@ -632,8 +628,8 @@ object Evaluate {
           readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
           Switch(
-            Case( evalCond, display(QSUB, s"Overlap evaluation for $regSet") -- (evaluateOverlap on Env.short by 10)),
-            Case(!evalCond, display(SKIP, s"Overlap evaluation for $regSet"))
+            Case( evalCond, Display.QSUB(s"Overlap evaluation for $regSet") -- (evaluateOverlap on Env.short by 10)),
+            Case(!evalCond, Display.SKIP(s"Overlap evaluation for $regSet"))
           ) --
           evaluateOverlapEnd
         // Write overlap measures
@@ -659,11 +655,11 @@ object Evaluate {
           evaluateOverlapEnd >- (
             calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
               Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
-              Case(s"!dscRegAvgValid && $dscEnabled", display(WARN, s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
+              Case(s"!dscRegAvgValid && $dscEnabled", Display.WARN(s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
             ),
             calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
               Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
-              Case(s"!jsiRegAvgValid && $jsiEnabled", display(WARN, s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+              Case(s"!jsiRegAvgValid && $jsiEnabled", Display.WARN(s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
             )
           )
         // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment

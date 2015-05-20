@@ -19,24 +19,28 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.puzzle
 
-import java.util.Calendar
-import java.text.SimpleDateFormat
+import scala.language.reflectiveCalls
+
+import org.openmole.core.dsl._
+import org.openmole.plugin.task.scala._
 
 
 /**
- * Constants used as prefix in output messages
+ * Instantiate capsule which writes a status message to STDOUT
  */
-object Prefix {
-  private lazy val dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm.ss")
-  def TIME = dateFormat.format(Calendar.getInstance.getTime)
-  def NAME = "[REPEAT " + TIME + "] "
-  def INFO = NAME + "Info: "
-  def SKIP = NAME + "Skip: "
-  def QSUB = NAME + "QSub: "
-  def DONE = NAME + "Done: "
-  def WARN = NAME + "Warn: "
-  def SAVE = NAME + "Save: "
-  def HAVE = NAME + "Have: "
+object Display {
+  def apply(prefix: String, message: String) =
+    Capsule(
+      ScalaTask(s"""println(s"$${$prefix}$message") """) set (
+        imports += s"com.andreasschuh.repeat.core.Prefix.$prefix"
+      ),
+      strainer = true
+    )
+  def DONE(message: String) = apply("DONE", message)
+  def INFO(message: String) = apply("INFO", message)
+  def WARN(message: String) = apply("WARN", message)
+  def SKIP(message: String) = apply("SKIP", message)
+  def QSUB(message: String) = apply("QSUB", message)
 }

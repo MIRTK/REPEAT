@@ -27,7 +27,6 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
 
@@ -105,8 +104,8 @@ object DeformLabels {
         modified    := true
       )
 
-    val info =
-      DisplayHook(Prefix.DONE + "Transform segmentation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+    val done =
+      Display.DONE("Transform segmentation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
     val cond =
       s"""
@@ -115,6 +114,6 @@ object DeformLabels {
         | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
       """.stripMargin
 
-    begin -- Skip(task on Env.short by 10 hook info, cond)
+    begin -- Skip((task on Env.short by 10) -- done, cond)
   }
 }

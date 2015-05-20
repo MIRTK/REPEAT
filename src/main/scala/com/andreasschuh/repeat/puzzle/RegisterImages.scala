@@ -62,70 +62,64 @@ object RegisterImages {
 
     val phi2dofCmd = reg.phi2dofCmd getOrElse Seq[String]()
 
-    val task =
-      ScalaTask(
-        s"""
-          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-          |
-          | val outDofDir = ${outDofPath.name}.getParent
-          | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
-          |
-          | val log = new TaskLogger(${outLogPath.name}.toFile)
-          |
-          | val phiDofPath =
-          |   if (phi2dof.size > 0)
-          |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
-          |   else
-          |     ${outDofPath.name}
-          |
-          | val args = ${parVal.name} ++ Map(
-          |   "regId"  -> ${regId.name},
-          |   "parId"  -> ${parId.name},
-          |   "target" -> ${tgtImPath.name}.toString,
-          |   "source" -> ${srcImPath.name}.toString,
-          |   "aff"    -> ${affDofPath.name}.toString,
-          |   "phi"    -> phiDofPath.toString
-          | )
-          | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
-          | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
-          | log.out(str)
-          | val ret = cmd ! log
-          | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
-          | val ${runTime.name} = log.time
-          | val ${runTimeValid.name} = (log.time.sum > .0)
-          |
-          | if (phi2dof.size > 0) {
-          |   val args = Map(
-          |     "regId"  -> ${regId.name},
-          |     "parId"  -> ${parId.name},
-          |     "dof"    -> ${outDofPath.name}.toString,
-          |     "out"    -> ${outDofPath.name}.toString,
-          |     "dofout" -> ${outDofPath.name}.toString,
-          |     "in"     -> phiDofPath.toString,
-          |     "phi"    -> phiDofPath.toString
-          |   )
-          |   val cmd = Registration.command(phi2dof, args)
-          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
-          |   log.out(str)
-          |   val ret = cmd ! log
-          |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
-          | }
-          |
-          | log.close()
-        """.stripMargin
-      ) set (
-        name        := s"${reg.id}-RegisterImages",
-        imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
-        usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
-        inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
-        outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),
-        template    := reg.runCmd,
-        phi2dof     := phi2dofCmd
-      )
-
-    val info =
-      DisplayHook(s"${Prefix.DONE}Registration for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
-
-    Capsule(task) on reg.runEnv hook info
+    ScalaTask(
+      s"""
+        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+        |
+        | val outDofDir = ${outDofPath.name}.getParent
+        | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
+        |
+        | val log = new TaskLogger(${outLogPath.name}.toFile)
+        |
+        | val phiDofPath =
+        |   if (phi2dof.size > 0)
+        |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
+        |   else
+        |     ${outDofPath.name}
+        |
+        | val args = ${parVal.name} ++ Map(
+        |   "regId"  -> ${regId.name},
+        |   "parId"  -> ${parId.name},
+        |   "target" -> ${tgtImPath.name}.toString,
+        |   "source" -> ${srcImPath.name}.toString,
+        |   "aff"    -> ${affDofPath.name}.toString,
+        |   "phi"    -> phiDofPath.toString
+        | )
+        | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
+        | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+        | log.out(str)
+        | val ret = cmd ! log
+        | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
+        | val ${runTime.name} = log.time
+        | val ${runTimeValid.name} = (log.time.sum > .0)
+        |
+        | if (phi2dof.size > 0) {
+        |   val args = Map(
+        |     "regId"  -> ${regId.name},
+        |     "parId"  -> ${parId.name},
+        |     "dof"    -> ${outDofPath.name}.toString,
+        |     "out"    -> ${outDofPath.name}.toString,
+        |     "dofout" -> ${outDofPath.name}.toString,
+        |     "in"     -> phiDofPath.toString,
+        |     "phi"    -> phiDofPath.toString
+        |   )
+        |   val cmd = Registration.command(phi2dof, args)
+        |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+        |   log.out(str)
+        |   val ret = cmd ! log
+        |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
+        | }
+        |
+        | log.close()
+      """.stripMargin
+    ) set (
+      name        := s"${reg.id}-RegisterImages",
+      imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
+      usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
+      inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
+      outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),
+      template    := reg.runCmd,
+      phi2dof     := phi2dofCmd
+    )
   }
 }

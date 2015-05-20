@@ -27,7 +27,6 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
 
@@ -103,8 +102,8 @@ object DeformImage {
         template    := reg.deformImageCmd
       )
 
-    val info =
-      DisplayHook(Prefix.DONE + "Transform image for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+    val done =
+      Display.DONE("Transform image for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
     val cond =
       s"""
@@ -113,6 +112,6 @@ object DeformImage {
         | ${outIm.name}.toFile.lastModified > ${srcIm.name }.toFile.lastModified
       """.stripMargin
 
-    begin -- Skip(task on Env.short by 10 hook info, cond)
+    begin -- Skip((task on Env.short by 10) -- done, cond)
   }
 }
