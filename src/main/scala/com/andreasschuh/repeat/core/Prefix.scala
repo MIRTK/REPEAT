@@ -21,14 +21,20 @@
 
 package com.andreasschuh.repeat.core
 
+import java.util.Calendar
+import java.text.SimpleDateFormat
+
+
 /**
  * Constants used as prefix in output messages
  */
 object Prefix {
-  val NAME = "[REPEAT] "
-  val INFO = NAME + "Info: "
-  val SKIP = NAME + "Skip: "
-  val QSUB = NAME + "QSub: "
-  val DONE = NAME + "Done: "
-  val WARN = NAME + "Warn: "
+  private lazy val dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm.ss")
+  def TIME = dateFormat.format(Calendar.getInstance.getTime)
+  def NAME = "[REPEAT " + TIME + "] "
+  def INFO = NAME + "Info: "
+  def SKIP = NAME + "Skip: "
+  def QSUB = NAME + "QSub: "
+  def DONE = NAME + "Done: "
+  def WARN = NAME + "Warn: "
 }
