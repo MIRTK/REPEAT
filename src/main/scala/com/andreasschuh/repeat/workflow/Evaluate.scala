@@ -263,7 +263,7 @@ object Evaluate {
             |   }
             |   finally fw.close()
             |   Files.delete(from.toPath)
-            |   println(s"${DONE}Backup $${from.getName} for $regSet")
+            |   println(s"${DONE}Backup $${from.getName} for $avgSet")
             | }
           """.stripMargin
         ) set (
@@ -306,7 +306,7 @@ object Evaluate {
             |   }
             |   finally fw.close()
             |   Files.delete(from.toPath)
-            |   println(s"${DONE}Finalize $${to.getName} for $regSet")
+            |   println(s"${DONE}Finalize $${to.getName} for $avgSet")
             | }
           """.stripMargin
         ) set (
