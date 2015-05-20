@@ -86,7 +86,7 @@ object RegisterImages {
         |   "phi"    -> phiDofPath.toString
         | )
         | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
-        | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+        | val str = cmd.mkString("REPEAT> \\"", "\\" \\"", "\\"\\n")
         | log.out(str)
         | val ret = cmd ! log
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
@@ -104,7 +104,7 @@ object RegisterImages {
         |     "phi"    -> phiDofPath.toString
         |   )
         |   val cmd = Registration.command(phi2dof, args)
-        |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+        |   val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
         |   log.out(str)
         |   val ret = cmd ! log
         |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
