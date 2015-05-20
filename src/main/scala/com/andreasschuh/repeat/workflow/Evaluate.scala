@@ -25,12 +25,13 @@ import java.nio.file.{Path, Paths}
 
 import scala.language.reflectiveCalls
 
-import com.andreasschuh.repeat.core._
+import com.andreasschuh.repeat.core.{Environment => Env, _}
 import com.andreasschuh.repeat.puzzle._
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.transition.Condition
+import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
@@ -631,7 +632,7 @@ object Evaluate {
           readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
           readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
           Switch(
-            Case( evalCond, display(QSUB, s"Overlap evaluation for $regSet") -- evaluateOverlap),
+            Case( evalCond, display(QSUB, s"Overlap evaluation for $regSet") -- (evaluateOverlap on Env.short by 10)),
             Case(!evalCond, display(SKIP, s"Overlap evaluation for $regSet"))
           ) --
           evaluateOverlapEnd
