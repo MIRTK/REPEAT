@@ -396,7 +396,7 @@ object Evaluate {
             |   else Array[Double]()
             |
             | val ${isValid.name} = !${p.name}.isEmpty && !${p.name}.contains($invalid)
-            | if (${isValid.name}) println(s"${INFO}Found previous ${p.name.capitalize} for $regSet")
+            | if (${isValid.name}) println(s"${INFO}Have ${p.name.capitalize} for $regSet")
           """.stripMargin
         ) set (
           name    := s"${reg.id}-Read${p.name.capitalize}",
