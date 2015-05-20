@@ -21,14 +21,13 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -42,63 +41,66 @@ object ComputeJacobian {
   /**
    * Computes Jacobian determinant map of output transformation
    *
-   * @param reg[in]       Registration info
-   * @param regId[in,out] ID of registration
-   * @param parId[in,out] ID parameter set
-   * @param tgtId[in,out] ID of target image
-   * @param srcId[in,out] ID of source image
-   * @param phiDof[in]    Transformation from target to source
-   * @param outJac[out]   Output Jacobian determinant map
+   * @param reg[in]        Registration info
+   * @param regId[in,out]  ID of registration
+   * @param parId[in,out]  ID parameter set
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param outDof[in]     Transformation from target to source
+   * @param outJac[in,out] Path of output Jacobian determinant map
+   * @param outJacPath[in] Template path of output jacobian determinant map
    *
    * @return Puzzle piece to compute Jacobian determinant map
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
-            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
-            outJac: Prototype[File]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
+            tgtImPath: String, outDof: Prototype[Path], outJac: Prototype[Path], outJacPath: String) = {
 
-    import Dataset.{imgPre, imgSuf}
-    import Workspace.dofPre
-    import FileUtil.join
+    val template = Val[Cmd]
 
-    val tgtIm = Val[File]
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${outJac.name} = Paths.get(s"$outJacPath")
+        """.stripMargin
+      ) set (
+        name := s"${reg.id}-ComputeJacobianBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof, outJac)
+      )
 
-    val tgtImPath  = join(Workspace.imgDir, imgPre + s"$${${tgtId.name}}" + imgSuf).getAbsolutePath
-    val outJacPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.jacSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
-        name    := s"${reg.id}-ComputeJacobianBegin",
-        inputs  += (regId, parId, tgtId, srcId, phiDof),
-        outputs += (regId, parId, tgtId, srcId, phiDof, outJac)
-      ) source FileSource(outJacPath, outJac)
-
-    val command = Val[Cmd]
-    val run = ScalaTask(
-      s"""
-        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${outJac.name} = new java.io.File(workDir, "jac${reg.jacSuf}")
-        | val args = Map(
-        |   "target" -> ${tgtIm.name}.getPath,
-        |   "phi"    -> ${phiDof.name}.getPath,
-        |   "out"    -> ${outJac.name}.getPath
-        | )
-        | val cmd = Registration.command(${command.name}, args)
-        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-        | print(str)
-        | val ret = cmd.!
-        | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
-      """.stripMargin) set (
+    val task =
+      ScalaTask(
+        s"""
+          | val args = Map(
+          |   "target" -> s"$tgtImPath",
+          |   "phi"    -> ${outDof.name}.toString,
+          |   "out"    -> ${outJac.name}.toString
+          | )
+          | val cmd = command(template, args)
+          | val outDir = ${outJac.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
+          | val ret = cmd.!
+          | if (ret != 0) {
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   throw new Exception("Jacobian command returned non-zero exit code: " + str)
+          | }
+        """.stripMargin
+      ) set (
         name        := s"${reg.id}-ComputeJacobian",
-        imports     += ("com.andreasschuh.repeat.core.{Config, Registration}", "scala.sys.process._"),
-        usedClasses += (Config.getClass, Registration.getClass),
-        inputs      += (regId, parId, tgtId, srcId, command),
-        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
+        imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
+        usedClasses += Registration.getClass,
+        inputs      += (regId, parId, tgtId, srcId, outJac, outDof, template),
         outputs     += (regId, parId, tgtId, srcId, outJac),
-        command     := reg.jacCmd
-      ) source FileSource(tgtImPath, tgtIm) hook CopyFileHook(outJac, outJacPath, move = Workspace.shared)
+        template    := reg.jacCmd
+      )
 
-    begin -- Skip(run on Env.short, s"${outJac.name}.lastModified() > ${phiDof.name}.lastModified()")
+    val info =
+      DisplayHook(Prefix.DONE + "Calculate Jacobian for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
 
-    // TODO: Compute statistics of Jacobian determinant and store these in CSV file
+    val cond =
+      s"${outJac.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified"
+
+    begin -- Skip(task on Env.short hook info, cond)
   }
 }

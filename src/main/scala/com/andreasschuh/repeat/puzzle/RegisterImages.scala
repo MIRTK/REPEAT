@@ -21,15 +21,12 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
 import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file._
-import org.openmole.plugin.hook.display._
-import org.openmole.plugin.source.file._
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern.Skip
 
@@ -44,79 +41,91 @@ object RegisterImages {
   /**
    * Performs (deformable) registration between target and source
    *
-   * @param reg[in]         Registration info
-   * @param parId[in,out]   ID of parameter set
-   * @param parVal[in,out]  Registration parameters
-   * @param tgtId[in,out]   ID of target image
-   * @param tgtIm[in,out]   Path of target image
-   * @param srcId[in,out]   ID of source image
-   * @param srcIm[in,out]   Path of source image
-   * @param affDof[in]      Initial affine guess of transformation from target to source
-   * @param phiDof[out]     Output transformation from target to source
-   * @param runTime[in,out] Runtime of registration command in seconds
+   * @param reg[in]             Registration info
+   * @param parId[in,out]       ID of parameter set
+   * @param parVal[in,out]      Registration parameters
+   * @param tgtId[in,out]       ID of target image
+   * @param srcId[in,out]       ID of source image
+   * @param affDofPath[in]      Initial affine guess of transformation from target to source
+   * @param outDofPath[in,out]  Output transformation from target to source
+   * @param runTime[in,out]     Runtime of registration command in seconds
    *
    * @return Puzzle piece to compute transformation from target to source
    */
-  def apply(reg: Registration, regId: Prototype[String],
-            parId: Prototype[String], parVal: Prototype[Map[String, String]],
-            tgtId: Prototype[Int], tgtIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File],
-            affDof: Prototype[File], phiDof: Prototype[File], runTime: Prototype[Array[Double]]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], parVal: Prototype[Map[String, String]],
+            tgtId: Prototype[Int], srcId: Prototype[Int], tgtImPath: Prototype[Path], srcImPath: Prototype[Path],
+            affDofPath: Prototype[Path], outDofPath: Prototype[Path], outLogPath: Prototype[Path],
+            runTime: Prototype[Array[Double]], runTimeValid: Prototype[Boolean]) = {
 
-    import Dataset.{imgPre, imgSuf}
-    import Workspace.{dofPre, logDir, logSuf}
-    import FileUtil.join
+    val template = Val[Cmd]
+    val phi2dof  = Val[Cmd]
 
-    val regCmd = Val[Cmd]
-    val regLog = Val[File]
+    val phi2dofCmd = reg.phi2dofCmd getOrElse Seq[String]()
 
-    val phiDofPath = join(reg.dofDir, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + reg.phiSuf).getAbsolutePath
-    val regLogPath = join(logDir, reg.id + "-${parId}", s"$${${tgtId.name}},$${${srcId.name}}" + logSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
-        name    := s"${reg.id}-RegisterImagesBegin",
-        inputs  += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof),
-        outputs += (regId, parId, parVal, tgtId, tgtIm, srcId, srcIm, affDof, runTime, phiDof),
-        runTime := Array.fill(4)(.0)
-      ) source FileSource(phiDofPath, phiDof)
-
-    val run = ScalaTask(
-      s"""
-        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${phiDof.name} = new java.io.File(workDir, "result${reg.phiSuf}")
-        | val ${regLog.name} = new java.io.File(workDir, "output$logSuf")
-        | val args = ${parVal.name} ++ Map(
-        |   "regId"  -> ${regId.name},
-        |   "parId"  -> ${parId.name},
-        |   "target" -> ${tgtIm.name}.getPath,
-        |   "source" -> ${srcIm.name}.getPath,
-        |   "aff"    -> ${affDof.name}.getPath,
-        |   "phi"    -> ${phiDof.name}.getPath
-        | )
-        | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(${regCmd.name}, args)
-        | val log = new TaskLogger(${regLog.name})
-        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-        | if (!log.tee) print(str)
-        | log.out(str)
-        | var ret = -1
-        | ret = cmd ! log
-        | if (ret != 0) throw new Exception("Registration returned non-zero exit code!")
-        | val ${runTime.name} = log.time
-      """.stripMargin) set (
+    val task =
+      ScalaTask(
+        s"""
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+          |
+          | val outDofDir = ${outDofPath.name}.getParent
+          | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
+          |
+          | val log = new TaskLogger(${outLogPath.name}.toFile)
+          |
+          | val phiDofPath =
+          |   if (phi2dof.size > 0)
+          |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
+          |   else
+          |     ${outDofPath.name}
+          |
+          | val args = ${parVal.name} ++ Map(
+          |   "regId"  -> ${regId.name},
+          |   "parId"  -> ${parId.name},
+          |   "target" -> ${tgtImPath.name}.toString,
+          |   "source" -> ${srcImPath.name}.toString,
+          |   "aff"    -> ${affDofPath.name}.toString,
+          |   "phi"    -> phiDofPath.toString
+          | )
+          | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
+          | val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          | log.out(str)
+          | val ret = cmd ! log
+          | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
+          | val ${runTime.name} = log.time
+          | val ${runTimeValid.name} = (log.time.sum > .0)
+          |
+          | if (phi2dof.size > 0) {
+          |   val args = Map(
+          |     "regId"  -> ${regId.name},
+          |     "parId"  -> ${parId.name},
+          |     "dof"    -> ${outDofPath.name}.toString,
+          |     "out"    -> ${outDofPath.name}.toString,
+          |     "dofout" -> ${outDofPath.name}.toString,
+          |     "in"     -> phiDofPath.toString,
+          |     "phi"    -> phiDofPath.toString
+          |   )
+          |   val cmd = Registration.command(phi2dof, args)
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   log.out(str)
+          |   val ret = cmd ! log
+          |   if (ret != 0) throw new Exception("Failed to convert output transformation: " + str)
+          | }
+          |
+          | log.close()
+        """.stripMargin
+      ) set (
         name        := s"${reg.id}-RegisterImages",
-        imports     += ("com.andreasschuh.repeat.core.{Benchmark, Config, Registration, TaskLogger}", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
         usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
-        inputs      += (regCmd, regId, parId, parVal, tgtId, srcId),
-        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (affDof, dofPre + "${tgtId},${srcId}" + reg.affSuf, link = Workspace.shared),
-        outputs     += (regId, parId, tgtId, srcId, phiDof, regLog, runTime),
-        regCmd      := reg.runCmd
-      ) hook (
-        CopyFileHook(phiDof, phiDofPath, move = Workspace.shared),
-        CopyFileHook(regLog, regLogPath, move = Workspace.shared)
+        inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
+        outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),
+        template    := reg.runCmd,
+        phi2dof     := phi2dofCmd
       )
 
-    val task = CopyFilesTo(Workspace.imgDir, tgtIm, srcIm) -- (run on reg.runEnv)
-    begin -- Skip(task, s"${phiDof.name}.lastModified() > ${affDof.name}.lastModified()")
+    val info =
+      DisplayHook(s"${Prefix.DONE}Registration for {regId=$$regId, parId=$$parId, tgtId=$$tgtId, srcId=$$srcId}")
+
+    Capsule(task) on reg.runEnv hook info
   }
 }

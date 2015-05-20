@@ -36,8 +36,8 @@ object FileUtil {
     if (f.exists) f.delete()
   }
 
-  /** Prepand dot on Linux to make file/directory hidden */
-  def hidden(a: String) = if (System.getProperty("os.name") == "Linux") "." + a else a
+  /** Prepend dot on Linux and "_" on Windows to make file/directory "hidden" */
+  def hidden(a: String) = (if ("(Linux|Mac OS X)".r.findPrefixOf(System.getProperty("os.name")) != None) "." else "_") + a
 
   /**
    * Copy file if it was modified
@@ -60,7 +60,7 @@ object FileUtil {
   }
 
   /** Backup file if it exists */
-  def backup(f: File, rm: Boolean = false): Unit = {
+  def backup(f: File, rm: Boolean = false): Option[File] = {
     if (f.exists) {
       val ext  = getExtension(f)
       val base = f.getPath.dropRight(ext.length)
@@ -77,7 +77,9 @@ object FileUtil {
       }
       copy(f, bak)
       if (rm) f.delete()
+      Some(bak)
     }
+    else None
   }
 
   /** Backup file if it exists */

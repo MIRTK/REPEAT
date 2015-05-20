@@ -23,9 +23,8 @@ package com.andreasschuh.repeat.core
 
 import java.io.File
 
-import org.openmole.core.workflow.data.{Prototype, Variable, Context}
+import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
 import org.openmole.core.workflow.sampling.Sampling
-import scala.util.Random
 
 
 object CSVToMapSampling {
@@ -37,6 +36,6 @@ abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]
 
   override def prototypes = List(p)
 
-  override def build(context: ⇒ Context)(implicit rng: Random): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
+  override def build(context: ⇒ Context)(implicit rng: RandomProvider): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
 
 }

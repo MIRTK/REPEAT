@@ -19,36 +19,31 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.workflow
+package com.andreasschuh
 
-import java.io.File
-import scala.language.postfixOps
-import scala.language.reflectiveCalls
+import scala.language.implicitConversions
 
-import com.andreasschuh.repeat.core._
-import com.andreasschuh.repeat.puzzle._
-
-import org.openmole.core.dsl._
-import org.openmole.plugin.domain.file._
-import org.openmole.plugin.sampling.combine._
-import org.openmole.plugin.sampling.csv._
-import org.openmole.plugin.source.file.FileSource
+import com.andreasschuh.repeat.core.Registration
+import com.andreasschuh.repeat.workflow.{Init, Evaluate}
 
 
 /**
- * Assess quality of registration results
+ * REPEAT workflow package
  */
-object EvalRegistration {
+package object repeat {
 
-  /**
-   * @param reg Registration info
-   *
-   * @return Workflow puzzle for evaluating the registration results
-   */
-  def apply(reg: Registration) = {
+  /** Implicit conversion from registration ID/name to registration info object */
+  implicit def stringToRegistration(name: String): Registration = Registration(name)
 
-    // -----------------------------------------------------------------------------------------------------------------
-    // Assess label overlap
-    EvaluateOverlap(reg)
+  /** Start dataset pre-processing workflow */
+  def init(): Unit = {
+    val ex = Init().start
+    ex.waitUntilEnded
+  }
+
+  /** Start registration evaluation workflow */
+  def evaluate(reg: Registration): Unit = {
+    val ex = Evaluate(reg).start
+    ex.waitUntilEnded
   }
 }

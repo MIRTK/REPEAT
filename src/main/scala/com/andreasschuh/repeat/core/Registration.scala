@@ -72,9 +72,6 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** Directory of summary evaluation results */
   val sumDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.summary")))
 
-  /** Whether to backup files before overwriting them */
-  val doBak = getBooleanProperty(".workspace.output.backup")
-
   /** File name suffix for Jacobian determinant map */
   val jacSuf = getStringOptionProperty("jac-suffix") getOrElse IRTK.jacSuf
 

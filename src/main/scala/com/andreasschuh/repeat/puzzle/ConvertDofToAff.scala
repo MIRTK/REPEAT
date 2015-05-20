@@ -21,14 +21,13 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -42,67 +41,74 @@ object ConvertDofToAff {
   /**
    * @param reg[in]        Registration info
    * @param regId[in,out]  ID of registration
-   * @param tgtId[in,out]  ID of target
-   * @param srcId[in,out]  ID of source
-   * @param iniDof[in]     Affine IRTK transformation
-   * @param affDof[out]    Input transformation ("<aff>") for registration.
-   *                       If no dof2aff conversion is provided, the IRTK transformation is used directly.
+   * @param tgtId[in,out]  ID of target image
+   * @param srcId[in,out]  ID of source image
+   * @param iniDof[in]     Path of affine transformation in IRTK format
+   * @param affDof[out]    Path of input transformation for registration command
+   * @param affDofPath[in] Template path of input transformation
    *
-   * @return Puzzle puzzle piece for conversion from IRTK format to format required by registration
+   * @return Puzzle which converts affine IRTK transformation to format needed by registration command
    */
   def apply(reg: Registration, regId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
-            iniDof: Prototype[File], affDof: Prototype[File]) = {
-
-    import Workspace.{dofPre, dofSuf}
-
-    val affDofPath = FileUtil.join(reg.affDir, dofPre + "${tgtId},${srcId}" + reg.affSuf).getAbsolutePath
+            iniDof: Prototype[Path], affDof: Prototype[Path], affDofPath: String) = {
 
     val begin =
-      Capsule(
-        EmptyTask() set (
-          name    := s"${reg.id}-ConvertDofToAffBegin",
-          inputs  += (regId, tgtId, srcId),
-          outputs += (regId, tgtId, srcId, affDof)
-        ),
-        strainer = true
-      ) source FileSource(affDofPath, affDof)
+      ScalaTask(
+        s"""
+          | val ${affDof.name} = Paths.get(s"$affDofPath")
+        """.stripMargin
+      ) set(
+        name    := s"${reg.id}-ConvertDofToAffBegin",
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, tgtId, srcId, iniDof),
+        outputs += (regId, tgtId, srcId, iniDof, affDof)
+      )
 
-    val dof2aff = reg.dof2affCmd match {
-      case Some(command) =>
-        val template = Val[Cmd]
-        val task =
-          ScalaTask(
-            s"""
-              | val ${affDof.name} = new java.io.File(workDir, "aff${reg.affSuf}")
-              | val args = Map(
-              |   "regId" -> "${reg.id}",
-              |   "in"    -> ${iniDof.name}.getPath,
-              |   "dof"   -> ${iniDof.name}.getPath,
-              |   "dofin" -> ${iniDof.name}.getPath,
-              |   "aff"   -> ${affDof.name}.getPath,
-              |   "out"   -> ${affDof.name}.getPath
-              | )
-              | val cmd = Registration.command(template, args)
-              | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-              | print(str)
-              | val ret = cmd.!
-              | if (ret != 0) throw new Exception("Failed to convert affine transformation")
-            """.stripMargin
-          ) set(
-            name        := s"${reg.id}-ConvertDofToAff",
-            imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
-            usedClasses += Registration.getClass,
-            inputs      += (regId, tgtId, srcId),
-            inputFiles  += (iniDof, dofPre + "${tgtId},${srcId}" + dofSuf, link = Workspace.shared),
-            outputs     += (regId, tgtId, srcId, affDof),
-            template    := command
-          )
-        Capsule(task, strainer = true) on Env.short hook CopyFileHook(affDof, affDofPath, move = Workspace.shared)
-      case None =>
-        val task = EmptyTask() set (name := s"${reg.id}-UseDofAsAff")
-        Capsule(task, strainer = true).toPuzzlePiece
-    }
+    val puzzle =
+      reg.dof2affCmd match {
+        case Some(dof2affCmd) =>
+          val dof2aff = Val[Cmd]
+          val task =
+            ScalaTask(
+              s"""
+                | val args = Map(
+                |   "regId" -> ${regId.name},
+                |   "in"    -> ${iniDof.name}.toString,
+                |   "dof"   -> ${iniDof.name}.toString,
+                |   "dofin" -> ${iniDof.name}.toString,
+                |   "aff"   -> ${affDof.name}.toString,
+                |   "out"   -> ${affDof.name}.toString
+                | )
+                | val cmd = command(dof2aff, args)
+                | val outDir = ${affDof.name}.getParent
+                | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
+                | val ret = cmd.!
+                | if (ret != 0) {
+                |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+                |   throw new Exception("Input conversion command returned non-zero exit code: " + str)
+                | }
+              """.stripMargin
+            ) set(
+              name        := s"${reg.id}-ConvertDofToAff",
+              imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
+              usedClasses += Registration.getClass,
+              inputs      += (regId, tgtId, srcId, iniDof, affDof),
+              outputs     += (regId, tgtId, srcId,         affDof),
+              dof2aff     := dof2affCmd
+            )
+          val info =
+            DisplayHook(Prefix.DONE + "Prepare input transformation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+          Capsule(task) on Env.short hook info
+        case None =>
+          val task =
+            EmptyTask() set (
+              name    := s"${reg.id}-UseDofAsAff",
+              inputs  += (regId, tgtId, srcId, iniDof, affDof),
+              outputs += (regId, tgtId, srcId,         affDof)
+            )
+          Capsule(task) on Env.local
+      }
 
-    begin -- Skip(dof2aff, s"${affDof.name}.lastModified() > ${iniDof.name}.lastModified()")
+    begin -- Skip(puzzle, s"${affDof.name}.toFile.lastModified > ${iniDof.name}.toFile.lastModified")
   }
 }

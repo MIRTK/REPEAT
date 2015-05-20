@@ -43,6 +43,9 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
     new FileWriter(logFile, getBooleanProperty("append"))
   }
 
+  /** Close log file */
+  def close() = writer.close()
+
   /** Whether to flush buffers after each line read from STDOUT (STDERR is always written immediately) */
   val flush = getBooleanProperty("flush")
 
@@ -73,9 +76,5 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
   }
 
   /** Wrap process execution and close file when finished */
-  def buffer[T](f: => T): T = {
-    val returnValue = f
-    writer.close()
-    returnValue
-  }
+  def buffer[T](f: => T): T = f
 }

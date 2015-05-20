@@ -21,15 +21,14 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -43,68 +42,77 @@ object DeformImage {
   /**
    * Applies output transformation to source image
    *
-   * @param reg[in]        Registration info
-   * @param regId[in,out]  ID of registration
-   * @param parId[in,out]  ID of parameter set
-   * @param tgtId[in,out]  ID of target image
-   * @param srcId[in,out]  ID of source image
-   * @param phiDof[in]     Transformation from target to source
-   * @param outIm[out]     Output image
+   * @param reg[in]       Registration info
+   * @param regId[in,out] ID of registration
+   * @param parId[in,out] ID of parameter set
+   * @param tgtId[in,out] ID of target image
+   * @param srcId[in,out] ID of source image
+   * @param tgtIm[out]    Path of target image
+   * @param tgtImPath[in] Template path of target image
+   * @param srcImPath[in] Template path of source image
+   * @param outDof[in]    Transformation from target to source
+   * @param outIm[in,out] Path of output image
+   * @param outImPath[in] Template path of output image
    *
    * @return Puzzle piece to deform source image
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
-            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
-            outIm: Prototype[File]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
+            tgtIm: Prototype[Path], tgtImPath: String, srcImPath: String, outDof: Prototype[Path], outIm: Prototype[Path], outImPath: String) = {
 
-    import Dataset.{imgPre, imgSuf}
-    import Workspace.dofPre
-    import FileUtil.join
+    val template = Val[Cmd]
+    val srcIm    = Val[Path]
 
-    val tgtIm = Val[File]
-    val srcIm = Val[File]
-
-    val tgtImPath = join(Workspace.imgDir, imgPre + s"$${${tgtId.name}}" + imgSuf).getAbsolutePath
-    val srcImPath = join(Workspace.imgDir, imgPre + s"$${${srcId.name}}" + imgSuf).getAbsolutePath
-    val outImPath = join(reg.imgDir, imgPre + s"$${${srcId.name}}-$${${tgtId.name}}" + imgSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${outIm.name} = Paths.get(s"$outImPath")
+          | val ${srcIm.name} = Paths.get(s"$srcImPath")
+          | val ${tgtIm.name} = Paths.get(s"$tgtImPath")
+        """.stripMargin
+      ) set (
         name    := s"${reg.id}-DeformImageBegin",
-        inputs  += (regId, parId, tgtId,        srcId,        phiDof),
-        outputs += (regId, parId, tgtId, tgtIm, srcId, srcIm, phiDof, outIm)
-      ) source (
-        FileSource(tgtImPath, tgtIm),
-        FileSource(srcImPath, srcIm),
-        FileSource(outImPath, outIm)
+        imports += "java.nio.file.Paths",
+        inputs  += (regId, parId, tgtId, srcId, outDof),
+        outputs += (regId, parId, tgtId, srcId, outDof, tgtIm, srcIm, outIm)
       )
 
-    val command = Val[Cmd]
-    val run = ScalaTask(
-      s"""
-        | val ${outIm.name} = new java.io.File(workDir, "output$imgSuf")
-        | val args = Map(
-        |   "target" -> ${tgtIm.name}.getPath,
-        |   "source" -> ${srcIm.name}.getPath,
-        |   "out"    -> ${outIm.name}.getPath,
-        |   "phi"    -> ${phiDof.name}.getPath
-        | )
-        | val cmd = Registration.command(${command.name}, args)
-        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-        | print(str)
-        | val ret = cmd.!
-        | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
-      """.stripMargin) set (
+    val task =
+      ScalaTask(
+        s"""
+          | val args = Map(
+          |   "target" -> ${tgtIm.name}.toString,
+          |   "source" -> ${srcIm.name}.toString,
+          |   "out"    -> ${outIm.name}.toString,
+          |   "phi"    -> ${outDof.name}.toString
+          | )
+          | val cmd = command(template, args)
+          | val outDir = ${outIm.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
+          | val ret = cmd.!
+          | if (ret != 0) {
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   throw new Exception("Image deformation command returned non-zero exit code: " + str)
+          | }
+        """.stripMargin
+      ) set (
         name        := s"${reg.id}-DeformImage",
-        imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
         usedClasses += Registration.getClass,
-        inputs      += (regId, parId, tgtId, srcId, command),
-        inputFiles  += (tgtIm, imgPre + "${tgtId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
-        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += (regId, parId, tgtId, srcId, outIm),
-        command     := reg.deformImageCmd
-      ) hook CopyFileHook(outIm, outImPath, move = Workspace.shared)
+        inputs      += (regId, parId, tgtId, srcId, tgtIm, srcIm, outIm, outDof, template),
+        outputs     += (regId, parId, tgtId, srcId, tgtIm, outIm),
+        template    := reg.deformImageCmd
+      )
 
-    begin -- Skip(run on Env.short, s"${outIm.name}.lastModified() > ${phiDof.name}.lastModified()")
+    val info =
+      DisplayHook(Prefix.DONE + "Transform image for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+
+    val cond =
+      s"""
+        | ${outIm.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified &&
+        | ${outIm.name}.toFile.lastModified > ${tgtIm.name }.toFile.lastModified &&
+        | ${outIm.name}.toFile.lastModified > ${srcIm.name }.toFile.lastModified
+      """.stripMargin
+
+    begin -- Skip(task on Env.short hook info, cond)
   }
 }

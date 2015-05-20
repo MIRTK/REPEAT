@@ -19,35 +19,16 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.app
-
-import scala.sys.process.ProcessLogger
-
+package com.andreasschuh.repeat.core
 
 /**
- * OpenMOLE console output logger
+ * Constants used as prefix in output messages
  */
-class Logger extends ProcessLogger {
-
-  /**
-   * Ignore all output to STDOUT until OpenMOLE console is started up
-   * (in particular, don't print ASCII art OpenMOLE splash screen)
-   */
-  protected var startedUp: Boolean = false
-
-  /** Process STDOUT line */
-  def out(s: => String): Unit = {
-    startedUp = startedUp || s.startsWith("OpenMOLE>")
-    val ignore = !startedUp || s.contains("feature warning") ||
-      "OpenMOLE>|import |[a-zA-Z_][a-zA-Z0-9_]*: ".r.findPrefixOf(s) != None
-    if (!ignore) println(s)
-  }
-
-  /** Process STDERR line */
-  def err(s: => String): Unit = {
-    println(s)
-  }
-
-  /** Wrap process execution */
-  def buffer[T](f: => T): T = f
+object Prefix {
+  val NAME = "[REPEAT] "
+  val INFO = NAME + "Info: "
+  val SKIP = NAME + "Skip: "
+  val QSUB = NAME + "QSub: "
+  val DONE = NAME + "Done: "
+  val WARN = NAME + "Warn: "
 }

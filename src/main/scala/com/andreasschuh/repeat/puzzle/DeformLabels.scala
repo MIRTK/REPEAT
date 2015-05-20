@@ -21,15 +21,14 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
+import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.file.CopyFileHook
+import org.openmole.plugin.hook.display.DisplayHook
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.source.file._
 import org.openmole.plugin.tool.pattern.Skip
 
 import com.andreasschuh.repeat.core.{Environment => Env, _}
@@ -48,62 +47,74 @@ object DeformLabels {
    * @param parId[in,out]  ID of parameter set
    * @param tgtId[in,out]  ID of target image
    * @param srcId[in,out]  ID of source image
-   * @param phiDof[in]     Transformation from target to source
-   * @param outSeg[out]    Output segmentation image
+   * @param tgtSegPath[in] Template path of target image segmentation
+   * @param srcSegPath[in] Template path of target image segmentation
+   * @param outDof[in]     Path of transformation from target to source
+   * @param outSeg[in,out] Path of output segmentation image
+   * @param outSegPath[in] Template path of output segmentation image
    *
    * @return Puzzle piece to propagate source labels
    */
-  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String],
-            tgtId: Prototype[Int], srcId: Prototype[Int], phiDof: Prototype[File],
-            outSeg: Prototype[File]) = {
+  def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], tgtId: Prototype[Int], srcId: Prototype[Int],
+            tgtSeg: Prototype[Path], tgtSegPath: String, srcSegPath: String, outDof: Prototype[Path],
+            outSeg: Prototype[Path], outSegPath: String, modified: Prototype[Boolean]) = {
 
-    import Dataset.{segPre, segSuf}
-    import Workspace.dofPre
-    import FileUtil.join
+    val template = Val[Cmd]
+    val srcSeg   = Val[Path]
 
-    val tgtSeg = Val[File]
-    val srcSeg = Val[File]
+    val begin =
+      ScalaTask(
+        s"""
+          | val ${tgtSeg.name} = Paths.get(s"$tgtSegPath")
+          | val ${srcSeg.name} = Paths.get(s"$srcSegPath")
+          | val ${outSeg.name} = Paths.get(s"$outSegPath")
+        """.stripMargin
+      ) set (
+        name     := s"${reg.id}-DeformLabelsBegin",
+        imports  += "java.nio.file.Paths",
+        inputs   += (regId, parId, tgtId, srcId, outDof),
+        outputs  += (regId, parId, tgtId, srcId, outDof, tgtSeg, srcSeg, outSeg, modified),
+        modified := false
+      )
 
-    val tgtSegPath = join(Workspace.segDir, segPre + s"$${${tgtId.name}}" + segSuf).getAbsolutePath
-    val srcSegPath = join(Workspace.segDir, segPre + s"$${${srcId.name}}" + segSuf).getAbsolutePath
-    val outSegPath = join(reg.segDir, segPre + s"$${${srcId.name}}-$${${tgtId.name}}" + segSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
-        name    := s"${reg.id}-DeformLabelsBegin",
-        inputs  += (regId, parId, tgtId, srcId, phiDof),
-        outputs += (regId, parId, tgtId, srcId, phiDof, outSeg)
-      ) source FileSource(outSegPath, outSeg)
-
-    val command = Val[Cmd]
-    val run = ScalaTask(
-      s"""
-        | val ${outSeg.name} = new java.io.File(workDir, "output$segSuf")
-        | val args = Map(
-        |   "target" -> ${tgtSeg.name}.getPath,
-        |   "source" -> ${srcSeg.name}.getPath,
-        |   "out"    -> ${outSeg.name}.getPath,
-        |   "phi"    -> ${phiDof.name}.getPath
-        | )
-        | val cmd = Registration.command(${command.name}, args)
-        | val str = cmd.mkString("\\nREPEAT> \\"", "\\" \\"", "\\"\\n")
-        | print(str)
-        | val ret = cmd.!
-        | if (ret != 0) throw new Exception("Command returned non-zero exit code!")
-      """.stripMargin) set (
+    val task =
+      ScalaTask(
+        s"""
+          | val args = Map(
+          |   "target" -> ${tgtSeg.name}.toString,
+          |   "source" -> ${srcSeg.name}.toString,
+          |   "out"    -> ${outSeg.name}.toString,
+          |   "phi"    -> ${outDof.name}.toString
+          | )
+          | val cmd = command(template, args)
+          | val outDir = ${outSeg.name}.getParent
+          | if (outDir != null) java.nio.file.Files.createDirectories(outDir)
+          | val ret = cmd.!
+          | if (ret != 0) {
+          |   val str = cmd.mkString("\\"", "\\" \\"", "\\"\\n")
+          |   throw new Exception("Label deformation command returned non-zero exit code: " + str)
+          | }
+        """.stripMargin
+      ) set (
         name        := s"${reg.id}-DeformLabels",
-        imports     += ("com.andreasschuh.repeat.core.Registration", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._"),
         usedClasses += Registration.getClass,
-        inputs      += (regId, parId, tgtId, srcId, command),
-        inputFiles  += (tgtSeg, segPre + "${tgtId}" + segSuf, link = Workspace.shared),
-        inputFiles  += (srcSeg, segPre + "${srcId}" + segSuf, link = Workspace.shared),
-        inputFiles  += (phiDof, dofPre + "${tgtId},${srcId}" + reg.phiSuf, link = Workspace.shared),
-        outputs     += (regId, parId, tgtId, srcId, outSeg),
-        command     := reg.deformLabelsCmd
-      ) source (
-        FileSource(tgtSegPath, tgtSeg),
-        FileSource(srcSegPath, srcSeg)
-      ) hook CopyFileHook(outSeg, outSegPath, move = Workspace.shared)
+        inputs      += (regId, parId, tgtId, srcId, tgtSeg, srcSeg, outDof, outSeg, template),
+        outputs     += (regId, parId, tgtId, srcId, tgtSeg, srcSeg, outDof, outSeg, modified),
+        template    := reg.deformLabelsCmd,
+        modified    := true
+      )
 
-    begin -- Skip(run on Env.short, s"${outSeg.name}.lastModified() > ${phiDof.name}.lastModified()")
+    val info =
+      DisplayHook(Prefix.DONE + "Transform segmentation for {regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}")
+
+    val cond =
+      s"""
+        | ${outSeg.name}.toFile.lastModified > ${outDof.name}.toFile.lastModified &&
+        | ${outSeg.name}.toFile.lastModified > ${tgtSeg.name}.toFile.lastModified &&
+        | ${outSeg.name}.toFile.lastModified > ${srcSeg.name}.toFile.lastModified
+      """.stripMargin
+
+    begin -- Skip(task on Env.short hook info, cond)
   }
 }
