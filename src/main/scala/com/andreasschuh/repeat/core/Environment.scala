@@ -105,7 +105,7 @@ object Environment extends Configurable("environment") {
     }
     env listen {
       case (_, _: JobSubmitted | _: JobCompleted) =>
-        println(JOBS + s"""${_name.capitalize} queue=${_queue}: ${env.submitted} submitted, ${env.running} running, ${env.done} done""")
+        println(JOBS + s"""${_name.capitalize} queue=${_queue}: ${env.submitted} idle, ${env.running} running, ${env.done} done""")
     }
     env
   }
