@@ -67,15 +67,24 @@ object RegisterImages {
         | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
         |
         | val outDofDir = ${outDofPath.name}.getParent
-        | if (outDofDir != null) java.nio.file.Files.createDirectories(outDofDir)
+        | if (outDofDir != null) Files.createDirectories(outDofDir)
         |
         | val log = new TaskLogger(${outLogPath.name}.toFile)
         |
         | val phiDofPath =
-        |   if (phi2dof.size > 0)
-        |     java.nio.file.Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
-        |   else
-        |     ${outDofPath.name}
+        |   if (phi2dof.size > 0) Paths.get(workDir.getAbsolutePath, "phi${reg.phiSuf}")
+        |   else ${outDofPath.name}
+        |
+        | val regCfg = new File(workDir, "reg.cfg")
+        | val config = interpolate(\"\"\"${reg.config getOrElse ""}\"\"\".stripMargin.trim, ${parVal.name})
+        | if (config.length > 0) {
+        |   val fw = new FileWriter(regCfg)
+        |   fw.write(config + "\\n")
+        |   fw.close()
+        |   val label = "Configuration"
+        |   log.out(("-" * (40 - label.length / 2)) + label + ("-" * (40 - (label.length + 1) / 2)))
+        |   log.out(config + "\\n" + ("-" * 80) + "\\n")
+        | }
         |
         | val args = ${parVal.name} ++ Map(
         |   "regId"  -> ${regId.name},
@@ -83,7 +92,8 @@ object RegisterImages {
         |   "target" -> ${tgtImPath.name}.toString,
         |   "source" -> ${srcImPath.name}.toString,
         |   "aff"    -> ${affDofPath.name}.toString,
-        |   "phi"    -> phiDofPath.toString
+        |   "phi"    -> phiDofPath.toString,
+        |   "config" -> regCfg.getPath
         | )
         | val cmd = Seq("/usr/bin/time", "-p") ++ Registration.command(template, args)
         | val str = cmd.mkString("REPEAT> \\"", "\\" \\"", "\\"\\n")
@@ -114,7 +124,7 @@ object RegisterImages {
       """.stripMargin
     ) set (
       name        := s"${reg.id}-RegisterImages",
-      imports     += ("com.andreasschuh.repeat.core.{Config, Registration, TaskLogger}", "scala.sys.process._"),
+      imports     += ("com.andreasschuh.repeat.core._", "scala.sys.process._", "java.io.{File, FileWriter}", "java.nio.file.{Paths, Files}"),
       usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
       inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
       outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),

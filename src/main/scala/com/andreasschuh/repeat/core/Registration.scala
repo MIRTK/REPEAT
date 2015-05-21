@@ -48,6 +48,9 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** CSV file with command parameters */
   val parCsv = getFileProperty("params")
 
+  /** Template configuration file content for registration command */
+  val config = getStringOptionProperty("config")
+
   /** Optional command used to convert affine transformation from IRTK format to required input format */
   val dof2affCmd = getCmdOptionProperty("dof2aff")
 
