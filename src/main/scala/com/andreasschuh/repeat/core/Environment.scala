@@ -108,7 +108,7 @@ object Environment extends Configurable("environment") {
         val idle    = env.submitted
         val running = env.running
         val done    = env.done
-        println(JOBS + s"""${_name.capitalize} queue=${_queue}: ${idle + running + done} jobs; ${idle} idle, ${running} running, ${done} completed""")
+        println(JOBS + s"""${_name.capitalize} queue=${_queue}: ${idle + running + done} jobs; $idle idle, $running running, $done completed""")
     }
     env
   }
