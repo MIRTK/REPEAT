@@ -28,8 +28,9 @@ if (csvFile.exists) {
   if (csvDir != null) csvDir.mkdirs()
 }
 
-val i     = Val[Int]    // Index of parameter set
-val ID    = Val[String] // ID of parameter set
+val i  = Val[Int]    // Index of parameter set
+val ID = Val[String] // ID of parameter set
+
 val ds    = Val[Double] // Control point spacing
 val be    = Val[Double] // Bending energy weight
 val ln    = Val[Int]    // No. of resolution levels
@@ -42,8 +43,16 @@ val params = {
   (maxit in List(300, 500, 1000))
 }
 
+val append =
+  AppendToCSVFileHook(csvFile,
+    ID.toArray,
+    ds.toArray,
+    be.toArray,
+    ln.toArray,
+    maxit.toArray
+  )
+
 val sample = ExplorationTask(params zipWithIndex i)
 val setID  = Capsule(ScalaTask("""val ID = f"${i + 1}%02d" """) set (inputs += i, outputs += ID), strainer = true)
-val append = AppendToCSVFileHook(csvFile, ID.toArray, ds.toArray, be.toArray, ln.toArray, maxit.toArray)
 val write  = Capsule(EmptyTask(), strainer = true) hook append
 val exec   = (sample -< setID >- write).start.waitUntilEnded

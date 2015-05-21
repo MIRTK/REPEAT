@@ -30,16 +30,22 @@ if (csvFile.exists) {
 
 val i  = Val[Int]    // Index of parameter set
 val ID = Val[String] // ID of parameter set
-val ds = Val[Double] // Control point spacing
-val be = Val[Double] // Bending energy weight
+val ControlPointSpacing = Val[Double] // Control point spacing
+val BendingEnergyWeight = Val[Double] // Bending energy weight
 
 val params = {
-  (ds in List(2.5)) x
-  (be in List(.0, .0001, .0005, .001, .005, .01, .05))
+  (ControlPointSpacing in List(2.5)) x
+  (BendingEnergyWeight in List(.0, .0001, .0005, .001, .005, .01, .05))
 }
+
+val append =
+  AppendToCSVFileHook(csvFile,
+    ID.toArray,
+    ControlPointSpacing.toArray,
+    BendingEnergyWeight.toArray
+  )
 
 val sample = ExplorationTask(params zipWithIndex i)
 val setID  = Capsule(ScalaTask("""val ID = f"${i + 1}%02d" """) set (inputs += i, outputs += ID), strainer = true)
-val append = AppendToCSVFileHook(csvFile, ID.toArray, ds.toArray, be.toArray)
 val write  = Capsule(EmptyTask(), strainer = true) hook append
 val exec   = (sample -< setID >- write).start.waitUntilEnded()

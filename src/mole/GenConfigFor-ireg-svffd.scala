@@ -28,22 +28,31 @@ if (csvFile.exists) {
   if (csvDir != null) csvDir.mkdirs()
 }
 
-val i   = Val[Int]    // Index of parameter set
-val ID  = Val[String] // ID of parameter set
-val im  = Val[String] // Integration method
-val ds  = Val[Double] // Control point spacing
-val be  = Val[Double] // Bending energy weight
-val bch = Val[Int]    // No. of BCH terms
+val i = Val[Int]    // Index of parameter set
+val ID = Val[String] // ID of parameter set
+
+val IntegrationMethod = Val[String] // Integration method
+val ControlPointSpacing = Val[Double] // Control point spacing
+val BendingEnergyWeight = Val[Double] // Bending energy weight
+val NoOfBCHTerms = Val[Int]    // No. of BCH terms
 
 val params = {
-  (im  in List("FastSS", "SS", "RKE1", "RK4")) x
-  (ds  in List(2.5)) x
-  (be  in List(.0, .0001, .0005, .001, .005, .01, .05)) x
-  (bch in List(0, 4))
+  (IntegrationMethod in List("FastSS", "SS", "RKE1", "RK4")) x
+  (ControlPointSpacing in List(2.5)) x
+  (BendingEnergyWeight in List(.0, .0001, .0005, .001, .005, .01, .05)) x
+  (NoOfBCHTerms in List(0, 4))
 }
+
+val append =
+  AppendToCSVFileHook(csvFile,
+    ID.toArray,
+    IntegrationMethod.toArray,
+    ControlPointSpacing.toArray,
+    BendingEnergyWeight.toArray,
+    NoOfBCHTerms.toArray
+  )
 
 val sample = ExplorationTask(params zipWithIndex i)
 val setID  = Capsule(ScalaTask("""val ID = f"${i + 1}%02d" """) set (inputs += i, outputs += ID), strainer = true)
-val append = AppendToCSVFileHook(csvFile, ID.toArray, im.toArray, ds.toArray, be.toArray, bch.toArray)
 val write  = Capsule(EmptyTask(), strainer = true) hook append
 val exec   = (sample -< setID >- write).start.waitUntilEnded
