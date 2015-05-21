@@ -19,7 +19,7 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-val csvFile = new java.io.File(if (args.length > 0) args(0) else "Config/nreg.csv")
+val csvFile = new java.io.File(if (args.length > 0) args(0) else "Config/nreg2.csv")
 
 if (csvFile.exists) {
   csvFile.delete()
@@ -42,7 +42,6 @@ val NoOfBins = Val[Int]
 val InterpolationMode = Val[String]
 val OptimizationMethod = Val[String]
 val NoOfIterations = Val[Int]
-val NoOfSteps = Val[Int]
 
 val params = {
   (InitialControlPointSpacing in List(20.0)) x
@@ -55,8 +54,7 @@ val params = {
   (NoOfBins in List(64)) x
   (InterpolationMode in List("Linear")) x
   (OptimizationMethod in List("GradientDescent")) x
-  (NoOfIterations in List(10)) x
-  (NoOfSteps in List(4))
+  (NoOfIterations in List(40, 100))
 }
 
 val append =
@@ -72,8 +70,7 @@ val append =
     NoOfBins.toArray,
     InterpolationMode.toArray,
     OptimizationMethod.toArray,
-    NoOfIterations.toArray,
-    NoOfSteps.toArray
+    NoOfIterations.toArray
   )
 
 val sample = ExplorationTask(params zipWithIndex i)
