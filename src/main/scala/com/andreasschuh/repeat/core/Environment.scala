@@ -62,13 +62,13 @@ object Environment extends Configurable("environment") {
   /** Get named execution environment with specified properties */
   private def getEnvironment(name: String, queue: String = "long", memory: Option[Int] = None, nodes: Option[Int] = None, threads: Option[Int] = None) = {
     val parts    = name.split("-")
-    val _name    = parts.head
+    val _name    = parts.head.toLowerCase
     val _queue   = if (parts.length > 1) parts.tail.mkString("-") else queue
     val _memory  = Some(memory  getOrElse getIntProperty(s"${_name}.memory"))
     val _nodes   = Some(nodes   getOrElse getIntProperty(s"${_name}.nodes"))
     val _threads = Some(threads getOrElse getIntProperty(s"${_name}.threads"))
     val _requirements = getStringListProperty(s"${_name}.requirements").toList
-    val env = _name.toLowerCase match {
+    val env = _name match {
       case "slurm" =>
         addAuthenticationFor("slurm")
         SLURMEnvironment(
