@@ -39,4 +39,5 @@ object Prefix {
   def WARN = NAME + "Warn: "
   def SAVE = NAME + "Save: "
   def HAVE = NAME + "Have: "
+  def JOBS = NAME + "Jobs: "
 }

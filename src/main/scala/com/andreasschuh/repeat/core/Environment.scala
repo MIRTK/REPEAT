@@ -23,12 +23,16 @@ package com.andreasschuh.repeat.core
 
 import java.io.File
 
+import org.openmole.core.event._
 import org.openmole.core.exception.UserBadDataError
 import org.openmole.core.workspace.{ Workspace => OpenMOLEWorkspace }
+import org.openmole.core.workflow.execution.Environment.{JobSubmitted, JobCompleted}
 import org.openmole.core.workflow.execution.local.LocalEnvironment
 import org.openmole.plugin.environment.ssh.{ PrivateKey, LoginPassword, SSHAuthentication }
 import org.openmole.plugin.environment.slurm.SLURMEnvironment
 import org.openmole.plugin.environment.condor.CondorEnvironment
+
+import com.andreasschuh.repeat.core.Prefix.JOBS
 
 
 /**
@@ -64,7 +68,7 @@ object Environment extends Configurable("environment") {
     val _nodes   = Some(nodes   getOrElse getIntProperty(s"${_name}.nodes"))
     val _threads = Some(threads getOrElse getIntProperty(s"${_name}.threads"))
     val _requirements = getStringListProperty(s"${_name}.requirements").toList
-    _name.toLowerCase match {
+    val env = _name.toLowerCase match {
       case "slurm" =>
         addAuthenticationFor("slurm")
         SLURMEnvironment(
@@ -99,6 +103,11 @@ object Environment extends Configurable("environment") {
         }, deinterleave = true)
       case _ => throw new Exception("Invalid execution environment: " + name)
     }
+    env listen {
+      case (_, _: JobSubmitted | _: JobCompleted) =>
+        println(JOBS + s"""${_name.capitalize} queue=${_queue}: ${env.submitted} submitted, ${env.running} running, ${env.done} done""")
+    }
+    env
   }
 
   /** Environment for parallel tasks executed on the local machine */
