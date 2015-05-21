@@ -106,7 +106,7 @@ object ConvertDofToAff {
               inputs  += (regId, tgtId, srcId, iniDof, affDof),
               outputs += (regId, tgtId, srcId,         affDof)
             )
-          Capsule(task) on Env.local
+          Capsule(task).toPuzzlePiece
       }
 
     begin -- Skip(puzzle, s"${affDof.name}.toFile.lastModified > ${iniDof.name}.toFile.lastModified")
