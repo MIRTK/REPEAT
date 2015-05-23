@@ -19,7 +19,7 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-val csvFile = new java.io.File(if (args.length > 0) args(0) else "Config/nreg.csv")
+val csvFile = new java.io.File(if (args.length > 0) args(0) else "Params/nreg.csv")
 
 if (csvFile.exists) {
   csvFile.delete()
