@@ -212,6 +212,21 @@ object IRTK extends Configurable("irtk") {
   }
 
   /**
+   * Evaluate intensity image similarity
+   * @param a Intensity image A.
+   * @param b Intensity image B.
+   * @return A map from similarity measure name to its respective value.
+   */
+  def similarity(a: File, b: File): Map[String, Double] = {
+    var sim = scala.collection.mutable.Map[String, Double]()
+    Cmd(binPath("evaluation"), a.getAbsolutePath, b.getAbsolutePath).lineStream.foreach(line => {
+      val v = line.split(":").map(_.trim)
+      if (v.length == 2 && v(0).length > 0) sim += v(0) -> v(1).toDouble
+    })
+    sim.toMap
+  }
+
+  /**
    * Compute overlap statistics for each label
    * @param a Segmentation of image A.
    * @param b Segmentation of image B.

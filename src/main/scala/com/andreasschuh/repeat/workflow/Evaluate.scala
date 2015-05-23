@@ -78,6 +78,8 @@ object Evaluate {
     val runTimeCsvPath = Paths.get(reg.resDir.getAbsolutePath, "Time.csv").toString
     val avgTimeCsvPath = Paths.get(reg.sumDir.getAbsolutePath, "Time.csv").toString
 
+    val outSimCsvPath = Paths.get(reg.resDir.getAbsolutePath, "Similarity.csv").toString
+
     val dscRegAvgCsvName = Overlap.summary.replace("${measure}", "DSC")
     val dscValuesCsvPath = Paths.get(reg.resDir.getAbsolutePath, "DSC_Label.csv" ).toString
     val dscGrpAvgCsvPath = Paths.get(reg.resDir.getAbsolutePath, "DSC_Mean.csv"  ).toString
@@ -98,6 +100,7 @@ object Evaluate {
 
     // Which evaluation measures to compute
     val timeEnabled = true
+    val simEnabled  = Array("SSD", "CC", "MI", "NMI")
     val dscEnabled  = Overlap.measures contains Overlap.DSC
     val jsiEnabled  = Overlap.measures contains Overlap.JSI
 
@@ -117,6 +120,7 @@ object Evaluate {
     val tgtSeg  = Val[Path]                // Segmentation of target image
     val srcId   = Val[Int]                 // ID of source image
     val srcIm   = Val[Path]                // Moving source image
+    val srcSeg  = Val[Path]                // Segmentation of source image
     val iniDof  = Val[Path]                // Pre-computed affine transformation from target to source
     val affDof  = Val[Path]                // Affine transformation converted to input format
     val outDof  = Val[Path]                // Output transformation converted to IRTK format
@@ -124,7 +128,10 @@ object Evaluate {
     val outSeg  = Val[Path]                // Deformed source segmentation
     val outJac  = Val[Path]                // Jacobian determinant map
     val outLog  = Val[Path]                // Registration command output log file
+    val simHdr  = Val[Array[String]]       // Names of similarity metrics to compute
+    val outSim  = Val[Map[String, Double]] // Intensity similarity of output image compared to target image
 
+    val outImModified  = Val[Boolean]      // Whether deformed source image was newly created
     val outSegModified = Val[Boolean]      // Whether deformed source segmentation was newly created
 
     // Evaluation results
@@ -164,11 +171,17 @@ object Evaluate {
     // -----------------------------------------------------------------------------------------------------------------
     // Auxiliaries
 
-    // NOP puzzle
-    val nop = Capsule(EmptyTask() set (name := s"${reg.id}-NOP")).toPuzzle
+    // NOP
+    def nopCap(taskName: String) =
+      Capsule(
+        EmptyTask() set (
+          name := s"${reg.id}-$taskName-NOP"
+        )
+      )
+    def nop(taskName: String) = nopCap(taskName).toPuzzle
 
     // Exploration tasks
-    def setRegId =
+    def putRegId =
       EmptyTask() set (
         name    := s"${reg.id}-SetRegId",
         outputs += regId,
@@ -182,7 +195,7 @@ object Evaluate {
         outputs += regId
       )
 
-    def setParId =
+    def putParId =
       ScalaTask(
         """
           | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
@@ -204,7 +217,7 @@ object Evaluate {
         task.addInput(p.toArray)
         task.addOutput(p)
       })
-      task
+      Capsule(task)
     }
 
     def forEachImPair =
@@ -212,6 +225,16 @@ object Evaluate {
         name    := s"${reg.id}-ForEachImPair",
         inputs  += regId,
         outputs += regId
+      )
+
+    def end(taskName: String) =
+      Capsule(
+        EmptyTask() set (
+          name    := s"${reg.id}-$taskName",
+          inputs  += regId,
+          outputs += regId
+        ),
+        strainer = true
       )
 
     // Delete table with summary results which can be recomputed from individual result tables
@@ -277,15 +300,6 @@ object Evaluate {
           outputs += (regId, parId)
         )
 
-    val backupTablesEnd =
-      Capsule(
-        ScalaTask("val regId = input.regId.head") set (
-          name    := s"${reg.id}-BackupTablesEnd",
-          inputs  += regId.toArray,
-          outputs += regId
-        )
-      )
-
     // Finalize result table, appending non-overwritten previous results again and sorting the final table
     def finalizeTable(path: String, enabled: Boolean) =
       if (enabled)
@@ -321,7 +335,7 @@ object Evaluate {
         )
 
     // Initial conversion of affine input transformation
-    val convertDofToAffBegin =
+    val convertDofinBegin =
       Capsule(
         ScalaTask(
           s"""
@@ -332,15 +346,6 @@ object Evaluate {
           imports += "java.nio.file.Paths",
           inputs  += (regId, tgtId, srcId),
           outputs += (regId, tgtId, srcId, iniDof)
-        )
-      )
-
-    val convertDofToAffEnd =
-      Capsule(
-        ScalaTask("val regId = input.regId.head") set (
-          name    := s"${reg.id}-ConvertDofToAffEnd",
-          inputs  += regId.toArray,
-          outputs += regId
         )
       )
 
@@ -362,15 +367,6 @@ object Evaluate {
           outputs += (regId, parId, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog)
         ),
         strainer = true
-      )
-
-    val registerImagesEnd =
-      Capsule(
-        EmptyTask() set (
-          name    := s"${reg.id}-RegisterImagesEnd",
-          inputs  += (regId, parId, tgtId, srcId, outDof, runTime, runTimeValid),
-          outputs += (regId, parId, tgtId, srcId, outDof, runTime, runTimeValid)
-        )
       )
 
     // Read previous result from backup table to save recomputation if nothing changed
@@ -406,59 +402,61 @@ object Evaluate {
         strainer = true
       )
 
-    // Evaluate overlap between target segmentation and deformed source labels
-    def evaluateOverlap =
+    def readMapFromTable(path: String, map: Prototype[Map[String, Double]], columns: Prototype[Array[String]], enabled: Array[String]) =
       Capsule(
         ScalaTask(
           s"""
-            | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+            | val ${map.name} =
+            |   if (${columns.name}.nonEmpty)
+            |     try {
+            |       val file   = new java.io.File(s"${backupTablePath(path)}")
+            |       val lines  = fromFile(file).getLines().toList
+            |       val header = lines.head.split(",").zipWithIndex.toMap.filterKeys(${columns.name}.contains)
+            |       val values = lines.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
+            |       header.mapValues(values(_).toDouble)
+            |     }
+            |     catch {
+            |       case _: Exception => Map[String, Double]()
+            |     }
+            |   else Map[String, Double]()
             |
-            | val stats = IRTK.labelStats(${tgtSeg.name}.toFile, ${outSeg.name}.toFile, Some(Overlap.labels.toSet))
-            |
-            | val dscMetric = Overlap(stats, Overlap.DSC)
-            | val dscValues = dscMetric.toArray
-            | val dscGrpAvg = dscMetric.getMeanValues
-            | val dscGrpStd = dscMetric.getSigmaValues
-            |
-            | val jsiMetric = Overlap(stats, Overlap.JSI)
-            | val jsiValues = jsiMetric.toArray
-            | val jsiGrpAvg = jsiMetric.getMeanValues
-            | val jsiGrpStd = jsiMetric.getSigmaValues
-            |
-            | val dscValuesValid = $dscEnabled
-            | val dscGrpAvgValid = $dscEnabled
-            | val dscGrpStdValid = $dscEnabled
-            | val jsiValuesValid = $jsiEnabled
-            | val jsiGrpAvgValid = $jsiEnabled
-            | val jsiGrpStdValid = $jsiEnabled
-            |
-            | println(s"$${Prefix.DONE}Overlap evaluation for $regSet")
+            | ${map.name}.foreach { case (name, _) => println(s"$${HAVE}$${name.capitalize} for $regSet") }
           """.stripMargin
         ) set (
-          name        := s"${reg.id}-EvaluateOverlap",
-          imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap, Prefix}",
-          usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
-          inputs      += (regId, parId, tgtId, srcId, tgtSeg, outSeg),
-          outputs     += (regId, parId, tgtId, srcId, dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
-          outputs     += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
+          name    := s"${reg.id}-Read${map.name.capitalize}",
+          imports += ("scala.io.Source.fromFile", "com.andreasschuh.repeat.core.Prefix.HAVE"),
+          inputs  += (regId, parId, tgtId, srcId, columns),
+          outputs += (regId, parId, tgtId, srcId, columns, map),
+          columns := enabled
         ),
         strainer = true
       )
 
-    val evaluateOverlapEnd =
-      Capsule(
-        EmptyTask() set (
-          name    := s"${reg.id}-EvaluateOverlapEnd",
-          inputs  += (dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
-          inputs  += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid),
-          outputs += (dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
-          outputs += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
-        ),
-        strainer = true
-      )
+    def saveMapToTable(path: String, map: Prototype[Map[String, Double]], columns: Prototype[Array[String]], enabled: Array[String]) =
+      if (enabled.isEmpty) nopCap("SaveMapToTable").toPuzzlePiece else {
+        val measures = Val[Array[Double]]
+        Capsule(
+          ScalaTask(
+            s"""
+               | val measures = ${columns.name}.map(${map.name}(_))
+               | println(s"$${SAVE}${map.name.capitalize} for $regSet")
+             """.stripMargin) set (
+            name    := s"${reg.id}-Save${map.name.capitalize}",
+            imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
+            inputs  += (regId, parId, tgtId, srcId, map, columns),
+            outputs += (regId, parId, tgtId, srcId, measures),
+            columns := enabled
+          )
+        ) hook (
+          AppendToCSVFileHook(path, tgtId, srcId, measures) set (
+            csvHeader := "Target,Source," + enabled.mkString(","),
+            singleRow := true
+          )
+        )
+      }
 
     // Write individual registration result to CSV table
-    def appendToTable(path: String, result: Prototype[Array[Double]], header: String) =
+    def saveToTable(path: String, result: Prototype[Array[Double]], header: String) =
       ScalaTask(s"""println(s"$${SAVE}${result.name.capitalize} for $regSet") """) set (
         name    := s"${reg.id}-Save${result.name.capitalize}",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
@@ -490,7 +488,7 @@ object Evaluate {
       )
 
     // Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table
-    def appendToMeanTable(path: String, mean: Prototype[Array[Double]], header: String) =
+    def saveToSummaryTable(path: String, mean: Prototype[Array[Double]], header: String) =
       ScalaTask(s"""println(s"$${SAVE}${mean.name.capitalize} for $avgSet") """) set (
         name    := s"${reg.id}-Save${mean.name.capitalize}",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
@@ -505,14 +503,15 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables
+    val backupTablesEnd = demux("BackupTablesEnd", regId)
     def backupTables =
-      setRegId --
+      putRegId --
       // Delete summary tables with mean values
       deleteTable(avgTimeCsvPath,   timeEnabled && !Workspace.append) --
       deleteTable(dscRegAvgCsvPath, dscEnabled  && !Workspace.append) --
       deleteTable(jsiRegAvgCsvPath, jsiEnabled  && !Workspace.append) --
       // Results of individual registrations
-      forEachPar -< setParId --
+      forEachPar -< putParId --
         backupTable(runTimeCsvPath,   timeEnabled) --
         backupTable(dscValuesCsvPath, dscEnabled) --
         backupTable(dscGrpAvgCsvPath, dscEnabled) --
@@ -524,14 +523,16 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Prepare input transformation
-    def convertDofToAff =
+    val convertDofinEnd = demux("ConvertDofToAffEnd", regId)
+    def convertDofin =
       backupTablesEnd -- Capsule(forEachImPair, strainer = true) -<
-        convertDofToAffBegin --
+        convertDofinBegin --
           ConvertDofToAff(reg, regId, tgtId, srcId, iniDof, affDof, affDofPath) >-
-        convertDofToAffEnd
+        convertDofinEnd
 
     // -----------------------------------------------------------------------------------------------------------------
     // Run registration command
+    val registerImagesEnd = end("RegisterImagesEnd")
     def registerImages = {
       // Execute pairwise registration
       val regCond =
@@ -546,21 +547,21 @@ object Evaluate {
             | val outJac = new java.io.File(s"$outJacPath")
             |
             | def updateOutDof = $keepOutDof &&
-            |   outDof.lastModified() < iniDof.lastModified &&
-            |   outDof.lastModified() < tgtIm .lastModified &&
-            |   outDof.lastModified() < srcIm .lastModified
+            |   outDof.lastModified < iniDof.lastModified &&
+            |   outDof.lastModified < tgtIm .lastModified &&
+            |   outDof.lastModified < srcIm .lastModified
             | def updateOutIm = $keepOutIm &&
-            |   outIm.lastModified() < iniDof.lastModified &&
-            |   outIm.lastModified() < tgtIm .lastModified &&
-            |   outIm.lastModified() < srcIm .lastModified
+            |   outIm.lastModified < iniDof.lastModified &&
+            |   outIm.lastModified < tgtIm .lastModified &&
+            |   outIm.lastModified < srcIm .lastModified
             | def updateOutSeg = $keepOutSeg &&
-            |   outSeg.lastModified() < iniDof.lastModified &&
-            |   outSeg.lastModified() < tgtIm .lastModified &&
-            |   outSeg.lastModified() < srcIm .lastModified
+            |   outSeg.lastModified < iniDof.lastModified &&
+            |   outSeg.lastModified < tgtIm .lastModified &&
+            |   outSeg.lastModified < srcIm .lastModified
             | def updateOutJac = $keepOutJac &&
-            |   outJac.lastModified() < iniDof.lastModified &&
-            |   outJac.lastModified() < tgtIm .lastModified &&
-            |   outJac.lastModified() < srcIm .lastModified
+            |   outJac.lastModified < iniDof.lastModified &&
+            |   outJac.lastModified < tgtIm .lastModified &&
+            |   outJac.lastModified < srcIm .lastModified
             |
             | updateOutDof || (!outDof.exists && (updateOutIm || updateOutSeg || updateOutJac)) || ($timeEnabled && !runTimeValid)
           """.stripMargin
@@ -568,7 +569,7 @@ object Evaluate {
       def regImPair =
         RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid)
       def runReg =
-        convertDofToAffEnd -- forEachPar -< setParId --
+        convertDofinEnd -- forEachPar -< putParId --
           Capsule(forEachImPair, strainer = true) -<
             registerImagesBegin --
               readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
@@ -578,94 +579,290 @@ object Evaluate {
               ) --
             registerImagesEnd
       // Write runtime measurements
-      def writeTime =
+      def saveTime =
         registerImagesEnd -- Switch(
-          Case(  "runTimeValid", appendToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
+          Case(  "runTimeValid", saveToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
           Case(s"!runTimeValid && $timeEnabled", Display.WARN(s"Missing ${runTime.name.capitalize} for $regSet"))
-        ) >- demux("WriteTimeDemux", regId, parId) -- finalizeTable(runTimeCsvPath, timeEnabled)
+        ) >- demux("SaveTimeDemux", regId, parId) -- finalizeTable(runTimeCsvPath, timeEnabled)
       // Write mean of runtime measurements
-      def writeMeanTime =
+      def saveMeanTime =
         registerImagesEnd >-
           calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
-            Case(  "avgTimeValid", appendToMeanTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
+            Case(  "avgTimeValid", saveToSummaryTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
             Case(s"!avgTimeValid && $timeEnabled", Display.WARN(s"Invalid ${avgTime.name.capitalize} for $avgSet"))
           )
       // Assemble sub-workflow
-      runReg + writeTime + writeMeanTime
+      runReg + saveTime + saveMeanTime
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Deform source image for visual comparison and to measure residual distance
-    def deformImage =
-      if (!keepOutIm) nop else {
+    // Deform source image and quantify residual differences between fixed target and deformed source image
+    def evaluateSimilarity = if (!keepOutIm && simEnabled.isEmpty) nop("EvaluateSimilarity") else {
+      // Initialize file paths and read previously computed results from backup table
+      val outImChg = Val[Boolean]
+      def init =
         registerImagesEnd --
-          DeformImage(reg, regId, parId, tgtId, srcId, tgtIm, tgtImPath, srcImPath, outDof, outIm, outImPath)
-        // TODO: Measure residual intensity error using different similarity metrics such as SSD, CC, and MI
-        // TODO: Create PNG snapshots of exemplary slices for visual comparison
+        Capsule(
+          ScalaTask(
+            s"""
+              | val tgtIm = Paths.get(s"$tgtImPath")
+              | val srcIm = Paths.get(s"$srcImPath")
+              | val outIm = Paths.get(s"$outImPath")
+            """.stripMargin
+          ) set (
+            name     := s"${reg.id}-EvaluateSimilarityInit",
+            imports  += "java.nio.file.Paths",
+            inputs   += (regId, parId, tgtId, srcId, outDof),
+            outputs  += (regId, parId, tgtId, srcId, outDof, tgtIm, srcIm, outIm, outImChg),
+            outImChg := false
+          )
+        ) --
+        readMapFromTable(outSimCsvPath, outSim, simHdr, simEnabled)
+      val noPrevRes = Condition("simHdr.foldLeft(false)( (b, name) => b || !(outSim contains name) )")
+      // Transform and resample source image
+      val warpSrcImEnd = end("WarpSrcImEnd")
+      def warpSrcIm = {
+        val what = "Warp source image for " + regSet
+        val template = Val[Cmd]
+        val cond = {
+          val update =
+            Condition(
+              s"""
+                | outIm.toFile.lastModified < tgtIm.toFile.lastModified ||
+                | outIm.toFile.lastModified < srcIm.toFile.lastModified ||
+                | ($keepOutDof && outIm.toFile.lastModified < outDof.toFile.lastModified)
+              """.stripMargin
+            )
+          if (keepOutIm) update else noPrevRes && update
+        }
+        val task =
+          Capsule(
+            ScalaTask(
+              """
+                | val args = Map(
+                |   "target" -> tgtIm .toString,
+                |   "source" -> srcIm .toString,
+                |   "out"    -> outIm .toString,
+                |   "phi"    -> outDof.toString
+                | )
+                | val cmd = command(template, args)
+                | val outDir = outIm.getParent
+                | if (outDir != null) Files.createDirectories(outDir)
+                | val ret = cmd.!
+                | if (ret != 0) {
+                |   val str = cmd.mkString("\"", "\" \"", "\"\n")
+                |   throw new Exception("Image deformation command returned non-zero exit code: " + str)
+                | }
+              """.stripMargin
+            ) set (
+              name        := s"${reg.id}-WarpSrcIm",
+              imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._", "java.nio.file.Files"),
+              usedClasses += Registration.getClass,
+              inputs      += (regId, parId, tgtId, srcId, tgtIm, srcIm, outIm, outDof, template),
+              outputs     += (regId, parId, tgtId, srcId, tgtIm, outIm),
+              template    := reg.deformImageCmd,
+              outImChg    := true
+            ),
+            strainer = true
+          )
+        Switch(
+          Case( cond, Display.QSUB(what) -- (task on Env.short by 10) -- Display.DONE(what)),
+          Case(!cond, Display.SKIP(what))
+        ) -- warpSrcImEnd
       }
+      // Evaluate residual difference between target and output image
+      val evalSimEnd = end("EvalSimEnd")
+      def evalSim = if (simEnabled.isEmpty) nop("EvalSim") else {
+        val what = "Similarity evaluation for " + regSet
+        val cond = noPrevRes || "outImChg"
+        val task =
+          Capsule(
+            ScalaTask(
+              s"""
+                | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+                | val outSim = IRTK.similarity(tgtIm.toFile, outIm.toFile).filterKeys(simHdr.contains)
+              """.stripMargin
+            ) set (
+              name        := s"${reg.id}-EvalSim",
+              imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Prefix}",
+              usedClasses += (Config.getClass, IRTK.getClass, Prefix.getClass),
+              inputs      += (regId, parId, tgtId, srcId, tgtIm, outIm, simHdr),
+              outputs     += (regId, parId, tgtId, srcId, outSim, simHdr)
+            )
+          )
+        warpSrcImEnd -- Switch(
+          Case( cond, Display.QSUB(what) -- (task on Env.short by 10) -- Display.DONE(what)),
+          Case(!cond, Display.SKIP(what))
+        ) -- evalSimEnd
+      }
+      // Save image similarity measures to CSV table
+      def saveSim =
+        evalSimEnd -- saveMapToTable(outSimCsvPath, outSim, simHdr, simEnabled) >-
+          demux("SaveSimDemux", regId, parId) -- finalizeTable(outSimCsvPath, simEnabled.nonEmpty)
+      // TODO: Create PNG snapshot of side-by-side view of target and output image
+      def snapComp = nop("SnapComp")
+      // TODO: Create PNG snapshot of difference image
+      def snapDiff = nop("SnapDiff")
+      // Assemble sub-workflow
+      (init -- warpSrcIm) + evalSim + saveSim + snapComp + snapDiff
+    }
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Deform source segmentation and evaluate overlap with target labels
-    def deformLabels =
-      if (!keepOutSeg && !dscEnabled && !jsiEnabled) nop else {
-        // Deform source and evaluate overlap
-        val evalCond =
-          Condition(
+    // Deform source segmentation and quantify overlap with target labels
+    def evaluateOverlap = if (!keepOutSeg && !dscEnabled && !jsiEnabled) nop("EvaluateOverlap") else {
+      // Initialize file paths and read previously computed results from backup tables
+      val outSegChg = Val[Boolean]
+      def init =
+        registerImagesEnd --
+        Capsule(
+          ScalaTask(
             s"""
-              | def dscValid = dscValuesValid && dscGrpAvgValid && dscGrpStdValid
-              | def jsiValid = jsiValuesValid && jsiGrpAvgValid && jsiGrpStdValid
-              | ($dscEnabled || $jsiEnabled) && (outSegModified || !dscValid || !jsiValid)
+              | val tgtSeg = Paths.get(s"$tgtSegPath")
+              | val srcSeg = Paths.get(s"$srcSegPath")
+              | val outSeg = Paths.get(s"$outSegPath")
             """.stripMargin
+          ) set (
+            name      := s"${reg.id}-EvaluateOverlapInit",
+            imports   += "java.nio.file.Paths",
+            inputs    += (regId, parId, tgtId, srcId, outDof),
+            outputs   += (regId, parId, tgtId, srcId, outDof, tgtSeg, srcSeg, outSeg, outSegChg),
+            outSegChg := false
           )
-        def deformSource =
-          registerImagesEnd --
-            DeformLabels(reg, regId, parId, tgtId, srcId, tgtSeg, tgtSegPath, srcSegPath, outDof, outSeg, outSegPath, outSegModified)
-        def calcOverlap =
-          readFromTable(dscValuesCsvPath, dscValues, dscValuesValid, enabled = dscEnabled) --
-          readFromTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, enabled = dscEnabled) --
-          readFromTable(dscGrpStdCsvPath, dscGrpStd, dscGrpStdValid, enabled = dscEnabled) --
-          readFromTable(jsiValuesCsvPath, jsiValues, jsiValuesValid, enabled = jsiEnabled) --
-          readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
-          readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled) --
-          Switch(
-            Case( evalCond, Display.QSUB(s"Overlap evaluation for $regSet") -- (evaluateOverlap on Env.short by 10)),
-            Case(!evalCond, Display.SKIP(s"Overlap evaluation for $regSet"))
-          ) --
-          evaluateOverlapEnd
-        // Write overlap measures
-        def writeOverlap = (
-            evaluateOverlapEnd -- (
-              appendToTable(dscValuesCsvPath, dscValues, header = labels) when "dscValuesValid",
-              appendToTable(dscGrpAvgCsvPath, dscGrpAvg, header = groups) when "dscGrpAvgValid",
-              appendToTable(dscGrpStdCsvPath, dscGrpStd, header = groups) when "dscGrpStdValid",
-              appendToTable(jsiValuesCsvPath, jsiValues, header = labels) when "jsiValuesValid",
-              appendToTable(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups) when "jsiGrpAvgValid",
-              appendToTable(jsiGrpStdCsvPath, jsiGrpStd, header = groups) when "jsiGrpStdValid"
+        ) --
+        readFromTable(dscValuesCsvPath, dscValues, dscValuesValid, enabled = dscEnabled) --
+        readFromTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, enabled = dscEnabled) --
+        readFromTable(dscGrpStdCsvPath, dscGrpStd, dscGrpStdValid, enabled = dscEnabled) --
+        readFromTable(jsiValuesCsvPath, jsiValues, jsiValuesValid, enabled = jsiEnabled) --
+        readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
+        readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled)
+      val noPrevRes =
+        Condition(
+          s"""
+            | ($dscEnabled && (!dscValuesValid || !dscGrpAvgValid || !dscGrpStdValid)) ||
+            | ($jsiEnabled && (!jsiValuesValid || !jsiGrpAvgValid || !jsiGrpStdValid))
+          """.stripMargin
+        )
+      // Deform source segmentation
+      val warpSrcSegEnd = end("WarpSrcSegEnd")
+      def warpSrcSeg = {
+        val what = "Propagate source labels for " + regSet
+        val template = Val[Cmd]
+        val cond = {
+          val update =
+            Condition(
+              s"""
+                | outSeg.toFile.lastModified < tgtSeg.toFile.lastModified ||
+                | outSeg.toFile.lastModified < srcSeg.toFile.lastModified ||
+                | ($keepOutDof && outSeg.toFile.lastModified < outDof.toFile.lastModified)
+              """.stripMargin
             )
-          ) -- demux("WriteOverlapDemux1", regId, parId) >- demux("WriteOverlapDemux2", regId, parId) -- (
-            finalizeTable(dscValuesCsvPath, dscEnabled),
-            finalizeTable(dscGrpAvgCsvPath, dscEnabled),
-            finalizeTable(dscGrpStdCsvPath, dscEnabled),
-            finalizeTable(jsiValuesCsvPath, jsiEnabled),
-            finalizeTable(jsiGrpAvgCsvPath, jsiEnabled),
-            finalizeTable(jsiGrpStdCsvPath, jsiEnabled)
-          )
-        // Write mean of overlap measures
-        def writeMeanOverlap =
-          evaluateOverlapEnd >- (
-            calcMean(dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid) -- Switch(
-              Case(  "dscRegAvgValid", appendToMeanTable(dscRegAvgCsvPath, dscRegAvg, header = groups)),
-              Case(s"!dscRegAvgValid && $dscEnabled", Display.WARN(s"Invalid ${dscRegAvg.name.capitalize} for $avgSet"))
+          if (keepOutSeg) update else noPrevRes && update
+        }
+        val task =
+          Capsule(
+            ScalaTask(
+              """
+                | val args = Map(
+                |   "target" -> tgtSeg.toString,
+                |   "source" -> srcSeg.toString,
+                |   "out"    -> outSeg.toString,
+                |   "phi"    -> outDof.toString
+                | )
+                | val cmd = command(template, args)
+                | val outDir = outSeg.getParent
+                | if (outDir != null) Files.createDirectories(outDir)
+                | val ret = cmd.!
+                | if (ret != 0) {
+                |   val str = cmd.mkString("\"", "\" \"", "\"\n")
+                |   throw new Exception("Label propagation command returned non-zero exit code: " + str)
+                | }
+              """.stripMargin
+            ) set (
+              name        := s"${reg.id}-PropagateLabels",
+              imports     += ("com.andreasschuh.repeat.core.Registration.command", "scala.sys.process._", "java.nio.file.Files"),
+              usedClasses += Registration.getClass,
+              inputs      += (regId, parId, tgtId, srcId, tgtSeg, srcSeg, outDof, outSeg, template),
+              outputs     += (regId, parId, tgtId, srcId, tgtSeg, outSeg, outSegChg),
+              template    := reg.deformLabelsCmd,
+              outSegChg   := true
             ),
-            calcMean(jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid) -- Switch(
-              Case(  "jsiRegAvgValid", appendToMeanTable(jsiRegAvgCsvPath, jsiRegAvg, header = groups)),
-              Case(s"!jsiRegAvgValid && $jsiEnabled", Display.WARN(s"Invalid ${jsiRegAvg.name.capitalize} for $avgSet"))
+            strainer = true
+          )
+        Switch(
+          Case( cond, Display.QSUB(what) -- (task on Env.short by 10) -- Display.DONE(what)),
+          Case(!cond, Display.SKIP(what))
+        ) -- warpSrcSegEnd
+      }
+      // Evaluate overlap measures
+      val evalOverlapEnd = end("EvalOverlapEnd")
+      def evalOverlap = if (!dscEnabled && !jsiEnabled) nop("EvalOverlap") else {
+        val what = s"Overlap evaluation for $regSet"
+        val cond = noPrevRes || "outSegChg"
+        val task =
+          Capsule(
+            ScalaTask(
+              s"""
+                | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+                | val stats = IRTK.labelStats(tgtSeg.toFile, outSeg.toFile, Some(Overlap.labels.toSet))
+                |
+                | val dscMetric = Overlap(stats, Overlap.DSC)
+                | val dscValues = dscMetric.toArray
+                | val dscGrpAvg = dscMetric.getMeanValues
+                | val dscGrpStd = dscMetric.getSigmaValues
+                |
+                | val jsiMetric = Overlap(stats, Overlap.JSI)
+                | val jsiValues = jsiMetric.toArray
+                | val jsiGrpAvg = jsiMetric.getMeanValues
+                | val jsiGrpStd = jsiMetric.getSigmaValues
+                |
+                | val dscValuesValid = $dscEnabled
+                | val dscGrpAvgValid = $dscEnabled
+                | val dscGrpStdValid = $dscEnabled
+                | val jsiValuesValid = $jsiEnabled
+                | val jsiGrpAvgValid = $jsiEnabled
+                | val jsiGrpStdValid = $jsiEnabled
+              """.stripMargin
+            ) set (
+              name        := s"${reg.id}-EvaluateOverlap",
+              imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
+              usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
+              inputs      += (regId, parId, tgtId, srcId, tgtSeg, outSeg),
+              outputs     += (regId, parId, tgtId, srcId, dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
+              outputs     += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
             )
           )
-        // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
-        // Assemble sub-workflow
-        (deformSource -- calcOverlap) + writeOverlap + writeMeanOverlap
+        warpSrcSegEnd -- Switch(
+          Case( cond, Display.QSUB(what) -- (task on Env.short by 10) -- Display.DONE(what)),
+          Case(!cond, Display.SKIP(what))
+        ) -- evalOverlapEnd
       }
+      // Append overlap measures to CSV tables
+      def saveOverlap = {
+        def saveResult(path: String, p: Prototype[Array[Double]], header: String, enabled: Boolean) =
+          evalOverlapEnd -- (saveToTable(path, p, header) when Condition(s"${p.name}Valid")) >-
+            demux(s"Save${p.name.capitalize}Demux", regId, parId) -- finalizeTable(path, enabled)
+        saveResult(dscValuesCsvPath, dscValues, header = labels, enabled = dscEnabled) +
+        saveResult(dscGrpAvgCsvPath, dscGrpAvg, header = groups, enabled = dscEnabled) +
+        saveResult(dscGrpStdCsvPath, dscGrpStd, header = groups, enabled = dscEnabled) +
+        saveResult(jsiValuesCsvPath, jsiValues, header = labels, enabled = jsiEnabled) +
+        saveResult(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups, enabled = jsiEnabled) +
+        saveResult(jsiGrpStdCsvPath, jsiGrpStd, header = groups, enabled = jsiEnabled)
+      }
+      // Append mean of overlap measures to summary CSV tables
+      def saveMeanOverlap = {
+        def saveMean(path: String, result: Prototype[Array[Double]], resultValid: Prototype[Boolean],
+                               mean:   Prototype[Array[Double]], meanValid:   Prototype[Boolean], enabled: Boolean) =
+          evalOverlapEnd >- calcMean(result, resultValid, mean, meanValid) -- Switch(
+            Case(s" ${meanValid.name}", saveToSummaryTable(path, mean, header = groups)),
+            Case(s"!${meanValid.name} && $enabled", Display.WARN(s"Invalid ${mean.name.capitalize} for $avgSet"))
+          )
+        saveMean(dscRegAvgCsvPath, dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid, enabled = dscEnabled) +
+        saveMean(jsiRegAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid, enabled = jsiEnabled)
+      }
+      // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
+      // Assemble sub-workflow
+      (init -- warpSrcSeg) + (evalOverlap + saveOverlap + saveMeanOverlap)
+    }
 
     // -----------------------------------------------------------------------------------------------------------------
     // TODO: Sort summary result tables when all results are appended
@@ -676,14 +873,13 @@ object Evaluate {
 
     // -----------------------------------------------------------------------------------------------------------------
     // Calculate map of Jacobian determinants for qualitative assessment of volume changes and invertibility
-    def calcDetJac =
-      if (!keepOutJac) nop else {
-        registerImagesEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, tgtImPath, outDof, outJac, outJacPath)
-        // TODO: Compute statistics of Jacobian determinant and store these in CSV file
-      }
+    def evaluateJacobian = if (!keepOutJac) nop("CalcDetJac") else {
+      registerImagesEnd -- ComputeJacobian(reg, regId, parId, tgtId, srcId, tgtImPath, outDof, outJac, outJacPath)
+      // TODO: Compute statistics of Jacobian determinant and store these in CSV file
+    }
 
     // -----------------------------------------------------------------------------------------------------------------
     // Assemble complete registration evaluation workflow
-    backupTables + convertDofToAff + registerImages + deformImage + deformLabels + calcDetJac
+    backupTables + convertDofin + registerImages + evaluateSimilarity + evaluateOverlap + evaluateJacobian
   }
 }
