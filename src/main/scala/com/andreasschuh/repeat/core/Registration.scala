@@ -29,6 +29,9 @@ import FileUtil.{join, normalize}
  */
 object Registration {
 
+  /** Runtime measurements */
+  lazy val times = List("User", "System", "Total", "Real")
+
   /** Create info object for named registration */
   def apply(name: String) = new Registration(name)
 

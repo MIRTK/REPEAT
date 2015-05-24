@@ -57,9 +57,8 @@ object Evaluate {
     // Constants
     import Dataset.{imgDir => _, segDir => _, _}
     import Workspace.{imgDir, segDir, dofAff, dofPre, dofSuf, logDir, logSuf}
-
-    val labels = Overlap.labels.mkString(",")
-    val groups = Overlap.groups.mkString(",")
+    import Overlap.{labels, groups}
+    import Registration.times
 
     // Input/intermediate files
     val tgtImPath  = Paths.get(    imgDir.getAbsolutePath, imgPre + "${tgtId}"          +     imgSuf).toString
@@ -79,6 +78,7 @@ object Evaluate {
     val avgTimeCsvPath = Paths.get(reg.sumDir.getAbsolutePath, "Time.csv").toString
 
     val outSimCsvPath = Paths.get(reg.resDir.getAbsolutePath, "Similarity.csv").toString
+    val avgSimCsvPath = Paths.get(reg.sumDir.getAbsolutePath, "Similarity.csv").toString
 
     val dscRegAvgCsvName = Overlap.summary.replace("${measure}", "DSC")
     val dscValuesCsvPath = Paths.get(reg.resDir.getAbsolutePath, "DSC_Label.csv" ).toString
@@ -128,38 +128,23 @@ object Evaluate {
     val outSeg  = Val[Path]                // Deformed source segmentation
     val outJac  = Val[Path]                // Jacobian determinant map
     val outLog  = Val[Path]                // Registration command output log file
-    val simHdr  = Val[Array[String]]       // Names of similarity metrics to compute
-    val outSim  = Val[Map[String, Double]] // Intensity similarity of output image compared to target image
-
-    val outImModified  = Val[Boolean]      // Whether deformed source image was newly created
-    val outSegModified = Val[Boolean]      // Whether deformed source segmentation was newly created
 
     // Evaluation results
     val runTime = Val[Array[Double]]       // Runtime of registration command
     val avgTime = Val[Array[Double]]       // Mean runtime over all registrations for a given set of parameters
 
-    val runTimeValid = Val[Boolean]        // Whether runtime measurements read from previous results CSV are valid
-    val avgTimeValid = Val[Boolean]        // ...
+    val outSim = Val[Array[Double]]        // Intensity similarity of output image compared to target image
+    val avgSim = Val[Array[Double]]        // Average intensity similarity of output images
 
     val dscValues = Val[Array[Double]]     // Dice similarity coefficient (DSC) for each label and segmentation
     val dscGrpAvg = Val[Array[Double]]     // Mean DSC for each label group and segmentation
     val dscGrpStd = Val[Array[Double]]     // Standard deviation of DSC for each label group and segmentation
     val dscRegAvg = Val[Array[Double]]     // Average mean DSC for a given set of registration parameters
 
-    val dscValuesValid = Val[Boolean]      // Whether DSC values read from previous CSV are valid
-    val dscGrpAvgValid = Val[Boolean]      // ...
-    val dscGrpStdValid = Val[Boolean]      // ...
-    val dscRegAvgValid = Val[Boolean]      // ...
-
     val jsiValues = Val[Array[Double]]     // Jaccard similarity index (JSI) for each label and segmentation
     val jsiGrpAvg = Val[Array[Double]]     // Mean JSI for each label group and segmentation
     val jsiGrpStd = Val[Array[Double]]     // Standard deviation of JSI for each label group and segmentation
     val jsiRegAvg = Val[Array[Double]]     // Average mean JSI for a given set of registration parameters
-
-    val jsiValuesValid = Val[Boolean]      // Whether JSI values read from previous CSV are valid
-    val jsiGrpAvgValid = Val[Boolean]      // ...
-    val jsiGrpStdValid = Val[Boolean]      // ...
-    val jsiRegAvgValid = Val[Boolean]      // ...
 
     // -----------------------------------------------------------------------------------------------------------------
     // Samplings
@@ -300,40 +285,6 @@ object Evaluate {
           outputs += (regId, parId)
         )
 
-    // Finalize result table, appending non-overwritten previous results again and sorting the final table
-    def finalizeTable(path: String, enabled: Boolean) =
-      if (enabled)
-        ScalaTask(
-          s"""
-            | val from = new java.io.File(s"${backupTablePath(path)}")
-            | val to   = new java.io.File(s"$path")
-            | if (from.exists) {
-            |   val l1 = fromFile(from).getLines().toList
-            |   val l2 = if (to.exists) fromFile(to).getLines().toList.tail else List[String]()
-            |   val fw = new java.io.FileWriter(to)
-            |   try {
-            |     fw.write(l1.head + "\\n")
-            |     val l: List[String] = (l1.tail ::: l2).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
-            |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
-            |   }
-            |   finally fw.close()
-            |   java.nio.file.Files.delete(from.toPath)
-            |   println(s"$${DONE}Finalize $${to.getName} for $avgSet")
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-FinalizeTable",
-          imports += ("scala.io.Source.fromFile", "scala.collection.breakOut", "com.andreasschuh.repeat.core.Prefix.DONE"),
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := s"${reg.id}-KeepTable",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-
     // Initial conversion of affine input transformation
     val convertDofinBegin =
       Capsule(
@@ -369,137 +320,118 @@ object Evaluate {
         strainer = true
       )
 
-    // Read previous result from backup table to save recomputation if nothing changed
-    def readFromTable(path: String, p: Prototype[Array[Double]], isValid: Prototype[Boolean],
-                      n: Int = 0, invalid: Double = Double.NaN, enabled: Boolean = true) =
+    // Read previous result from backup table to save re-computation if nothing changed
+    def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
       Capsule(
         ScalaTask(
           s"""
-            | val ${p.name} =
-            |   if ($enabled)
+            | val enabled = $enabled
+            | val columns = Array[String](${if (columns.isEmpty) "" else "\"" + columns.mkString("\", \"") + "\""})
+            |
+            | val ${values.name} =
+            |   if (enabled)
             |     try {
-            |       val file  = new java.io.File(s"${backupTablePath(path)}")
-            |       val lines = fromFile(file).getLines().toList.view
-            |       val row   = lines.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
-            |       val ncols = ${n + 2}
-            |       if (ncols > 2 && row.size != ncols) throw new Exception(s"Expected $$ncols columns in CSV table $${file.getPath}")
-            |       row.drop(2).map(_.toDouble)
+            |       val file = new File(s"${backupTablePath(path)}")
+            |       val rows = fromFile(file).getLines().toList
+            |       if (!rows.head.startsWith("Target,Source,")) throw new Exception("Invalid table " + file.getPath)
+            |       val hdr = rows.head.split(",").zipWithIndex.toMap
+            |       val row = rows.tail.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
+            |       if (row.size != hdr.size) throw new Exception("Invalid table " + file.getPath)
+            |       val values = columns.map(name => row(hdr(name)).toDouble)
+            |       println(HAVE + s"${values.name.capitalize} for $regSet")
+            |       values
             |     }
             |     catch {
-            |       case _: Exception => Array.fill[Double]($n)($invalid)
+            |       case _: Exception => Array[Double]()
             |     }
             |   else Array[Double]()
-            |
-            | val ${isValid.name} = !${p.name}.isEmpty && !${p.name}.contains($invalid)
-            | if (${isValid.name}) println(s"$${HAVE}${p.name.capitalize} for $regSet")
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-Read${p.name.capitalize}",
-          imports += ("scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
+          """.
+            stripMargin
+        ) set (name    := s"${reg.id}-Read${values.name.capitalize}",
+          imports += ("java.io.File","scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
           inputs  += (regId, parId, tgtId, srcId),
-          outputs += (regId, parId, tgtId, srcId, p, isValid)
+          outputs += (regId, parId, tgtId, srcId, values)
         ),
         strainer = true
       )
 
-    def readMapFromTable(path: String, map: Prototype[Map[String, Double]], columns: Prototype[Array[String]], enabled: Array[String]) =
-      Capsule(
-        ScalaTask(
-          s"""
-            | val ${map.name} =
-            |   if (${columns.name}.nonEmpty)
-            |     try {
-            |       val file   = new java.io.File(s"${backupTablePath(path)}")
-            |       val lines  = fromFile(file).getLines().toList
-            |       val header = lines.head.split(",").zipWithIndex.toMap.filterKeys(${columns.name}.contains)
-            |       val values = lines.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
-            |       header.mapValues(values(_).toDouble)
-            |     }
-            |     catch {
-            |       case _: Exception => Map[String, Double]()
-            |     }
-            |   else Map[String, Double]()
-            |
-            | ${map.name}.foreach { case (name, _) => println(s"$${HAVE}$${name.capitalize} for $regSet") }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-Read${map.name.capitalize}",
-          imports += ("scala.io.Source.fromFile", "com.andreasschuh.repeat.core.Prefix.HAVE"),
-          inputs  += (regId, parId, tgtId, srcId, columns),
-          outputs += (regId, parId, tgtId, srcId, columns, map),
-          columns := enabled
-        ),
-        strainer = true
+    // Calculate mean of values over all registration results computed with a fixed set of parameters
+    def calcMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
+      ScalaTask(
+        s"""
+          | val regId = input.regId.head
+          | val parId = input.parId.head
+          | val ncols = ${result.name}.length
+          | val valid = ncols > 0 && !${result.name}.exists(_.isEmpty)
+          | val ${mean.name} = if (valid) ${result.name}.transpose.map(_.sum / ncols) else Array[Double]()
+        """.stripMargin
+      ) set (
+        name    := s"${reg.id}-Calc${mean.name.capitalize}",
+        inputs  += (regId.toArray, parId.toArray, result.toArray),
+        outputs += (regId, parId, mean)
       )
-
-    def saveMapToTable(path: String, map: Prototype[Map[String, Double]], columns: Prototype[Array[String]], enabled: Array[String]) =
-      if (enabled.isEmpty) nopCap("SaveMapToTable").toPuzzlePiece else {
-        val measures = Val[Array[Double]]
-        Capsule(
-          ScalaTask(
-            s"""
-               | val measures = ${columns.name}.map(${map.name}(_))
-               | println(s"$${SAVE}${map.name.capitalize} for $regSet")
-             """.stripMargin) set (
-            name    := s"${reg.id}-Save${map.name.capitalize}",
-            imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
-            inputs  += (regId, parId, tgtId, srcId, map, columns),
-            outputs += (regId, parId, tgtId, srcId, measures),
-            columns := enabled
-          )
-        ) hook (
-          AppendToCSVFileHook(path, tgtId, srcId, measures) set (
-            csvHeader := "Target,Source," + enabled.mkString(","),
-            singleRow := true
-          )
-        )
-      }
 
     // Write individual registration result to CSV table
-    def saveToTable(path: String, result: Prototype[Array[Double]], header: String) =
-      ScalaTask(s"""println(s"$${SAVE}${result.name.capitalize} for $regSet") """) set (
+    def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) =
+      ScalaTask(s"""println(SAVE + s"${result.name.capitalize} for $regSet") """) set (
         name    := s"${reg.id}-Save${result.name.capitalize}",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, tgtId, srcId, result),
         outputs += (regId, parId, tgtId, srcId, result)
       ) hook (
         AppendToCSVFileHook(path, tgtId, srcId, result) set (
-          csvHeader := "Target,Source," + header,
+          csvHeader := "Target,Source," + header.mkString(","),
           singleRow := true
         )
       )
 
-    // Calculate mean of values over all registration results computed with a fixed set of parameters
-    def calcMean(result: Prototype[Array[Double]], resultValid: Prototype[Boolean],
-                 mean:   Prototype[Array[Double]], meanValid:   Prototype[Boolean]) =
-      ScalaTask(
-        s"""
-          | val regId = input.regId.head
-          | val parId = input.parId.head
-          | val ${meanValid.name} = ${result.name}.size > 0 && !${resultValid.name}.contains(false)
-          | val ${mean.name} =
-          |   if (!${meanValid.name}) Double.NaN
-          |   else ${result.name}.transpose.map(_.sum / ${result.name}.size)
-        """.stripMargin
-      ) set (
-        name    := s"${reg.id}-Save${mean.name.capitalize}",
-        inputs  += (regId.toArray, parId.toArray, result.toArray, resultValid.toArray),
-        outputs += (regId, parId, mean, meanValid)
-      )
-
     // Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table
-    def saveToSummaryTable(path: String, mean: Prototype[Array[Double]], header: String) =
-      ScalaTask(s"""println(s"$${SAVE}${mean.name.capitalize} for $avgSet") """) set (
+    def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) =
+      ScalaTask(s"""println(SAVE + s"${mean.name.capitalize} for $avgSet") """) set (
         name    := s"${reg.id}-Save${mean.name.capitalize}",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, mean),
         outputs += (regId, parId, mean)
       ) hook (
         AppendToCSVFileHook(path, regId, parId, mean) set (
-          csvHeader := "Registration,Parameters," + header,
+          csvHeader := "Registration,Parameters," + header.mkString(","),
           singleRow := true
         )
       )
+
+    // Finalize result table, appending non-overwritten previous results again and sorting the final table
+    def finalizeTable(path: String, enabled: Boolean) =
+      if (enabled)
+        ScalaTask(
+          s"""
+            | val from = new java.io.File(s"${backupTablePath(path)}")
+            | val to   = new java.io.File(s"$path")
+            | if (from.exists) {
+            |   val l1 = fromFile(from).getLines().toList
+            |   val l2 = if (to.exists) fromFile(to).getLines().toList.tail else List[String]()
+            |   val fw = new java.io.FileWriter(to)
+            |   try {
+            |     fw.write(l1.head + "\\n")
+            |     val l: List[String] = (l1.tail ::: l2).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
+            |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
+            |   }
+            |   finally fw.close()
+            |   java.nio.file.Files.delete(from.toPath)
+            |   println(DONE + s"Finalize $${to.getName} for $avgSet")
+            | }
+          """.stripMargin
+        ) set (
+          name    := s"${reg.id}-FinalizeTable",
+          imports += ("scala.io.Source.fromFile", "scala.collection.breakOut", "com.andreasschuh.repeat.core.Prefix.DONE"),
+          inputs  += (regId, parId),
+          outputs += (regId, parId)
+        )
+      else
+        EmptyTask() set (
+          name    := s"${reg.id}-KeepTable",
+          inputs  += (regId, parId),
+          outputs += (regId, parId)
+        )
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables
@@ -563,33 +495,33 @@ object Evaluate {
             |   outJac.lastModified < tgtIm .lastModified &&
             |   outJac.lastModified < srcIm .lastModified
             |
-            | updateOutDof || (!outDof.exists && (updateOutIm || updateOutSeg || updateOutJac)) || ($timeEnabled && !runTimeValid)
+            | updateOutDof || (!outDof.exists && (updateOutIm || updateOutSeg || updateOutJac)) || ($timeEnabled && runTime.isEmpty)
           """.stripMargin
         )
-      def regImPair =
-        RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime, runTimeValid)
-      def runReg =
+      def runReg = {
+        val task = RegisterImages(reg, regId, parId, parVal, tgtId, srcId, tgtIm, srcIm, affDof, outDof, outLog, runTime)
         convertDofinEnd -- forEachPar -< putParId --
           Capsule(forEachImPair, strainer = true) -<
             registerImagesBegin --
-              readFromTable(runTimeCsvPath, runTime, runTimeValid, n = 4, invalid = .0, enabled = timeEnabled) --
+              readFromTable(runTimeCsvPath, times, runTime, enabled = timeEnabled) --
               Switch(
-                Case( regCond, Display.QSUB(s"Registration for $regSet") -- (regImPair on reg.runEnv) -- Display.DONE(s"Registration for $regSet")),
+                Case( regCond, Display.QSUB(s"Registration for $regSet") -- (task on reg.runEnv) -- Display.DONE(s"Registration for $regSet")),
                 Case(!regCond, Display.SKIP(s"Registration for $regSet"))
               ) --
             registerImagesEnd
+      }
       // Write runtime measurements
       def saveTime =
         registerImagesEnd -- Switch(
-          Case(  "runTimeValid", saveToTable(runTimeCsvPath, runTime, header = "User,System,Total,Real")),
-          Case(s"!runTimeValid && $timeEnabled", Display.WARN(s"Missing ${runTime.name.capitalize} for $regSet"))
+          Case( "runTime.nonEmpty",                saveToTable(runTimeCsvPath, times, runTime)),
+          Case(s"runTime.isEmpty && $timeEnabled", Display.WARN(s"Missing ${runTime.name.capitalize} for $regSet"))
         ) >- demux("SaveTimeDemux", regId, parId) -- finalizeTable(runTimeCsvPath, timeEnabled)
       // Write mean of runtime measurements
       def saveMeanTime =
         registerImagesEnd >-
-          calcMean(runTime, runTimeValid, avgTime, avgTimeValid) -- Switch(
-            Case(  "avgTimeValid", saveToSummaryTable(avgTimeCsvPath, avgTime, header = "User,System,Total,Real")),
-            Case(s"!avgTimeValid && $timeEnabled", Display.WARN(s"Invalid ${avgTime.name.capitalize} for $avgSet"))
+          calcMean(runTime, avgTime) -- Switch(
+            Case( "avgTime.nonEmpty",                saveToSummary(avgTimeCsvPath, times, avgTime)),
+            Case(s"avgTime.isEmpty && $timeEnabled", Display.WARN(s"Invalid ${avgTime.name.capitalize} for $avgSet"))
           )
       // Assemble sub-workflow
       runReg + saveTime + saveMeanTime
@@ -617,8 +549,8 @@ object Evaluate {
             outImChg := false
           )
         ) --
-        readMapFromTable(outSimCsvPath, outSim, simHdr, simEnabled)
-      val noPrevRes = Condition("simHdr.foldLeft(false)( (b, name) => b || !(outSim contains name) )")
+        readFromTable(outSimCsvPath, simEnabled, outSim)
+      val noPrevRes = Condition("outSim.isEmpty")
       // Transform and resample source image
       val warpSrcImEnd = end("WarpSrcImEnd")
       def warpSrcIm = {
@@ -680,14 +612,16 @@ object Evaluate {
             ScalaTask(
               s"""
                 | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-                | val outSim = IRTK.similarity(tgtIm.toFile, outIm.toFile).filterKeys(simHdr.contains)
+                | val hdr = Array[String](${if (simEnabled.isEmpty) "" else "\"" + simEnabled.mkString("\", \"") + "\""})
+                | val sim = IRTK.similarity(tgtIm.toFile, outIm.toFile)
+                | val outSim = hdr.map(sim(_))
               """.stripMargin
             ) set (
               name        := s"${reg.id}-EvalSim",
               imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Prefix}",
               usedClasses += (Config.getClass, IRTK.getClass, Prefix.getClass),
-              inputs      += (regId, parId, tgtId, srcId, tgtIm, outIm, simHdr),
-              outputs     += (regId, parId, tgtId, srcId, outSim, simHdr)
+              inputs      += (regId, parId, tgtId, srcId, tgtIm, outIm),
+              outputs     += (regId, parId, tgtId, srcId, outSim)
             )
           )
         warpSrcImEnd -- Switch(
@@ -697,14 +631,20 @@ object Evaluate {
       }
       // Save image similarity measures to CSV table
       def saveSim =
-        evalSimEnd -- saveMapToTable(outSimCsvPath, outSim, simHdr, simEnabled) >-
+        evalSimEnd -- saveToTable(outSimCsvPath, simEnabled, outSim) >-
           demux("SaveSimDemux", regId, parId) -- finalizeTable(outSimCsvPath, simEnabled.nonEmpty)
+      def saveMeanSim =
+        evalSimEnd >-
+          calcMean(outSim, avgSim) -- Switch(
+            Case( "avgSim.nonEmpty", saveToSummary(avgSimCsvPath, simEnabled, avgSim)),
+            Case(s"avgSim.isEmpty && ${simEnabled.nonEmpty}", Display.WARN(s"Invalid ${avgSim.name.capitalize} for $avgSet"))
+          )
       // TODO: Create PNG snapshot of side-by-side view of target and output image
       def snapComp = nop("SnapComp")
       // TODO: Create PNG snapshot of difference image
       def snapDiff = nop("SnapDiff")
       // Assemble sub-workflow
-      (init -- warpSrcIm) + evalSim + saveSim + snapComp + snapDiff
+      (init -- warpSrcIm) + (evalSim + saveSim + saveMeanSim) + (snapComp + snapDiff)
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -729,17 +669,17 @@ object Evaluate {
             outSegChg := false
           )
         ) --
-        readFromTable(dscValuesCsvPath, dscValues, dscValuesValid, enabled = dscEnabled) --
-        readFromTable(dscGrpAvgCsvPath, dscGrpAvg, dscGrpAvgValid, enabled = dscEnabled) --
-        readFromTable(dscGrpStdCsvPath, dscGrpStd, dscGrpStdValid, enabled = dscEnabled) --
-        readFromTable(jsiValuesCsvPath, jsiValues, jsiValuesValid, enabled = jsiEnabled) --
-        readFromTable(jsiGrpAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, enabled = jsiEnabled) --
-        readFromTable(jsiGrpStdCsvPath, jsiGrpStd, jsiGrpStdValid, enabled = jsiEnabled)
+        readFromTable(dscValuesCsvPath, labels, dscValues, enabled = dscEnabled) --
+        readFromTable(dscGrpAvgCsvPath, groups, dscGrpAvg, enabled = dscEnabled) --
+        readFromTable(dscGrpStdCsvPath, groups, dscGrpStd, enabled = dscEnabled) --
+        readFromTable(jsiValuesCsvPath, labels, jsiValues, enabled = jsiEnabled) --
+        readFromTable(jsiGrpAvgCsvPath, groups, jsiGrpAvg, enabled = jsiEnabled) --
+        readFromTable(jsiGrpStdCsvPath, groups, jsiGrpStd, enabled = jsiEnabled)
       val noPrevRes =
         Condition(
           s"""
-            | ($dscEnabled && (!dscValuesValid || !dscGrpAvgValid || !dscGrpStdValid)) ||
-            | ($jsiEnabled && (!jsiValuesValid || !jsiGrpAvgValid || !jsiGrpStdValid))
+            | ($dscEnabled && (dscValues.isEmpty || dscGrpAvg.isEmpty || dscGrpStd.isEmpty)) ||
+            | ($jsiEnabled && (jsiValues.isEmpty || jsiGrpAvg.isEmpty || jsiGrpStd.isEmpty))
           """.stripMargin
         )
       // Deform source segmentation
@@ -814,21 +754,13 @@ object Evaluate {
                 | val jsiValues = jsiMetric.toArray
                 | val jsiGrpAvg = jsiMetric.getMeanValues
                 | val jsiGrpStd = jsiMetric.getSigmaValues
-                |
-                | val dscValuesValid = $dscEnabled
-                | val dscGrpAvgValid = $dscEnabled
-                | val dscGrpStdValid = $dscEnabled
-                | val jsiValuesValid = $jsiEnabled
-                | val jsiGrpAvgValid = $jsiEnabled
-                | val jsiGrpStdValid = $jsiEnabled
               """.stripMargin
             ) set (
               name        := s"${reg.id}-EvaluateOverlap",
               imports     += "com.andreasschuh.repeat.core.{Config, IRTK, Overlap}",
               usedClasses += (Config.getClass, IRTK.getClass, Overlap.getClass),
               inputs      += (regId, parId, tgtId, srcId, tgtSeg, outSeg),
-              outputs     += (regId, parId, tgtId, srcId, dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd),
-              outputs     += (dscValuesValid, dscGrpAvgValid, dscGrpStdValid, jsiValuesValid, jsiGrpAvgValid, jsiGrpStdValid)
+              outputs     += (regId, parId, tgtId, srcId, dscValues, dscGrpAvg, dscGrpStd, jsiValues, jsiGrpAvg, jsiGrpStd)
             )
           )
         warpSrcSegEnd -- Switch(
@@ -836,30 +768,29 @@ object Evaluate {
           Case(!cond, Display.SKIP(what))
         ) -- evalOverlapEnd
       }
-      // Append overlap measures to CSV tables
+      // Save overlap measures to CSV tables
       def saveOverlap = {
-        def saveResult(path: String, p: Prototype[Array[Double]], header: String, enabled: Boolean) =
-          evalOverlapEnd -- (saveToTable(path, p, header) when Condition(s"${p.name}Valid")) >-
-            demux(s"Save${p.name.capitalize}Demux", regId, parId) -- finalizeTable(path, enabled)
-        saveResult(dscValuesCsvPath, dscValues, header = labels, enabled = dscEnabled) +
-        saveResult(dscGrpAvgCsvPath, dscGrpAvg, header = groups, enabled = dscEnabled) +
-        saveResult(dscGrpStdCsvPath, dscGrpStd, header = groups, enabled = dscEnabled) +
-        saveResult(jsiValuesCsvPath, jsiValues, header = labels, enabled = jsiEnabled) +
-        saveResult(jsiGrpAvgCsvPath, jsiGrpAvg, header = groups, enabled = jsiEnabled) +
-        saveResult(jsiGrpStdCsvPath, jsiGrpStd, header = groups, enabled = jsiEnabled)
+        def saveResult(path: String, header: Seq[_], result: Prototype[Array[Double]], enabled: Boolean) =
+          evalOverlapEnd -- (saveToTable(path, header, result) when Condition(s"${result.name}.nonEmpty")) >-
+            demux(s"Save${result.name.capitalize}Demux", regId, parId) -- finalizeTable(path, enabled)
+        saveResult(dscValuesCsvPath, labels, dscValues, enabled = dscEnabled) +
+        saveResult(dscGrpAvgCsvPath, groups, dscGrpAvg, enabled = dscEnabled) +
+        saveResult(dscGrpStdCsvPath, groups, dscGrpStd, enabled = dscEnabled) +
+        saveResult(jsiValuesCsvPath, labels, jsiValues, enabled = jsiEnabled) +
+        saveResult(jsiGrpAvgCsvPath, groups, jsiGrpAvg, enabled = jsiEnabled) +
+        saveResult(jsiGrpStdCsvPath, groups, jsiGrpStd, enabled = jsiEnabled)
       }
-      // Append mean of overlap measures to summary CSV tables
       def saveMeanOverlap = {
-        def saveMean(path: String, result: Prototype[Array[Double]], resultValid: Prototype[Boolean],
-                               mean:   Prototype[Array[Double]], meanValid:   Prototype[Boolean], enabled: Boolean) =
-          evalOverlapEnd >- calcMean(result, resultValid, mean, meanValid) -- Switch(
-            Case(s" ${meanValid.name}", saveToSummaryTable(path, mean, header = groups)),
-            Case(s"!${meanValid.name} && $enabled", Display.WARN(s"Invalid ${mean.name.capitalize} for $avgSet"))
+        def saveMean(path: String, result: Prototype[Array[Double]], mean: Prototype[Array[Double]], enabled: Boolean) =
+          evalOverlapEnd >- calcMean(result, mean) -- Switch(
+            Case(s"${mean.name}.nonEmpty",            saveToSummary(path, groups, mean)),
+            Case(s"${mean.name}.isEmpty && $enabled", Display.WARN(s"Invalid ${mean.name.capitalize} for $avgSet"))
           )
-        saveMean(dscRegAvgCsvPath, dscGrpAvg, dscGrpAvgValid, dscRegAvg, dscRegAvgValid, enabled = dscEnabled) +
-        saveMean(jsiRegAvgCsvPath, jsiGrpAvg, jsiGrpAvgValid, jsiRegAvg, jsiRegAvgValid, enabled = jsiEnabled)
+        saveMean(dscRegAvgCsvPath, dscGrpAvg, dscRegAvg, enabled = dscEnabled) +
+        saveMean(jsiRegAvgCsvPath, jsiGrpAvg, jsiRegAvg, enabled = jsiEnabled)
       }
       // TODO: Create PNG snapshots of segmentation overlay on top of target image for visual assessment
+      //       for registration result with worst, best, and average mean overlap (i.e., Dice coefficient)
       // Assemble sub-workflow
       (init -- warpSrcSeg) + (evalOverlap + saveOverlap + saveMeanOverlap)
     }

@@ -55,7 +55,7 @@ object RegisterImages {
   def apply(reg: Registration, regId: Prototype[String], parId: Prototype[String], parVal: Prototype[Map[String, String]],
             tgtId: Prototype[Int], srcId: Prototype[Int], tgtImPath: Prototype[Path], srcImPath: Prototype[Path],
             affDofPath: Prototype[Path], outDofPath: Prototype[Path], outLogPath: Prototype[Path],
-            runTime: Prototype[Array[Double]], runTimeValid: Prototype[Boolean]) = {
+            runTime: Prototype[Array[Double]]) = {
 
     val template = Val[Cmd]
     val phi2dof  = Val[Cmd]
@@ -100,8 +100,7 @@ object RegisterImages {
         | log.out(str)
         | val ret = cmd ! log
         | if (ret != 0) throw new Exception("Registration returned non-zero exit code: " + str)
-        | val ${runTime.name} = log.time
-        | val ${runTimeValid.name} = (log.time.sum > .0)
+        | val ${runTime.name} = if (log.time.sum > .0) log.time else Array[Double]()
         |
         | if (phi2dof.size > 0) {
         |   val args = Map(
@@ -127,7 +126,7 @@ object RegisterImages {
       imports     += ("com.andreasschuh.repeat.core._", "scala.sys.process._", "java.io.{File, FileWriter}", "java.nio.file.{Paths, Files}"),
       usedClasses += (Config.getClass, Registration.getClass, classOf[TaskLogger]),
       inputs      += (regId, parId, parVal, tgtId, srcId, tgtImPath, srcImPath, affDofPath, outDofPath, outLogPath, template, phi2dof),
-      outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime, runTimeValid),
+      outputs     += (regId, parId, tgtId, srcId, outDofPath, outLogPath, runTime),
       template    := reg.runCmd,
       phi2dof     := phi2dofCmd
     )
