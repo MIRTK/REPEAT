@@ -31,7 +31,7 @@ package object core {
 
   /** Construct command name and arguments sequence */
   object Cmd {
-    def apply(name: String, args: String*): Cmd = Seq(name) ++ args.toSeq
+    def apply(argv: String*): Cmd = argv.toSeq
   }
 
   /** Replace occurrences of ${name} in s by v("name") */
