@@ -62,7 +62,7 @@ object Overlap extends Configurable("evaluation.overlap") {
   /**
    * Names of label groups for which the overlap measures are computed
    */
-  val groups = getStringListProperty("labels")
+  val groups = getStringListProperty("groups")
 
   /**
    * Union of all label numbers comprising the label groups for which the overlap is computed
@@ -77,9 +77,6 @@ object Overlap extends Configurable("evaluation.overlap") {
 
   /** Set of overlap measures to calculate */
   val measures = getStringListProperty("measure").map(s => measureFromString(s)).toSet
-
-  /** Name of CSV file for mean overlap evaluation results */
-  val summary = getStringProperty("summary")
 
   /**
    * Compute overlap measures for each label
@@ -142,7 +139,7 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
   lazy val mean: Map[String, Double] = Overlap.groups.map {
     group => {
       var mean   = .0
-      val labels = if (group.toLowerCase == "all") Overlap.labels else Segmentation.groupLabels(group)
+      val labels = if (group.toLowerCase == "all" || group.toLowerCase == "overall") Overlap.labels else Segmentation.groupLabels(group)
       labels.foreach( label => mean += stats(label)(which) )
       if (labels.size > 0) mean /= labels.size
       group -> mean
@@ -156,7 +153,7 @@ class Overlap(stats: Map[Int, Array[Double]], which: Overlap.Measure = Overlap.D
   lazy val sigma: Map[String, Double] = Overlap.groups.map {
     group => {
       var mean2  = .0
-      val labels = if (group.toLowerCase == "all") Overlap.labels else Segmentation.groupLabels(group)
+      val labels = if (group.toLowerCase == "all" || group.toLowerCase == "overall") Overlap.labels else Segmentation.groupLabels(group)
       labels.foreach( label => mean2 += math.pow(stats(label)(which), 2))
       if (labels.size > 0) mean2 /= labels.size
       group -> math.sqrt(mean2 - math.pow(mean(group), 2))

@@ -72,6 +72,9 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** Directory of propagated label images */
   val segDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.labels")))
 
+  /** Directory of Jacobian determinant maps */
+  val jacDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.jacobians")))
+
   /** Directory of evaluation results */
   val resDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.results")))
 

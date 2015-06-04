@@ -251,4 +251,28 @@ object IRTK extends Configurable("irtk") {
     })
     label2stats.toMap
   }
+
+  /**
+   * Compute statistics of image intensity distribution
+   * @param image  Image file path.
+   * @param which  Names of image statistics to compute.
+   * @param log    Whether to compute statistics of log values.
+   * @param digits Number of significant digits.
+   */
+  def stats(image: File, which: Seq[String] = Seq("Mean", "SD", "Extrema"), log: Boolean = false, digits: Int = 6) = {
+    val ops  = if (log) Cmd("-log", ".01") else Cmd()
+    val args = ops ++ which.flatMap(name => name.toLowerCase match {
+      case r"([0-9]+)${p}(st|nd|rd|th)${_}%"            => Cmd("-pct", p)
+      case r"mean <([0-9]+)${p}(st|nd|rd|th)${_}%"      => Cmd("-lpctavg", p)
+      case r"0th-([0-9]+)${p}(st|nd|rd|th)${_}% mean"   => Cmd("-lpctavg", p)
+      case r"mean >([0-9]+)${p}(st|nd|rd|th)${_}%"      => Cmd("-upctavg", p)
+      case r"([0-9]+)${p}(st|nd|rd|th)${_}-100th% mean" => Cmd("-upctavg", p)
+      case n => Cmd("-" + n.replace(" ", "-"))
+    })
+    val cmd = Cmd(binPath("calculate"), image.getAbsolutePath, "-d", ",", "-header", "-precision", digits.toString) ++ args
+    val out = cmd.lineStream.toList
+    val hdr = out.head.split(",")
+    out.tail.head.split(',').zipWithIndex.map( entry => hdr(entry._2) -> entry._1.toDouble ).toMap
+  }
+
 }
