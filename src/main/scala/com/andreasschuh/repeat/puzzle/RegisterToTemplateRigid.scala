@@ -46,7 +46,7 @@ object RegisterToTemplateRigid {
    */
   def apply(refIm: Prototype[File], srcId: Prototype[Int], srcIm: Prototype[File], dof: Prototype[File]) = {
 
-    import Dataset.{refId, refSuf, imgPre, imgSuf, bgVal}
+    import Dataset.{refId, refExt, imgPre, imgSuf, bgVal}
     import Workspace.{dofPre, dofSuf, dofRig, logDir, logSuf}
     import FileUtil.join
 
@@ -75,7 +75,7 @@ object RegisterToTemplateRigid {
         imports     += "com.andreasschuh.repeat.core.{Config, IRTK}",
         usedClasses += (Config.getClass, IRTK.getClass),
         inputs      += srcId,
-        inputFiles  += (refIm, refId + refSuf, link = Workspace.shared),
+        inputFiles  += (refIm, refId + refExt, link = Workspace.shared),
         inputFiles  += (srcIm, imgPre + "${srcId}" + imgSuf, link = Workspace.shared),
         outputs     += (refIm, srcId, srcIm, dof, log)
       ) hook (

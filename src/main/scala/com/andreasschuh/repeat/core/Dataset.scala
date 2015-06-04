@@ -72,7 +72,7 @@ object Dataset extends Configurable("dataset") {
   val refName = refIm.getName
 
   /** File name extension of template image */
-  val refSuf = FileUtil.getExtension(refIm)
+  val refExt = FileUtil.getExtension(refIm)
 
   /** Background intensity */
   val bgVal = getIntProperty("images.bgvalue")
