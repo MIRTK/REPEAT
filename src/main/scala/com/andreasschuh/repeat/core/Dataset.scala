@@ -47,6 +47,9 @@ object Dataset extends Configurable("dataset") {
   /** Image file name suffix (after subject ID) */
   val imgSuf = getStringProperty("images.suffix")
 
+  /** Image file name extension */
+  val imgExt = FileUtil.getExtension("id" + imgSuf)
+
   /** CSV file listing segmentation label numbers and names */
   val segCsv = normalize(join(dir, getStringProperty("labels.csv")))
 
@@ -58,6 +61,9 @@ object Dataset extends Configurable("dataset") {
 
   /** Segmentation image file name suffix (after subject ID) */
   val segSuf = getStringProperty("labels.suffix")
+
+  /** Segmentation image file name extension */
+  val segExt = FileUtil.getExtension("id" + segSuf)
 
   /** ID of template image */
   val refId  = getStringProperty("template.id")
