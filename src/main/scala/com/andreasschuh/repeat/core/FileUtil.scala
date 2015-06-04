@@ -54,10 +54,13 @@ object FileUtil {
   }
 
   /** Get file name extension */
-  def getExtension(f: File) = f.getName.indexOf('.', 1) match {
-    case i if i > 0 => f.getName.substring(i)
+  def getExtension(name: String): String = name.indexOf('.', 1) match {
+    case i if i > 0 => name.substring(i)
     case _ => ""
   }
+
+  /** Get file name extension */
+  def getExtension(f: File): String = getExtension(f.getName)
 
   /** Backup file if it exists */
   def backup(f: File, rm: Boolean = false): Option[File] = {
