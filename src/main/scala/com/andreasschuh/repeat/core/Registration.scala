@@ -120,6 +120,12 @@ class Registration(val id: String) extends Configurable("registration." + id) {
     case None => IRTK.deformLabelsCmd
   }
 
+  /** Command used to deform a vtkPointSet, i.e., vtkPolyData */
+  val deformPointsCmd = getCmdOptionProperty("apply-vtk") match {
+    case Some(command) => command
+    case None => IRTK.deformPointsCmd
+  }
+
   /** Command used to compute Jacobian determinant map */
   val jacCmd = getCmdOptionProperty("jacobian") match {
     case Some(command) => command

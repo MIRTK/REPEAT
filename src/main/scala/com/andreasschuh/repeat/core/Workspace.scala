@@ -64,12 +64,14 @@ object Workspace extends Configurable("workspace") {
   /** Local path of input template image */
   val refIm  = join(refDir, Dataset.refIm.getName)
 
-  val dofDir = normalize(join(dir,    getStringProperty("dofs.dir")))
-  val dofRig = normalize(join(dofDir, getStringProperty("dofs.rigid")))
-  val dofIni = normalize(join(dofDir, getStringProperty("dofs.initial")))
-  val dofAff = normalize(join(dofDir, getStringProperty("dofs.affine")))
+  val dofDir = normalize(join(dir, getStringProperty("dofs.dir")))
+  val dofRig = normalize(join(dir, getStringProperty("dofs.rigid")))
+  val dofIni = normalize(join(dir, getStringProperty("dofs.initial")))
+  val dofAff = normalize(join(dir, getStringProperty("dofs.affine")))
   val dofPre = getStringProperty("dofs.prefix")
   val dofSuf = getStringProperty("dofs.suffix")
+  val ptsDir = normalize(join(dir, getStringProperty("points.dir")))
+  val ptsSuf = ".vtp"
   val logDir = normalize(join(dir, getStringProperty("logs.dir")))
   val logSuf = getStringProperty("logs.suffix")
 }

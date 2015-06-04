@@ -68,6 +68,9 @@ object IRTK extends Configurable("irtk") {
   /** Default command to use for deforming segmentation images */
   val deformLabelsCmd = getCmdProperty("apply-nn")
 
+  /** Default command to use for deforming VTK point sets */
+  val deformPointsCmd = getCmdProperty("apply-vtk")
+
   /** Default command to use for computing Jacobian determinant map */
   val jacCmd = getCmdProperty("jacobian")
 

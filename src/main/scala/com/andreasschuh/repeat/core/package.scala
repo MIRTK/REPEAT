@@ -42,4 +42,12 @@ package object core {
 
   /** Replace occurrences of ${name} in s by v("name") */
   def interpolate(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => interpolate(s, v))
+
+  /** Substitute placeholder arguments by args("name") */
+  def command(template: Cmd, args: Map[String, String]) = interpolate(template, args)
+
+  /** For use of regular expressions in match cases */
+  implicit class Regex(sc: StringContext) {
+    def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
+  }
 }
