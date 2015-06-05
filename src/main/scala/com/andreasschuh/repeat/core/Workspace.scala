@@ -41,25 +41,17 @@ object Workspace extends Configurable("workspace") {
   /** Shared directory used by OpenMOLE for cluster environments */
   val comDir = if (shared) Some(join(dir, hidden("openmole")).getPath) else None
 
-  /** Whether dataset files have to be copied to workspace */
-  def copyDataset = shared && !Dataset.shared && Bin.shared
-
   /** Local directory containing input images of dataset */
-  val imgDir = if (copyDataset) {
-    normalize(join(dir, getStringProperty("images.dir")))
-  } else {
-    Dataset.imgDir
-  }
+  val imgDir = normalize(join(dir, getStringProperty("images.dir")))
 
   /** Local directory containing input label images of dataset */
-  val segDir = if (copyDataset) {
-    normalize(join(dir, getStringProperty("labels.dir")))
-  } else {
-    Dataset.segDir
-  }
+  val segDir = normalize(join(dir, getStringProperty("labels.dir")))
+
+  /** Local directory containing either input or generated mask images */
+  val mskDir = normalize(join(dir, getStringProperty("masks.dir")))
 
   /** Local directory containing input template image */
-  val refDir = if (copyDataset) imgDir else Dataset.refIm.getParentFile
+  val refDir = imgDir
 
   /** Local path of input template image */
   val refIm  = join(refDir, Dataset.refIm.getName)

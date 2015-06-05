@@ -65,6 +65,18 @@ object Dataset extends Configurable("dataset") {
   /** Segmentation image file name extension */
   val segExt = FileUtil.getExtension("id" + segSuf)
 
+  /** Directory containing foreground masks */
+  val mskDir = normalize(join(dir, getStringProperty("masks.dir")))
+
+  /** Mask file name prefix (before subject ID) */
+  val mskPre = getStringProperty("masks.prefix")
+
+  /** Mask file name suffix (after subject ID) */
+  val mskSuf = getStringProperty("masks.suffix")
+
+  /** Mask file name extension */
+  val mskExt = FileUtil.getExtension("id" + mskSuf)
+
   /** ID of template image */
   val refId  = getStringProperty("template.id")
 

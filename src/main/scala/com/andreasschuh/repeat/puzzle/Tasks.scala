@@ -23,6 +23,8 @@ package com.andreasschuh.repeat.puzzle
 
 import java.io.File
 import java.nio.file.{Path, Paths}
+import com.andreasschuh.repeat.puzzle.Variables._
+
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
@@ -43,6 +45,16 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
  * Tasks factory
  */
 object Tasks {
+
+  /** Default capsule at start of workflow puzzle without parent dependencies */
+  def start =
+    Capsule(
+      EmptyTask() set (
+        outputs += go,
+        go      := true
+      )
+    )
+
   def apply(reg: Registration, puzzleName: String = "UnknownPuzzle") = new Tasks(reg, puzzleName)
 }
 
@@ -60,15 +72,6 @@ class Tasks(reg: Registration, puzzleName: String) {
   lazy val regInfo = s"{regId=$${${regId.name}}}"
   lazy val regAndParInfo = s"{regId=$${${regId.name}}, parId=$${${parId.name}}}"
   lazy val regParTgtAndSrcInfo = s"{regId=$${${regId.name}}, parId=$${${parId.name}}, tgtId=$${${tgtId.name}}, srcId=$${${srcId.name}}}"
-
-  /** Default capsule at start of workflow puzzle without parent dependencies */
-  def start =
-    Capsule(
-      EmptyTask() set (
-        outputs += go,
-        go      := true
-      )
-    )
 
   /** Demux aggregated results by taking head element only */
   def getHead(taskName: String, input: Prototype[_]*) = {
