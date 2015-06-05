@@ -31,7 +31,13 @@ import scala.sys.process.ProcessLogger
  */
 class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessLogger {
 
-  var t = Array.fill(3)(.0)
+  private var t = Array.fill(3)(.0)
+
+  /** Reset time measurements */
+  def resetTime(): Unit = t = Array.fill(3)(0)
+
+  /** Whether any time measurements were recorded */
+  def hasTime: Boolean = t.sum != 0
 
   /** Get runtime measurements in seconds: user, system, total, real */
   def time = Array(t(0), t(1), (100.0 * (t(0) + t(1))).toInt.toDouble / 100.0, t(2))
