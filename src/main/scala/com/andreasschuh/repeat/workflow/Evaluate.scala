@@ -256,233 +256,29 @@ object Evaluate {
         strainer = true
       )
 
+    // Task factory
+    val tasks = Tasks(reg, puzzleName = "Evaluate")
+
     // Delete table with summary results which can be recomputed from individual result tables
-    def deleteTable(path: String, enabled: Boolean) =
-      if (enabled)
-        ScalaTask(
-          s"""
-            | val table = Paths.get(s"$path")
-            | if (Files.exists(table)) {
-            |   Files.delete(table)
-            |   println(s"$${DONE}Delete $${table.getFileName} for {regId=$${regId}}")
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-DeleteTable",
-          imports += ("java.nio.file.{Paths, Files}", "com.andreasschuh.repeat.core.Prefix.DONE"),
-          inputs  += regId,
-          outputs += regId
-        )
-      else
-        EmptyTask() set (
-          name    := s"${reg.id}-KeepTable",
-          inputs  += regId,
-          outputs += regId
-        )
-
+    def deleteTable(path: String, enabled: Boolean) = tasks.deleteTable(path, enabled)
     // Make copy of previous result tables and merge them with previously copied results to ensure none are lost
-    def backupTablePath(path: String) = {
-      val p = Paths.get(path)
-      p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
-    }
-
-    def backupTable(path: String, enabled: Boolean) =
-      if (enabled)
-        ScalaTask(
-          s"""
-            | val from = new java.io.File(s"$path")
-            | val to   = new java.io.File(s"${backupTablePath(path)}")
-            | if (from.exists) {
-            |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
-            |   val l2 = fromFile(from).getLines().toList
-            |   val fw = new java.io.FileWriter(to)
-            |   try {
-            |     fw.write(l2.head + "\\n")
-            |     val l: List[String] = (l1 ::: l2.tail).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
-            |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
-            |   }
-            |   finally fw.close()
-            |   java.nio.file.Files.delete(from.toPath)
-            |   println(s"$${DONE}Backup $${from.getName} for $avgSet")
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-BackupTable",
-          imports += ("com.andreasschuh.repeat.core.Prefix.DONE", "scala.io.Source.fromFile", "scala.collection.breakOut"),
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := s"${reg.id}-KeepTable",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-
+    def backupTable(path: String, enabled: Boolean) = tasks.backupTable(path, enabled)
     // Read previous result from backup table to save re-computation if nothing changed
     def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
-      Capsule(
-        ScalaTask(
-          s"""
-            | val enabled = $enabled
-            | val columns = Array[String](${if (columns.isEmpty) "" else "\"" + columns.mkString("\", \"") + "\""})
-            |
-            | val ${values.name} =
-            |   if (enabled)
-            |     try {
-            |       val file = new File(s"${backupTablePath(path)}")
-            |       val rows = fromFile(file).getLines().toList
-            |       if (!rows.head.startsWith("Target,Source,")) throw new Exception("Invalid table " + file.getPath)
-            |       val hdr = rows.head.split(",").zipWithIndex.toMap
-            |       val row = rows.tail.view.filter(_.startsWith(s"$$tgtId,$$srcId,")).last.split(",")
-            |       if (row.size != hdr.size) throw new Exception("Invalid table " + file.getPath)
-            |       val values = columns.map(name => row(hdr(name)).toDouble)
-            |       println(HAVE + s"${values.name.capitalize} for $regSet")
-            |       values
-            |     }
-            |     catch {
-            |       case _: Exception => Array[Double]()
-            |     }
-            |   else Array[Double]()
-          """.
-            stripMargin
-        ) set (name    := s"${reg.id}-Read${values.name.capitalize}",
-          imports += ("java.io.File","scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
-          inputs  += (regId, parId, tgtId, srcId),
-          outputs += (regId, parId, tgtId, srcId, values)
-        ),
-        strainer = true
-      )
-
+      tasks.readFromTable(path, columns, values, enabled)
     // Calculate mean of values over all registration results computed with a fixed set of parameters
-    def calcMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
-      ScalaTask(
-        s"""
-          | val regId = input.regId.head
-          | val parId = input.parId.head
-          | val ncols = ${result.name}.length
-          | val valid = ncols > 0 && !${result.name}.exists(_.isEmpty)
-          | val ${mean.name} = if (valid) ${result.name}.transpose.map(_.sum / ncols) else Array[Double]()
-        """.stripMargin
-      ) set (
-        name    := s"${reg.id}-Calc${mean.name.capitalize}",
-        inputs  += (regId.toArray, parId.toArray, result.toArray),
-        outputs += (regId, parId, mean)
-      )
-
+    def calcMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) = tasks.getMean(result, mean)
     // Calculate standard deviation of values over all registration results computed with a fixed set of parameters
-    def calcSDev(result: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
-      ScalaTask(
-        s"""
-          | val regId = input.regId.head
-          | val parId = input.parId.head
-          | val ncols = ${result.name}.length
-          | val valid = ncols > 0 && !${result.name}.exists(_.isEmpty)
-          | val ${sigma.name} =
-          |   if (valid) {
-          |     val mean  = ${result.name}.transpose.map(_.sum / ncols)
-          |     val mean2 = ${result.name}.transpose.map(_.map(pow(_, 2)).sum / ncols)
-          |     mean2.zipWithIndex.map {
-          |       case (m2, i) =>
-          |         val variance = m2 - pow(mean(i), 2)
-          |         if (variance > .0) sqrt(variance) else .0
-          |     }
-          |   }
-          |   else Array[Double]()
-        """.stripMargin
-      ) set (
-        name    := s"${reg.id}-Calc${sigma.name.capitalize}",
-        imports += "scala.math.{pow, sqrt}",
-        inputs  += (regId.toArray, parId.toArray, result.toArray),
-        outputs += (regId, parId, sigma)
-      )
-
+    def calcSDev(result: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) = tasks.getSD(result, sigma)
     // Calculate mean and standard deviation of values over all registration results computed with a fixed set of parameters
     def calcMeanAndSDev(result: Prototype[Array[Double]], mean: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
-      ScalaTask(
-        s"""
-          | val regId = input.regId.head
-          | val parId = input.parId.head
-          | val ncols = ${result.name}.length
-          | val valid = ncols > 0 && !${result.name}.exists(_.isEmpty)
-          | val ${mean.name} = if (valid) ${result.name}.transpose.map(_.sum / ncols) else Array[Double]()
-          | val ${sigma.name} =
-          |   if (valid) {
-          |     ${result.name}.transpose.map(_.map(pow(_, 2)).sum / ncols).map(_.zipWithIndex.map {
-          |       case (mean2, i) =>
-          |         val variance = mean2 - pow(mean(i), 2)
-          |         if (variance > 0) sqrt(variance) else .0
-          |     })
-          |   else Array[Double]()
-        """.stripMargin
-      ) set (
-        name    := s"${reg.id}-Calc${mean.name.capitalize}And${sigma.name.capitalize}",
-        imports += "scala.math.{pow, sqrt}",
-        inputs  += (regId.toArray, parId.toArray, result.toArray),
-        outputs += (regId, parId, mean, sigma)
-      )
-
+      tasks.getMeanAndSD(result, mean, sigma)
     // Write individual registration result to CSV table
-    def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) =
-      ScalaTask(s"""println(SAVE + s"${result.name.capitalize} for $regSet") """) set (
-        name    := s"${reg.id}-Save${result.name.capitalize}",
-        imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
-        inputs  += (regId, parId, tgtId, srcId, result),
-        outputs += (regId, parId, tgtId, srcId, result)
-      ) hook (
-        AppendToCSVFileHook(path, tgtId, srcId, result) set (
-          csvHeader := "Target,Source," + header.mkString(","),
-          singleRow := true
-        )
-      )
-
+    def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) = tasks.saveToTable(path, header, result)
     // Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table
-    def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) =
-      ScalaTask(s"""println(SAVE + s"${mean.name.capitalize} for $avgSet") """) set (
-        name    := s"${reg.id}-Save${mean.name.capitalize}",
-        imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
-        inputs  += (regId, parId, mean),
-        outputs += (regId, parId, mean)
-      ) hook (
-        AppendToCSVFileHook(path, regId, parId, mean) set (
-          csvHeader := "Registration,Parameters," + header.mkString(","),
-          singleRow := true
-        )
-      )
-
+    def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) = tasks.saveToSummary(path, header, mean)
     // Finalize result table, appending non-overwritten previous results again and sorting the final table
-    def finalizeTable(path: String, enabled: Boolean) =
-      if (enabled)
-        ScalaTask(
-          s"""
-            | val from = new java.io.File(s"${backupTablePath(path)}")
-            | val to   = new java.io.File(s"$path")
-            | if (from.exists) {
-            |   val l1 = fromFile(from).getLines().toList
-            |   val l2 = if (to.exists) fromFile(to).getLines().toList.tail else List[String]()
-            |   val fw = new java.io.FileWriter(to)
-            |   try {
-            |     fw.write(l1.head + "\\n")
-            |     val l: List[String] = (l1.tail ::: l2).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
-            |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
-            |   }
-            |   finally fw.close()
-            |   java.nio.file.Files.delete(from.toPath)
-            |   println(DONE + s"Finalize $${to.getName} for $avgSet")
-            | }
-          """.stripMargin
-        ) set (
-          name    := s"${reg.id}-FinalizeTable",
-          imports += ("scala.io.Source.fromFile", "scala.collection.breakOut", "com.andreasschuh.repeat.core.Prefix.DONE"),
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := s"${reg.id}-KeepTable",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
+    def finalizeTable(path: String, enabled: Boolean = true) = tasks.finalizeTable(path, enabled)
 
     // -----------------------------------------------------------------------------------------------------------------
     // Backup previous result tables

@@ -53,6 +53,9 @@ object FileUtil {
     }
   }
 
+  /** Get file name */
+  def getName(path: String) = new File(path).getName
+
   /** Get file name extension */
   def getExtension(name: String): String = name.indexOf('.', 1) match {
     case i if i > 0 => name.substring(i)
