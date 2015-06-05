@@ -31,7 +31,15 @@ package object core {
 
   /** Construct command name and arguments sequence */
   object Cmd {
+
+    /** Construct command arguments from strings */
     def apply(argv: String*): Cmd = argv.toSeq
+
+    /** Substitute placeholder arguments by args("name") */
+    def apply(template: Cmd, args: Map[String, String]): Cmd = interpolate(template, args)
+
+    /** Make properly quoted string from command arguments */
+    def toString(cmd: Cmd) = cmd.mkString("\"", "\" \"", "\"")
   }
 
   /** Replace occurrences of ${name} in s by v("name") */
@@ -42,9 +50,6 @@ package object core {
 
   /** Replace occurrences of ${name} in s by v("name") */
   def interpolate(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => interpolate(s, v))
-
-  /** Substitute placeholder arguments by args("name") */
-  def command(template: Cmd, args: Map[String, String]) = interpolate(template, args)
 
   /** For use of regular expressions in match cases */
   implicit class Regex(sc: StringContext) {
