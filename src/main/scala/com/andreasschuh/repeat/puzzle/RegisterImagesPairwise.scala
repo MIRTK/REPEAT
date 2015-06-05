@@ -42,7 +42,7 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 /**
  * Workflow puzzle for pairwise registration of dataset images
  */
-object PairwiseRegistration {
+object RegisterImagesPairwise {
 
   /** Whether to save runtime of registrations */
   val saveTimes = true
@@ -54,7 +54,7 @@ object PairwiseRegistration {
   val saveLogs = true
 
   /** Get workflow puzzle for pairwise registration of dataset images using the specified registration */
-  def apply(reg: Registration) = new PairwiseRegistration(reg)
+  def apply(reg: Registration) = new RegisterImagesPairwise(reg)
 }
 
 /**
@@ -62,15 +62,15 @@ object PairwiseRegistration {
  *
  * @param reg Registration to use.
  */
-class PairwiseRegistration(reg: Registration) {
+class RegisterImagesPairwise(reg: Registration) {
 
   import Dataset.{imgCsv, imgPre, imgSuf, imgExt}
   import Workspace.{imgDir, dofAff, dofPre, dofSuf, logSuf}
-  import PairwiseRegistration.{saveTimes, saveDofs, saveLogs}
+  import RegisterImagesPairwise.{saveTimes, saveDofs, saveLogs}
   import Variables.{go, regId, parId, parIdx, parVal, tgtId, srcId}
 
   // Auxiliary functions and common task generators
-  private val tasks = Tasks(reg, puzzleName = "PairwiseRegistration")
+  private val tasks = Tasks(reg, puzzleName = "RegisterImagesPairwise")
 
   val tgtImgPath = Val[Path]
   val tgtImgFile = Val[File]
@@ -93,7 +93,7 @@ class PairwiseRegistration(reg: Registration) {
     val paramSampling = CSVToMapSampling(reg.parCsv, parVal)
     Capsule(
       ExplorationTask(paramSampling zipWithIndex parIdx) set (
-        name    := s"PairwiseRegistration(${reg.id}).forEachPar",
+        name    := s"RegisterImagesPairwise(${reg.id}).forEachPar",
         inputs  += regId,
         outputs += regId
       )
@@ -108,7 +108,7 @@ class PairwiseRegistration(reg: Registration) {
     srcIdSampling.addColumn("Image ID", srcId)
     Capsule(
       ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId != srcId") set (
-        name    := s"PairwiseRegistration(${reg.id}).forEachPair",
+        name    := s"RegisterImagesPairwise(${reg.id}).forEachPair",
         inputs  += (regId, parId, parVal),
         outputs += (regId, parId, parVal)
       )
@@ -127,7 +127,7 @@ class PairwiseRegistration(reg: Registration) {
           | val outLogPath = Paths.get(s"${reg.logDir}", tgtId + "," + srcId + "$logSuf")
         """.stripMargin
       ) set (
-        name    := s"PairwiseRegistration(${reg.id}).regSwitchBegin",
+        name    := s"RegisterImagesPairwise(${reg.id}).regSwitchBegin",
         imports += "java.nio.file.Paths",
         inputs  += (regId, parId, parVal, tgtId, srcId, runTime),
         outputs += (regId, parId, parVal, tgtId, srcId, runTime),
@@ -223,7 +223,7 @@ class PairwiseRegistration(reg: Registration) {
           | log.close()
         """.stripMargin
       ) set (
-        name        := s"PairwiseRegistration(${reg.id}).registerImages",
+        name        := s"RegisterImagesPairwise(${reg.id}).registerImages",
         imports     += ("java.io.{File, FileWriter}", "java.nio.file.{Paths, Files}", "scala.sys.process._"),
         imports     += "com.andreasschuh.repeat.core._",
         usedClasses += (Config.getClass, classOf[TaskLogger], Cmd.getClass),
@@ -247,7 +247,7 @@ class PairwiseRegistration(reg: Registration) {
   val done =
     Capsule(
       EmptyTask() set (
-        name    := s"PairwiseRegistration(${reg.id}).done",
+        name    := s"RegisterImagesPairwise(${reg.id}).done",
         inputs  += (regId, parId, tgtId, srcId, outDofPath, outDofFile, runTime),
         outputs += (regId, parId, tgtId, srcId, outDofPath, outDofFile, runTime)
       )
@@ -257,7 +257,7 @@ class PairwiseRegistration(reg: Registration) {
   val regDoneOrSkipped = {
     Capsule(
       EmptyTask() set (
-        name    := s"PairwiseRegistration(${reg.id}).doneOrSkipped",
+        name    := s"RegisterImagesPairwise(${reg.id}).doneOrSkipped",
         inputs  += (regId, parId, tgtId, srcId, outDofPath, runTime),
         outputs += (regId, parId, tgtId, srcId, outDofPath, runTime)
       )
@@ -274,7 +274,7 @@ class PairwiseRegistration(reg: Registration) {
           | // TODO
         """.stripMargin
       ) set (
-        name    := s"PairwiseRegistration(${reg.id}).forEachPairEnd",
+        name    := s"RegisterImagesPairwise(${reg.id}).forEachPairEnd",
         inputs  += (regId.toArray, parId.toArray, runTime.toArray),
         outputs += (regId, parId, runTime.toArray)
       )
@@ -285,7 +285,7 @@ class PairwiseRegistration(reg: Registration) {
   val end =
     Capsule(
       EmptyTask() set (
-        name    := s"PairwiseRegistration(${reg.id}).end",
+        name    := s"RegisterImagesPairwise(${reg.id}).end",
         inputs  += regId.toArray,
         outputs += go,
         go      := true
