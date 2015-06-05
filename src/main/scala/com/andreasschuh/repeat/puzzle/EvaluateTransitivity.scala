@@ -320,7 +320,7 @@ class EvaluateTransitivity(reg: Registration) {
             Case( cond, Display.QSUB(desc) -- eval -- Display.DONE(desc)),
             Case(!cond, Display.SKIP(desc))
           ) >-
-        (summarize on Env.short) >-
+        summarize >-
       end
   }
 }

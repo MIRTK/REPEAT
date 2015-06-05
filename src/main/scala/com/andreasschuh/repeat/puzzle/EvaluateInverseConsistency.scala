@@ -303,7 +303,7 @@ class EvaluateInverseConsistency(reg: Registration) extends Configurable("evalua
             Case( cond, Display.QSUB(desc) -- eval -- Display.DONE(desc)),
             Case(!cond, Display.SKIP(desc))
           ) >-
-        (summarize on Env.short) >-
+        summarize >-
       end
   }
 }
