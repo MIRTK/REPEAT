@@ -63,6 +63,9 @@ class Registration(val id: String) extends Configurable("registration." + id) {
     case None => Workspace.dofAff
   }
 
+  /** Directory of registration log files */
+  val logDir = normalize(join(Workspace.logDir, "${regId}-${parId}"))
+
   /** Directory of computed transformations */
   val dofDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.dofs")))
 
