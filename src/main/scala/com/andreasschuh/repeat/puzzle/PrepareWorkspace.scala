@@ -120,7 +120,7 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
   }
 
   /** Workflow puzzle */
-  private lazy val puzzle = {
+  private lazy val _puzzle = {
 
     def copyMetaData = {
       val what = "Copying meta-data for {setId=${setId}}"
@@ -199,5 +199,5 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
   }
 
   /** Get workflow puzzle */
-  override def toPuzzle = puzzle
+  override def puzzle = _puzzle
 }

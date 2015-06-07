@@ -10,6 +10,6 @@ import org.openmole.core.workflow.puzzle.Puzzle
 package object puzzle {
 
   /** Implicit conversion of workflow puzzle to OpenMOLE puzzle */
-  implicit def workflowToPuzzle(workflow: Workflow): Puzzle = workflow.toPuzzle
+  implicit def workflowToPuzzle(workflow: Workflow): Puzzle = workflow.puzzle
 
 }

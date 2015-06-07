@@ -72,8 +72,8 @@ abstract class Workflow(start: Option[Capsule] = None) {
   protected lazy val regAndParInfo       = "{setId=${setId}, regId=${regId}, parId=${parId}}"
   protected lazy val regParTgtAndSrcInfo = "{setId=${setId}, regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}"
 
-  /** Get OpenMOLE Puzzle corresponding to this workflow */
-  def toPuzzle: Puzzle
+  /** OpenMOLE puzzle corresponding to this (sub-)workflow */
+  def puzzle: Puzzle
 
   /** Empty strainer capsule */
   protected def nop(taskName: String) = Capsule(EmptyTask() set (name := wf + "." + taskName), strainer = true)
