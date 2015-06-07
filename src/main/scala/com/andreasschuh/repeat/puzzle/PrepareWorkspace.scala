@@ -40,7 +40,7 @@ import com.andreasschuh.repeat.core.{Environment => Env, Cmd, IRTK}
  *
  * @param begin End capsule of parent workflow puzzle.
  */
-class PrepareWorkspace(begin: Option[Capsule] = None) extends Workflow(begin) {
+class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
   /** Copy CSV files of dataset to workspace (if necessary) */
   protected def copyCsvFiles =
