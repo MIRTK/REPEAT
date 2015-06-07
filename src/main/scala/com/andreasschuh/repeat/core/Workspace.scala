@@ -21,49 +21,164 @@
 
 package com.andreasschuh.repeat.core
 
-import FileUtil.{join, normalize, hidden}
+import java.nio.file.Path
 
 
 /**
- * Workspace settings
+ * Workspace settings, i.e., location of input and output files (possibly with "${var}" place holders)
  */
 object Workspace extends Configurable("workspace") {
 
-  /** Whether workspace directory is readable/writeable by all remote compute nodes */
-  val shared = getBooleanProperty("shared")
+  /** Whether workspace directory is read-/writable by cluster compute nodes */
+  val shared = getBooleanOptionProperty("shared") getOrElse false
 
   /** Whether to append mean results to existing summary tables */
-  val append = getBooleanProperty("output.append")
+  val appCsv = getBooleanProperty("tables.append")
+
+  /** Whether to append command output to existing log files */
+  val appLog = getBooleanProperty("logs.append")
 
   /** Top-level directory of workspace */
-  val dir = getFileProperty("dir")
+  val dir = getPathProperty("dir")
 
   /** Shared directory used by OpenMOLE for cluster environments */
-  val comDir = if (shared) Some(join(dir, hidden("openmole")).getPath) else None
+  val comDir: Option[String] = if (shared) Some(dir.resolve(FileUtil.hidden("openmole")).toString) else None
 
-  /** Local directory containing input images of dataset */
-  val imgDir = normalize(join(dir, getStringProperty("images.dir")))
+  //  /** File path template of local directory containing intensity images */
+  //  val imgDir = dir.resolve(getStringProperty("images.dir")).normalize
+  //
+  //  /** Get file path of a particular intensity image directory */
+  //  def imgDirPath(setId: String) = expand(imgDir, Map("setId" -> setId))
+  //
+  //  /** File path template of local directory containing segmentation images */
+  //  val segDir = dir.resolve(getStringProperty("labels.dir")).normalize
+  //
+  //  /** Get file path of a particular segmentation image directory */
+  //  def segDirPath(setId: String) = expand(segDir, Map("setId" -> setId))
+  //
+  //  /** File path template of local directory containing transformation files */
+  //  val dofDir = dir.resolve(getStringProperty("dofs.dir")).normalize
+  //
+  //  /** Get file path of a particular transformations directory */
+  //  def dofDirPath(setId: String) = expand(dofDir, Map("setId" -> setId))
+  //
+  //  /** Local directory containing result tables */
+  //  val csvDir = dir.resolve(getStringProperty("tables.dir")).normalize
 
-  /** Local directory containing input label images of dataset */
-  val segDir = normalize(join(dir, getStringProperty("labels.dir")))
+  /** File path template of directory containing log files */
+  val logDir = dir.resolve(getStringProperty("logs.dir")).normalize
 
-  /** Local directory containing either input or generated mask images */
-  val mskDir = normalize(join(dir, getStringProperty("masks.dir")))
+  /** Get file path of a particular log files directory */
+  def logDir(setId: String): Path = expand(logDir, Map("setId" -> setId))
 
-  /** Local directory containing input template image */
-  val refDir = imgDir
+  /** File path template of image meta-data table */
+  val imgCsv = dir.resolve(getStringProperty("images.csv")).normalize
 
-  /** Local path of input template image */
-  val refIm  = join(refDir, Dataset.refIm.getName)
+  /** Get file path of a particular image meta-data table */
+  def imgCsv(setId: String): Path = expand(imgCsv, Map("setId" -> setId))
 
-  val dofDir = normalize(join(dir, getStringProperty("dofs.dir")))
-  val dofRig = normalize(join(dir, getStringProperty("dofs.rigid")))
-  val dofIni = normalize(join(dir, getStringProperty("dofs.initial")))
-  val dofAff = normalize(join(dir, getStringProperty("dofs.affine")))
-  val dofPre = getStringProperty("dofs.prefix")
-  val dofSuf = getStringProperty("dofs.suffix")
-  val ptsDir = normalize(join(dir, getStringProperty("points.dir")))
-  val ptsSuf = ".vtp"
-  val logDir = normalize(join(dir, getStringProperty("logs.dir")))
-  val logSuf = getStringProperty("logs.suffix")
+  /** File path template of segmentation labels table */
+  val segCsv = dir.resolve(getStringProperty("labels.csv")).normalize
+
+  /** Get file path of a particular segmentation labels table */
+  def segCsv(setId: String): Path = expand(segCsv, Map("setId" -> setId))
+
+  /** File path template of registration parameters table */
+  val parCsv = dir.resolve(getStringProperty("params")).normalize
+
+  /** Get file path of a particular registration parameters table */
+  def parCsv(setId: String, regId: String): Path =
+    expand(parCsv, Map("setId" -> setId, "regId" -> regId))
+
+  /** File path template of reference image */
+  val refImg = dir.resolve(getStringProperty("images.template")).normalize
+
+  /** Get file path of reference image */
+  def refImg(setId: String, refId: String): Path =
+    expand(refImg, Map("setId" -> setId, "refId" -> refId))
+
+  /** File path template of original input image */
+  val orgImg = dir.resolve(getStringProperty("images.orig")).normalize
+
+  /** Get file path of particular original intensity image */
+  def orgImg(setId: String, imgId: String): Path =
+    expand(orgImg, Map("setId" -> setId, "imgId" -> imgId))
+
+  /** File path template of original image mask */
+  val orgMsk = dir.resolve(getStringProperty("images.mask")).normalize
+
+  /** Get file path of a particular original image mask */
+  def orgMsk(setId: String, imgId: String): Path =
+    expand(orgMsk, Map("setId" -> setId, "imgId" -> imgId))
+
+  /** File path template of padded/masked foreground image */
+  val padImg = dir.resolve(getStringProperty("images.padded")).normalize
+
+  /** Get file path of a particular padded intensity image */
+  def padImg(setId: String, imgId: String): Path =
+    expand(padImg, Map("setId" -> setId, "imgId" -> imgId))
+
+  /** File path template of image voxel-center points */
+  val imgPts = dir.resolve(getStringProperty("images.points")).normalize
+
+  /** Get file path of a particular image voxel-center points file */
+  def imgPts(setId: String, imgId: String): Path =
+    expand(imgPts, Map("setId" -> setId, "imgId" -> imgId))
+
+  /** File path template of registered output image */
+  val regImg = dir.resolve(getStringProperty("images.output")).normalize
+
+  /** Get file path of a particular registered output image */
+  def regImg(setId: String, regId: String, parId: String, imgId: String): Path =
+    expand(regImg, Map("setId" -> setId, "regId" -> regId, "parId" -> parId, "imgId" -> imgId))
+
+  /** File path template of intensity average image */
+  val avgImg = dir.resolve(getStringProperty("images.average")).normalize
+
+  /** Get file path of a particular intensity average image */
+  def avgImg(setId: String, regId: String, parId: String, refId: String): Path =
+    expand(avgImg, Map("setId" -> setId, "regId" -> regId, "parId" -> parId, "refId" -> refId))
+
+  /** File path template of original segmentation image */
+  val orgSeg = dir.resolve(getStringProperty("labels.orig")).normalize
+
+  /** Get file path of particular original segmentation image */
+  def orgSeg(setId: String, imgId: String): Path =
+    expand(orgSeg, Map("setId" -> setId, "imgId" -> imgId))
+
+  /** File path template of registered output segmentation image */
+  val regSeg = dir.resolve(getStringProperty("labels.output")).normalize
+
+  /** Get file path of particular registered segmentation image */
+  def regSeg(setId: String, regId: String, parId: String, imgId: String): Path =
+    expand(regSeg, Map("setId" -> setId, "regId" -> regId, "parId" -> parId, "imgId" -> imgId))
+
+  /** File path template of rigid template to image transformation */
+  val rigDof = dir.resolve(getStringProperty("dofs.rigid")).normalize
+
+  /** Get file path of particular rigid template to image transformation */
+  def rigDof(setId: String, refId: String, imgId: String): Path =
+    expand(rigDof, Map("setId" -> setId, "tgtId" -> refId, "srcId" -> imgId))
+
+  /** File path template of affine template to image transformation */
+  val affDof = dir.resolve(getStringProperty("dofs.affine")).normalize
+
+  /** Get file path of particular affine template to image transformation */
+  def affDof(setId: String, refId: String, imgId: String): Path =
+    expand(affDof, Map("setId" -> setId, "tgtId" -> refId, "srcId" -> imgId))
+
+}
+
+
+class Workspace {
+
+  /** Whether workspace directory is read-/writable by cluster compute nodes */
+  val shared = Workspace.shared
+
+  /** Whether to append mean results to existing summary tables */
+  val appCsv = Workspace.appCsv
+
+  /** Whether to append command output to existing log files */
+  val appLog = Workspace.appLog
+
 }

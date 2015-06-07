@@ -24,7 +24,7 @@ package com.andreasschuh
 import scala.language.implicitConversions
 
 import com.andreasschuh.repeat.core.Registration
-import com.andreasschuh.repeat.workflow.{Init, Evaluate}
+import com.andreasschuh.repeat.workflow._
 
 
 /**
@@ -35,15 +35,15 @@ package object repeat {
   /** Implicit conversion from registration ID/name to registration info object */
   implicit def stringToRegistration(name: String): Registration = Registration(name)
 
-  /** Start dataset pre-processing workflow */
-  def init(): Unit = {
-    val ex = Init().start
-    ex.waitUntilEnded
-  }
-
-  /** Start registration evaluation workflow */
-  def evaluate(reg: Registration): Unit = {
-    val ex = Evaluate(reg).start
-    ex.waitUntilEnded
-  }
+//  /** Start dataset pre-processing workflow */
+//  def init(): Unit = {
+//    val ex = Init().start
+//    ex.waitUntilEnded
+//  }
+//
+//  /** Start registration evaluation workflow */
+//  def evaluate(reg: Registration): Unit = {
+//    val ex = Evaluate(reg).start
+//    ex.waitUntilEnded
+//  }
 }

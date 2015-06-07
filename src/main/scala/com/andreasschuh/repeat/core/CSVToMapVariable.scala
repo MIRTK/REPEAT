@@ -24,15 +24,16 @@ package com.andreasschuh.repeat.core
 import java.io.{FileReader, File}
 
 import au.com.bytecode.opencsv.CSVReader
-import org.openmole.core.workflow.data.{Prototype, Variable, Context}
+import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
+import org.openmole.core.workflow.tools.ExpandedString
 
 
 trait CSVToMapVariable {
 
   def separator: Char
 
-  def toMapVariable(file: File, p: Prototype[Map[String, String]], context: Context): Iterator[Iterable[Variable[_]]] = {
-    val reader = new CSVReader(new FileReader(file), separator)
+  def toMapVariable(file: ExpandedString, p: Prototype[Map[String, String]], context: Context)(implicit rng: RandomProvider): Iterator[Iterable[Variable[_]]] = {
+    val reader = new CSVReader(new FileReader(new File(file.from(context))), separator)
     val header = reader.readNext.toArray
     Iterator.continually(reader.readNext).takeWhile(_ != null).map {
       line ⇒ List(Variable(p, line.view.zipWithIndex.map {

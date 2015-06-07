@@ -23,62 +23,307 @@ package com.andreasschuh.repeat.puzzle
 
 import java.io.File
 import java.nio.file.{Path, Paths}
-import com.andreasschuh.repeat.puzzle.Variables._
 
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.mole.Capsule
+import org.openmole.core.workflow.puzzle.Puzzle
+import org.openmole.core.workflow.sampling._
 import org.openmole.core.workflow.transition.Condition
+import org.openmole.plugin.domain.collection._
 import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.sampling.combine._
-import org.openmole.plugin.sampling.csv._
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.tool.pattern.{Switch, Case}
+import org.openmole.plugin.tool.pattern._
 
-import com.andreasschuh.repeat.core.{Environment => Env, _}
+import com.andreasschuh.repeat.core._
 
-
-/**
- * Tasks factory
- */
-object Tasks {
-
-  /** Default capsule at start of workflow puzzle without parent dependencies */
-  def start =
-    Capsule(
-      EmptyTask() set (
-        outputs += go,
-        go      := true
-      )
-    )
-
-  def apply(reg: Registration, puzzleName: String = "UnknownPuzzle") = new Tasks(reg, puzzleName)
-}
 
 /**
- * Tasks factory
- *
- * @param reg Registration info.
+ * Workflow puzzle
  */
-class Tasks(reg: Registration, puzzleName: String) {
+abstract class Workflow(start: Option[Capsule] = None) {
 
-  // Import common variable prototypes
-  import Variables.{go, regId, parVal, parIdx, parId, tgtId, srcId}
+  // Name of workflow puzzle for identification in formal validation errors
+  protected val wf = this.getClass.getSimpleName
+
+  protected lazy val dataSet   = Val[Dataset]      ///< Dataset info object
+  protected lazy val dataSpace = Val[DatasetWorkspace]
+  protected lazy val evalSpace = Val[EvaluationWorkspace]
+  protected lazy val reg       = Val[Registration] ///< Registration info object
+
+  // Commonly used workflow variable prototypes
+  protected lazy val setId  = Val[String]               ///< Dataset name/ID
+  protected lazy val regId  = Val[String]               ///< Registration name/ID
+  protected lazy val parVal = Val[Map[String, String]]  ///< Registration parameter name/value map
+  protected lazy val parIdx = Val[Int]                  ///< Row index of parameter set
+  protected lazy val parId  = Val[String]               ///< Parameter set ID
+  protected lazy val refId  = Val[String]               ///< Reference image ID
+  protected lazy val tgtId  = Val[String]               ///< Target image ID (i.e., fixed  image in pairwise registration)
+  protected lazy val srcId  = Val[String]               ///< Source image ID (i.e., moving image in pairwise registration)
+  protected lazy val imgId  = Val[String]               ///< An image ID
 
   // Info about workflow stream for inclusion in status messages
-  lazy val regInfo = s"{regId=$${${regId.name}}}"
-  lazy val regAndParInfo = s"{regId=$${${regId.name}}, parId=$${${parId.name}}}"
-  lazy val regParTgtAndSrcInfo = s"{regId=$${${regId.name}}, parId=$${${parId.name}}, tgtId=$${${tgtId.name}}, srcId=$${${srcId.name}}}"
+  protected lazy val setInfo             = "{setId=${setId}}"
+  protected lazy val regInfo             = "{setId=${setId}, regId=${regId}}"
+  protected lazy val regAndParInfo       = "{setId=${setId}, regId=${regId}, parId=${parId}}"
+  protected lazy val regParTgtAndSrcInfo = "{setId=${setId}, regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}"
+
+  /** Get OpenMOLE Puzzle corresponding to this workflow */
+  def toPuzzle: Puzzle
+
+  /** Empty strainer capsule */
+  protected def nop(taskName: String) = Capsule(EmptyTask() set (name := wf + "." + taskName), strainer = true)
+
+  /** Capsule at start of workflow puzzle */
+  val begin = start getOrElse nop("begin")
+
+  /** First slot of workflow puzzle */
+  protected lazy val first = Slot(begin)
+
+  /** Capsule at the end of workflow puzzle */
+  val end = nop("end")
+
+  /** Explore datasets to be used, usually the start of any workflow puzzle */
+  protected def forEachDataSet =
+    Capsule(
+      ExplorationTask(setId in Dataset.use) set (
+        name := wf + ".forEachDataSet"
+      ),
+      strainer = true
+    )
+
+  /** Set setId at start of workflow puzzle specific to a single dataset */
+  protected def putDataSetId(id: String) =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + ".putDataSetId",
+        outputs += setId,
+        setId   := id
+      ),
+      strainer = true
+    )
+
+  /** Set setId at start of workflow puzzle specific to a single dataset */
+  protected def putDataSet(d: Dataset) =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + ".putDataSet",
+        outputs += dataSet,
+        dataSet := d
+      ),
+      strainer = true
+    )
+
+  /** Inject dataset info object into workflow */
+  protected def getDataSet =
+    Capsule(
+      ScalaTask(
+        s"""
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+          | val dataSet = Dataset(setId)
+        """.stripMargin
+      ) set (
+        name        := wf +".getDataSet",
+        imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
+        usedClasses += (Config.getClass, Dataset.getClass),
+        inputs      += setId,
+        outputs     += (setId, dataSet)
+      ),
+      strainer = true
+    )
+
+  /** Inject dataset workspace info object into workflow */
+  protected def getDataSpace = {
+    Capsule(
+      ScalaTask(
+        s"""
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+          | val dataSpace = DatasetWorkspace(Dataset(setId))
+        """.stripMargin
+      ) set (
+        name        := wf +".getDataSpace",
+        imports     += "com.andreasschuh.repeat.core.{Config, Dataset, DatasetWorkspace}",
+        usedClasses += (Config.getClass, Dataset.getClass, classOf[DatasetWorkspace]),
+        inputs      += setId,
+        outputs     += (setId, dataSpace)
+      ),
+      strainer = true
+    )
+  }
+
+  /** Explore registrations to be evaluated */
+  protected def forEachReg =
+    Capsule(
+      ExplorationTask(regId in Registration.use) set (
+        name := wf + ".forEachReg"
+      ),
+      strainer = true
+    )
+
+  /** Set regId at start of workflow puzzle specific to a single registration */
+  protected def putRegId(reg: Registration) =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + ".putRegId",
+        outputs += regId,
+        regId   := reg.id
+      ),
+      strainer = true
+    )
+
+  /** Inject registration info object into workflow */
+  protected def getReg =
+    Capsule(
+      ScalaTask(
+        s"""
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}"))
+          | val reg = Registration(regId)
+        """.stripMargin
+      ) set (
+        name        := wf + ".getRegInfo",
+        imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
+        usedClasses += (Config.getClass, Dataset.getClass),
+        inputs      += regId,
+        outputs     += (regId, reg)
+      ),
+      strainer = true
+    )
+
+  /** Explore parameter set IDs of a specific registration */
+  protected def forEachParId = {
+    // TODO: Unlike forEachPar, this requires an "ID" column to be present
+    val parCsvPath = Val[Path]
+    val getParCsv =
+      Capsule(
+        ScalaTask("val parCsvPath = reg.parCsv(parId)") set (
+          name    := wf + ".forEachParId.getParCsv",
+          inputs  += reg,
+          outputs += parCsvPath
+          ),
+        strainer = true
+      )
+    val sampling = CSVSampling("${parCsvPath}")
+    sampling.addColumn("ID", parId)
+    val getParId =
+      Capsule(
+        ExplorationTask(sampling) set (
+          name   := wf + ".forEachPar.getParId",
+          inputs += parCsvPath
+        ),
+        strainer = true
+      )
+    getParCsv -- getParId
+  }
+
+  /** Explore parameter sets of a specific registration */
+  protected def forEachPar = {
+    val parCsvPath = Val[Path]
+    val getParCsv =
+      Capsule(
+        ScalaTask("val parCsvPath = reg.parCsv(parId)") set (
+          name    := wf + ".forEachPar.getParCsv",
+          inputs  += reg,
+          outputs += parCsvPath
+        ),
+        strainer = true
+      )
+    val getParSet =
+      Capsule(
+        ExplorationTask(CSVToMapSampling("${parCsvPath}", parVal) zipWithIndex parIdx) set (
+          name   := wf + ".forEachPar.getParSet",
+          inputs += parCsvPath
+        ),
+        strainer = true
+      )
+    getParCsv -- getParSet
+  }
+
+  /**
+   * Set parId either to ID column entry of parameters table or
+   * the corresponding parIdx (i.e., CSV row index) if no such column exists
+   */
+  protected def getParId =
+    Capsule(
+      ScalaTask(
+        """
+          | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
+          | val parVal = input.parVal - "ID"
+        """.stripMargin
+      ) set (
+        name    := wf + ".putParId",
+        inputs  += (regId, parIdx, parVal),
+        outputs += (regId, parId,  parVal)
+      ),
+      strainer = true
+    )
+
+  /** Explore each image of dataset */
+  private def forEachImgInDataSet(p: Prototype[String]) = {
+    /*
+    val imgCsvPath = Val[Path]
+    val getImgCsv =
+      Capsule(
+        ScalaTask("val imgCsv = dataSet.imgCsv") set (
+          name    := wf + ".forEachImgInDataSet.getImgCsv",
+          inputs  += dataSet,
+          outputs += imgCsvPath
+        ),
+        strainer = true
+      )
+    */
+    //val getImgId =
+    val sampling = CSVSampling("${dataSpace.imgCsv}")
+    sampling.addColumn("Image ID", p)
+      Capsule(
+        ExplorationTask(sampling) set(
+          name    := wf + ".forEachImgInDataSet.getImgId",
+          //inputs += imgCsvPath
+          inputs  += dataSpace,
+          outputs += dataSpace
+        ),
+        strainer = true
+      )
+    //getImgCsv -- getImgId
+  }
+
+  /** Explore each image of dataset */
+  protected def forEachImg = forEachImgInDataSet(imgId)
+
+  /** Explore each reference image of dataset */
+  protected def forEachImgAsRef = forEachImgInDataSet(refId)
+
+  /** Copy file */
+  protected def copy(from: Prototype[Path], to: Prototype[Path]) =
+    Capsule(
+      ScalaTask(
+        s"""
+          | if (${to.name} != ${from.name} &&
+          |     (!Files.exists(${to.name}) || ${to.name}.toFile.lastModified < ${from.name}.toFile.lastModified)) {
+          |   val outDir = ${to.name}.getParent
+          |   if (outDir != null) Files.createDirectories(outDir)
+          |   Files.deleteIfExists(${to.name})
+          |   Files.copy(${from.name}, ${to.name})
+          | }
+        """.stripMargin
+      ) set (
+        name    := wf + s".copy(${from.name}, ${to.name})",
+        imports += "java.nio.file.Files",
+        inputs  += (from, to),
+        outputs += to
+      ),
+      strainer = true
+    )
 
   /** Demux aggregated results by taking head element only */
-  def getHead(taskName: String, input: Prototype[_]*) = {
+  protected def getHead(taskName: String, input: Prototype[_]*) = {
     val inputNames = input.toSeq.map(_.name)
     val task =
       ScalaTask(inputNames.map(name => s"val $name = input.$name.head").mkString("\n")) set (
-        name := s"$puzzleName(${reg.id}).$taskName.getHead(${inputNames.mkString(",")})"
+        name := wf + s".$taskName.getHead(${inputNames.mkString(",")})"
       )
     input.foreach(p => {
       task.addInput(p.toArray)
@@ -87,40 +332,14 @@ class Tasks(reg: Registration, puzzleName: String) {
     Capsule(task)
   }
 
-  /** Set regId at start of workflow puzzle */
-  def putRegId =
-    Capsule(
-      EmptyTask() set (
-        name    := s"$puzzleName(${reg.id}).setRegId",
-        inputs  += go,
-        outputs += regId,
-        regId   := reg.id
-      )
-    )
-
-  /** Set parId either to ID column entry or parIdx (i.e., CSV row index) */
-  def putParId =
-    Capsule(
-      ScalaTask(
-        """
-          | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
-          | val parVal = input.parVal - "ID"
-        """.stripMargin
-      ) set (
-        name    := s"$puzzleName(${reg.id}).putParId",
-        inputs  += (regId, parIdx, parVal),
-        outputs += (regId, parId,  parVal)
-      )
-    )
-
   /** Get full path of registration result table */
-  def resultTable(name: String) = Paths.get(reg.resDir.getAbsolutePath, name + ".csv").toString
+  protected def resultTable(dir: File, name: String) = Paths.get(dir.getAbsolutePath, name + Suffix.csv).toString
 
   /** Get full path of registration result summary table */
-  def summaryTable(name: String) = Paths.get(reg.sumDir.getAbsolutePath, name + ".csv").toString
+  protected def summaryTable(dir: File, name: String) = Paths.get(dir.getAbsolutePath, name + Suffix.csv).toString
 
   /** Delete table with summary results which can be recomputed from individual result tables */
-  def deleteTable(path: String, enabled: Boolean = true) = {
+  protected def deleteTable(path: String, enabled: Boolean = true) = {
     val task =
       if (enabled)
         ScalaTask(
@@ -132,29 +351,28 @@ class Tasks(reg: Registration, puzzleName: String) {
             | }
           """.stripMargin
         ) set (
-          name    := s"$puzzleName(${reg.id}).deleteTable(${FileUtil.getName(path)})",
+          name    := wf + s".deleteTable(${FileUtil.getName(path)})",
           imports += ("java.nio.file.{Paths, Files}","com.andreasschuh.repeat.core.Prefix.DONE"),
           inputs  += regId,
           outputs += regId
         )
       else
         EmptyTask() set (
-          name    := s"$puzzleName(${reg.id}).keepTable(${FileUtil.getName(path)})",
+          name    := wf + s".keepTable(${FileUtil.getName(path)})",
           inputs  += regId,
           outputs += regId
         )
     Capsule(task)
   }
 
-  /**
-  Get path of backup table */
-  def backupTablePath(path: String) = {
+  /** Get path of backup table */
+  protected def backupTablePath(path: String) = {
     val p = Paths.get(path)
     p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
   }
 
   /** Make copy of previous result tables and merge them with previously copied results to ensure none are lost */
-  def backupTable(path: String, enabled: Boolean = true) = {
+  protected def backupTable(path: String, enabled: Boolean = true) = {
     val task =
       if (enabled)
         ScalaTask(
@@ -176,7 +394,7 @@ class Tasks(reg: Registration, puzzleName: String) {
             | }
           """.stripMargin
         ) set (
-          name    := s"$puzzleName(${reg.id}).backupTable(${FileUtil.getName(path)})",
+          name    := wf + s".backupTable(${FileUtil.getName(path)})",
           imports += ("java.io.{File, FileWriter}", "scala.io.Source.fromFile", "scala.collection.breakOut"),
           imports += "com.andreasschuh.repeat.core.Prefix.DONE",
           inputs  += (regId, parId),
@@ -184,7 +402,7 @@ class Tasks(reg: Registration, puzzleName: String) {
         )
       else
         EmptyTask() set (
-          name    := s"$puzzleName(${reg.id}).keepTable(${FileUtil.getName(path)})",
+          name    := wf + s".keepTable(${FileUtil.getName(path)})",
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
@@ -192,7 +410,7 @@ class Tasks(reg: Registration, puzzleName: String) {
   }
 
   /** Read previous result from backup table to save re-computation if nothing changed */
-  def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
+  protected def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
     Capsule(
       ScalaTask(
         s"""
@@ -217,7 +435,8 @@ class Tasks(reg: Registration, puzzleName: String) {
           |     }
           |   else Array[Double]()
         """.stripMargin
-      ) set (name    := s"$puzzleName(${reg.id}).read(${values.name})",
+      ) set (
+        name    := wf + s".read(${values.name})",
         imports += ("java.io.File","scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
         inputs  += (regId, parId, tgtId, srcId),
         outputs += (regId, parId, tgtId, srcId, values)
@@ -226,7 +445,7 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Calculate mean of values over all registration results computed with a fixed set of parameters */
-  def getMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
+  protected def getMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
     Capsule(
       ScalaTask(
         s"""
@@ -235,7 +454,7 @@ class Tasks(reg: Registration, puzzleName: String) {
           | val ${mean.name} = if (valid) ${result.name}.transpose.map(_.sum / ncols) else Array[Double]()
         """.stripMargin
       ) set (
-        name    := s"$puzzleName(${reg.id}).getMean(${result.name})",
+        name    := wf + s".getMean(${result.name})",
         inputs  += result.toArray,
         outputs += mean
       ),
@@ -243,7 +462,7 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Calculate standard deviation of values over all registration results computed with a fixed set of parameters */
-  def getSD(result: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
+  protected def getSD(result: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
     Capsule(
       ScalaTask(
         s"""
@@ -262,7 +481,7 @@ class Tasks(reg: Registration, puzzleName: String) {
           |   else Array[Double]()
         """.stripMargin
       ) set (
-        name    := s"$puzzleName(${reg.id}).getSD(${result.name})",
+        name    := wf + s".getSD(${result.name})",
         imports += "scala.math.{pow, sqrt}",
         inputs  += result.toArray,
         outputs += sigma
@@ -271,7 +490,7 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Calculate mean and standard deviation of values over all registration results computed with a fixed set of parameters */
-  def getMeanAndSD(result: Prototype[Array[Double]], mean: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
+  protected def getMeanAndSD(result: Prototype[Array[Double]], mean: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
     Capsule(
       ScalaTask(
         s"""
@@ -288,7 +507,7 @@ class Tasks(reg: Registration, puzzleName: String) {
           |   else Array[Double]()
         """.stripMargin
       ) set (
-        name    := s"$puzzleName(${reg.id}).getMeanAndSD(${result.name})",
+        name    := wf + s".getMeanAndSD(${result.name})",
         imports += "scala.math.{pow, sqrt}",
         inputs  += result.toArray,
         outputs += (mean, sigma)
@@ -297,10 +516,10 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Write individual registration result to CSV table */
-  def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) =
+  protected def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) =
     Capsule(
       ScalaTask(s"""println(SAVE + s"${result.name.capitalize} for $regParTgtAndSrcInfo") """) set (
-        name    := s"$puzzleName(${reg.id}).saveToTable(${result.name})",
+        name    := wf + s".saveToTable(${result.name})",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, tgtId, srcId, result),
         outputs += (regId, parId, tgtId, srcId, result)
@@ -313,10 +532,10 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table */
-  def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) =
+  protected def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) =
     Capsule(
       ScalaTask(s"""println(SAVE + s"${mean.name.capitalize} for $regAndParInfo") """) set (
-        name    := s"$puzzleName(${reg.id}).saveToSummary(${mean.name})",
+        name    := wf + s".saveToSummary(${mean.name})",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
         inputs  += (regId, parId, mean),
         outputs += (regId, parId, mean)
@@ -329,7 +548,7 @@ class Tasks(reg: Registration, puzzleName: String) {
     )
 
   /** Finalize result table, appending non-overwritten previous results again and sorting the final table */
-  def finalizeTable(path: String, enabled: Boolean = true) = {
+  protected def finalizeTable(path: String, enabled: Boolean = true) = {
     val task =
       if (enabled)
         ScalaTask(
@@ -351,14 +570,14 @@ class Tasks(reg: Registration, puzzleName: String) {
             | }
           """.stripMargin
         ) set (
-          name    := s"$puzzleName(${reg.id}).finalizeTable(${FileUtil.getName(path)}})",
+          name    := wf + s".finalizeTable(${FileUtil.getName(path)}})",
           imports += ("scala.io.Source.fromFile", "scala.collection.breakOut","com.andreasschuh.repeat.core.Prefix.DONE"),
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
       else
         EmptyTask() set (
-          name    := s"$puzzleName(${reg.id}).keepTable(${FileUtil.getName(path)}})",
+          name    := wf + s".keepTable(${FileUtil.getName(path)}})",
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )

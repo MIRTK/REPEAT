@@ -39,8 +39,11 @@ object Config {
   /** Change directory in which to look for default configuration file */
   def dir(dir: File): Unit = {
     _config = None
-    _dir = dir
+    _dir = dir.getAbsoluteFile
   }
+
+  /** Local configuration directory */
+  def dir = _dir
 
   /** Local configuration file from which global configuration was loaded */
   def file = _file
@@ -49,6 +52,28 @@ object Config {
   def apply(): Config = _config match {
     case None => load()
     case Some(s) => s
+  }
+
+  /**
+   * Load global configuration, merging local HOCON file with reference
+   *
+   * @param file Path of local configuration file
+   * @return Global configuration object
+   */
+  def load(file: File): Config = {
+    _file = Some(file.getAbsoluteFile)
+    _dir  = file.getAbsoluteFile.getParentFile
+    // Parsed configuration object
+    _config = Some(new Config(
+      // Merge configuration with reference configuration
+      // (using application.conf to allow for resolution of cross-substitutions)
+      ConfigFactory.defaultOverrides().withFallback(ConfigFactory.parseFile(file)).withFallback(
+        ConfigFactory.parseResources(getClass.getClassLoader, "application.conf")
+      ).resolve(),
+      // Directory used to make relative paths in configuration absolute
+      _dir
+    ))
+    _config.get
   }
 
   /**
@@ -74,12 +99,12 @@ object Config {
       val localConfig1 = new File(_dir, name)
       val localConfig2 = new File(_dir, new File("Config", name).getPath)
       val localConfig3 = new File(_dir, new File("config", name).getPath)
-      if      (localConfig1.exists()) Some(localConfig1.getAbsoluteFile)
-      else if (localConfig2.exists()) Some(localConfig2.getAbsoluteFile)
-      else if (localConfig3.exists()) Some(localConfig3.getAbsoluteFile)
+      if      (localConfig1.exists) Some(localConfig1)
+      else if (localConfig2.exists) Some(localConfig2)
+      else if (localConfig3.exists) Some(localConfig3)
       else {
-        val homeConfig = new File(FileUtil.join(System.getProperty("user.home"), ".openmole", name))
-        if (homeConfig.exists()) Some(homeConfig.getAbsoluteFile)
+        val homeConfig = new File(FileUtil.join(System.getProperty("user.home"), ".openmole", name)).getAbsoluteFile
+        if (homeConfig.exists) Some(homeConfig)
         else None
       }
     }
@@ -92,7 +117,7 @@ object Config {
         case None => ConfigFactory.empty()
       }).withFallback(ConfigFactory.parseResources(getClass.getClassLoader, "application.conf")).resolve(),
       // Directory used to make relative paths in configuration absolute
-      _dir.getAbsoluteFile
+      _dir
     ))
     _config.get
   }

@@ -74,9 +74,6 @@ object IRTK extends Configurable("irtk") {
   /** Default command to use for computing Jacobian determinant map */
   val jacCmd = getCmdProperty("jacobian")
 
-  /** Default file name suffix/extension for Jacobian determinant map */
-  val jacSuf = getStringProperty("jac-suffix")
-
   /** Version information */
   def version: String = "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?".r.findFirstIn(s"$dir/ireg -version".!!).getOrElse("1.0")
 

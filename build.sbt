@@ -34,6 +34,8 @@ libraryDependencies += "org.openmole" %% "org-openmole-core-workflow" % openMOLE
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-task-scala" % openMOLEVersion
 
+libraryDependencies += "org.openmole" %% "org-openmole-plugin-domain-collection" % openMOLEVersion
+
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-domain-file" % openMOLEVersion
 
 libraryDependencies += "org.openmole" %% "org-openmole-plugin-grouping-batch" % openMOLEVersion

@@ -21,6 +21,9 @@
 
 package com.andreasschuh.repeat
 
+import java.nio.file.{Path, Paths}
+
+
 /**
  * The core of the REPEAT package
  */
@@ -36,20 +39,23 @@ package object core {
     def apply(argv: String*): Cmd = argv.toSeq
 
     /** Substitute placeholder arguments by args("name") */
-    def apply(template: Cmd, args: Map[String, String]): Cmd = interpolate(template, args)
+    def apply(template: Cmd, args: Map[String, String]): Cmd = expand(template, args)
 
     /** Make properly quoted string from command arguments */
     def toString(cmd: Cmd) = cmd.mkString("\"", "\" \"", "\"")
   }
 
   /** Replace occurrences of ${name} in s by v("name") */
-  def interpolate(s: String, v: Map[String, _]): String = {
+  def expand(s: String, v: Map[String, _]): String = {
     val getGroup = (_: scala.util.matching.Regex.Match) group 1
     "\\$\\{([^}]*)\\}".r.replaceSomeIn(s, getGroup andThen v.lift andThen (_ map (_.toString)))
   }
 
   /** Replace occurrences of ${name} in s by v("name") */
-  def interpolate(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => interpolate(s, v))
+  def expand(l: Seq[String], v: Map[String, _]): Seq[String] = l.map(s => expand(s, v))
+
+  /** Replace occurrences of ${name} in s by v("name") */
+  def expand(p: Path, v: Map[String, _]): Path = Paths.get(expand(p.toString, v))
 
   /** For use of regular expressions in match cases */
   implicit class Regex(sc: StringContext) {

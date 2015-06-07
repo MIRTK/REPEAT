@@ -21,35 +21,58 @@
 
 package com.andreasschuh.repeat.core
 
-import FileUtil.{join, normalize}
+import java.nio.file.{Paths, Files}
 
 
 /**
- * Registration object factory
+ * Information of configured registration methods/implementations
  */
-object Registration {
+object Registration extends Configurable("registration") {
 
   /** Runtime measurements */
   lazy val times = List("User", "System", "Total", "Real")
 
-  /** Create info object for named registration */
-  def apply(name: String) = new Registration(name)
+  /** Names of available/configured registrations */
+  val names = getPropertyKeySet(".registration")
 
-  /** Substitute placeholder arguments by args("name") */
-  def command(template: Cmd, args: Map[String, String]) = interpolate(template, args)
+  /** Names of registrations to evaluate */
+  val use = {
+    val methods = getStringListOptionProperty("use").getOrElse(names.toList).distinct
+    val unknown = methods.filter(!names.contains(_))
+    if (unknown.nonEmpty) throw new Exception("Cannot evaluate unknown registration: " + unknown.mkString(", "))
+    methods
+  }
+
+  /** File path template of common directory containing CSV files with registration parameters */
+  val parDir = getPathProperty("params.dir")
+
+  /** Parameters table name template */
+  val parName = getStringProperty("params.name")
+
+  /** Get info object for named registration */
+  def apply(name: String) = new Registration(name)
 }
 
 
 /**
- * Configuration of registration command whose performance is to be assessed
+ * Configuration of named registration command
  */
 class Registration(val id: String) extends Configurable("registration." + id) {
 
   /** Whether this registration is symmetric */
   val isSym = getBooleanOptionProperty("symmetric") getOrElse false
 
-  /** CSV file with command parameters */
-  val parCsv = getFileProperty("params")
+  /** File path template of CSV file with command parameters */
+  val parCsv = expand(getStringOptionProperty("params") match {
+    case Some(name) =>
+      val testPath = Paths.get(expand(name, Map("setId" -> Dataset.use.head, "regId" -> id)))
+      if (Files.exists(testPath)) Paths.get(name).toAbsolutePath
+      else Registration.parDir.resolve(name)
+    case None => Registration.parDir.resolve(Registration.parName)
+  }, Map("regId" -> id))
+
+  /** Get file path of registration parameters table for a specific dataset */
+  def parCsvPath(setId: String) = expand(parCsv, Map("setId" -> setId))
 
   /** Template configuration file content for registration command */
   val config = getStringOptionProperty("config")
@@ -57,41 +80,17 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** Optional command used to convert affine transformation from IRTK format to required input format */
   val dof2affCmd = getCmdOptionProperty("dof2aff")
 
-  /** Directory of converted affine input transformations */
-  val affDir = dof2affCmd match {
-    case Some(_) => normalize(join(Workspace.dir, getStringProperty(".workspace.output.affs")))
-    case None => Workspace.dofAff
-  }
-
   /** Directory of registration log files */
-  val logDir = normalize(join(Workspace.logDir, "${regId}-${parId}"))
-
-  /** Directory of computed transformations */
-  val dofDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.dofs")))
-
-  /** Directory of deformed images */
-  val imgDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.images")))
-
-  /** Directory of propagated label images */
-  val segDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.labels")))
-
-  /** Directory of Jacobian determinant maps */
-  val jacDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.jacobians")))
-
-  /** Directory of evaluation results */
-  val resDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.results")))
-
-  /** Directory of summary evaluation results */
-  val sumDir = normalize(join(Workspace.dir, getStringProperty(".workspace.output.summary")))
+  val logDir = Workspace.logDir.resolve("${regId}-${parId}")
 
   /** File name suffix for Jacobian determinant map */
-  val jacSuf = getStringOptionProperty("jac-suffix") getOrElse IRTK.jacSuf
+  val jacSuf = getStringOptionProperty("suffix.jac") getOrElse Suffix.img
 
   /** File name suffix for converted affine input transformation */
-  val affSuf = getStringOptionProperty("aff-suffix") getOrElse Workspace.dofSuf
+  val affSuf = getStringOptionProperty("suffix.aff") getOrElse Suffix.dof
 
   /** File name suffix for output transformation */
-  val phiSuf = getStringOptionProperty("phi-suffix") getOrElse Workspace.dofSuf
+  val phiSuf = getStringOptionProperty("suffix.phi") getOrElse Suffix.dof
 
   /** Command to run image registration */
   val runCmd = getCmdProperty("command")
@@ -107,7 +106,7 @@ class Registration(val id: String) extends Configurable("registration." + id) {
 
   /** File name suffix of (converted) output transformation */
   val dofSuf = phi2dofCmd match {
-    case Some(_) => Workspace.dofSuf
+    case Some(_) => Suffix.dof
     case None => phiSuf
   }
 

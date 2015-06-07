@@ -22,7 +22,7 @@
 package com.andreasschuh.repeat.core
 
 import java.io.File
-import java.nio.file.Files
+import java.nio.file.{Path, Files}
 
 
 /**
@@ -52,6 +52,14 @@ object FileUtil {
       Files.copy(src.toPath, dst.toPath)
     }
   }
+
+  /**
+   * Copy file if it was modified
+   *
+   * @param src File to copy
+   * @param dst Copy of file
+   */
+  def copy(src: Path, dst: Path): Unit = copy(src.toFile, dst.toFile)
 
   /** Get file name */
   def getName(path: String) = new File(path).getName

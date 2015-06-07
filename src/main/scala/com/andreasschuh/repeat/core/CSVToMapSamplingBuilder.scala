@@ -25,9 +25,10 @@ import java.io.File
 
 import org.openmole.core.workflow.builder.SamplingBuilder
 import org.openmole.core.workflow.data.Prototype
+import org.openmole.core.workflow.tools.ExpandedString
 
 
-class CSVToMapSamplingBuilder(file: File, p: Prototype[Map[String, String]]) extends SamplingBuilder { builder ⇒
+class CSVToMapSamplingBuilder(file: ExpandedString, p: Prototype[Map[String, String]]) extends SamplingBuilder { builder ⇒
   private var separator: Option[Char] = None
 
   def setSeparator(s: Option[Char]) = {

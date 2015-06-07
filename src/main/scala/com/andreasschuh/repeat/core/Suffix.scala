@@ -19,26 +19,17 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.puzzle
-
-import java.io.File
-import java.nio.file.Paths
-import scala.language.reflectiveCalls
-
-import org.openmole.core.dsl._
-
+package com.andreasschuh.repeat.core
 
 /**
- * Declaration of common workflow puzzle variable prototypes
+ * Default file name suffixes/extensions
  */
-object Variables {
-  val go     = Val[Boolean]
-  val regId  = Val[String]
-  val parVal = Val[Map[String, String]]
-  val parIdx = Val[Int]
-  val parId  = Val[String]
-  val refId  = Val[String]
-  val tgtId  = Val[String]
-  val srcId  = Val[String]
-  val imgId  = Val[String]
+object Suffix extends Configurable("suffix") {
+  val img = getStringProperty("img")
+  val pts = getStringProperty("pts")
+  val msk = getStringProperty("msk")
+  val seg = getStringProperty("seg")
+  val dof = getStringProperty("dof")
+  val csv = getStringProperty("csv")
+  val log = getStringProperty("log")
 }

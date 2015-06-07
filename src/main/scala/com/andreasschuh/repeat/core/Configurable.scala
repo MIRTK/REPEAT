@@ -74,11 +74,29 @@ abstract class Configurable(val propGroup: String = "") {
   /** Get string value of property in this group */
   protected def getStringListProperty(propName: String) = Config().getStringList(getPropPath(propName))
 
+  /** Get optional string value of property in this group */
+  protected def getStringListOptionProperty(propName: String) = {
+    val propPath = getPropPath(propName)
+    if (Config().hasPath(propPath)) Some(Config().getStringList(propPath)) else None
+  }
+
   /** Get absolute path of property in this group */
   protected def getPathProperty(propName: String) = Config().getPath(getPropPath(propName))
 
+  /** Get optional absolute path of property in this group */
+  protected def getPathOptionProperty(propName: String) = {
+    val propPath = getPropPath(propName)
+    if (Config().hasPath(propPath)) Some(Config().getPath(propPath)) else None
+  }
+
   /** Get absolute path of property in this group */
   protected def getFileProperty(propName: String) = Config().getFile(getPropPath(propName))
+
+  /** Get optional absolute path of property in this group */
+  protected def getFileOptionProperty(propName: String) = {
+    val propPath = getPropPath(propName)
+    if (Config().hasPath(propPath)) Some(Config().getFile(propPath)) else None
+  }
 
   /** Split command string into list of arguments */
   protected def split(args: String): Cmd = """"(\\"|[^"])*?"|[^\s]+""".r.findAllIn(args).map(

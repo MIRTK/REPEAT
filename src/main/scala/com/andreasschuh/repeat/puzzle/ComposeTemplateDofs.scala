@@ -21,67 +21,67 @@
 
 package com.andreasschuh.repeat.puzzle
 
-import java.io.File
-import scala.language.reflectiveCalls
-
-import org.openmole.core.dsl._
-import org.openmole.core.workflow.data.Prototype
-import org.openmole.plugin.grouping.batch._
-import org.openmole.plugin.hook.file._
-import org.openmole.plugin.source.file._
-import org.openmole.plugin.task.scala._
-import org.openmole.plugin.tool.pattern.Skip
-
-import com.andreasschuh.repeat.core.{Environment => Env, _}
-
-
-/**
- * Compose transformations from template to subject to get transformation between each pair of images
- */
-object ComposeTemplateDofs {
-
-  /**
-   * @param tgtId[in,out] ID of target image
-   * @param tgtIm[in,out] Path of target image
-   * @param tgtDof[in]    Path of transformation from template to target
-   * @param srcId[in,out] ID of source image
-   * @param srcIm[in,out] Path of source image
-   * @param srcDof[in]    Path of transformation from template to source
-   * @param iniDof[out]   Composite transformation from target to source
-   *
-   * @return Puzzle piece to compute linear transformations from template image to input image
-   */
-  def apply(tgtId: Prototype[Int], tgtIm: Prototype[File], tgtDof: Prototype[File],
-            srcId: Prototype[Int], srcIm: Prototype[File], srcDof: Prototype[File], iniDof: Prototype[File]) = {
-
-    import Workspace.{dofIni, dofPre, dofSuf}
-    import FileUtil.join
-
-    val iniDofPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
-
-    val begin = EmptyTask() set (
-        name    := "ComposeTemplateDofsBegin",
-        inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
-        outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
-      ) source FileSource(iniDofPath, iniDof)
-
-    val compose = ScalaTask(
-      s"""
-        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-        | val ${iniDof.name} = new java.io.File(workDir, "initial$dofSuf")
-        | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
-      """.stripMargin) set (
-        name        := "ComposeTemplateDofs",
-        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
-        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
-        inputs      += (tgtId, tgtIm, srcId, srcIm),
-        inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, link = Workspace.shared),
-        inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, link = Workspace.shared),
-        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
-      ) hook CopyFileHook(iniDof, iniDofPath, move = Workspace.shared)
-
-    val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
-    val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
-    begin -- Skip(compose on Env.short, cond1 + " && " + cond2)
-  }
-}
+//import java.io.File
+//import scala.language.reflectiveCalls
+//
+//import org.openmole.core.dsl._
+//import org.openmole.core.workflow.data.Prototype
+//import org.openmole.plugin.grouping.batch._
+//import org.openmole.plugin.hook.file._
+//import org.openmole.plugin.source.file._
+//import org.openmole.plugin.task.scala._
+//import org.openmole.plugin.tool.pattern.Skip
+//
+//import com.andreasschuh.repeat.core.{Environment => Env, _}
+//
+//
+///**
+// * Compose transformations from template to subject to get transformation between each pair of images
+// */
+//object ComposeTemplateDofs {
+//
+//  /**
+//   * @param tgtId[in,out] ID of target image
+//   * @param tgtIm[in,out] Path of target image
+//   * @param tgtDof[in]    Path of transformation from template to target
+//   * @param srcId[in,out] ID of source image
+//   * @param srcIm[in,out] Path of source image
+//   * @param srcDof[in]    Path of transformation from template to source
+//   * @param iniDof[out]   Composite transformation from target to source
+//   *
+//   * @return Puzzle piece to compute linear transformations from template image to input image
+//   */
+//  def apply(tgtId: Prototype[Int], tgtIm: Prototype[File], tgtDof: Prototype[File],
+//            srcId: Prototype[Int], srcIm: Prototype[File], srcDof: Prototype[File], iniDof: Prototype[File]) = {
+//
+//    import Workspace.{dofIni, dofPre, dofSuf}
+//    import FileUtil.join
+//
+//    val iniDofPath = join(dofIni, dofPre + s"$${${tgtId.name}},$${${srcId.name}}" + dofSuf).getAbsolutePath
+//
+//    val begin = EmptyTask() set (
+//        name    := "ComposeTemplateDofsBegin",
+//        inputs  += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof),
+//        outputs += (tgtId, tgtIm, tgtDof, srcId, srcIm, srcDof, iniDof)
+//      ) source FileSource(iniDofPath, iniDof)
+//
+//    val compose = ScalaTask(
+//      s"""
+//        | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+//        | val ${iniDof.name} = new java.io.File(workDir, "initial$dofSuf")
+//        | IRTK.compose(${tgtDof.name}, ${srcDof.name}, ${iniDof.name}, true, false)
+//      """.stripMargin) set (
+//        name        := "ComposeTemplateDofs",
+//        imports     += "com.andreasschuh.repeat.core.{Config, FileUtil, IRTK}",
+//        usedClasses += (Config.getClass, FileUtil.getClass, IRTK.getClass),
+//        inputs      += (tgtId, tgtIm, srcId, srcIm),
+//        inputFiles  += (tgtDof, dofPre + "${tgtId}" + dofSuf, link = Workspace.shared),
+//        inputFiles  += (srcDof, dofPre + "${srcId}" + dofSuf, link = Workspace.shared),
+//        outputs     += (tgtId, tgtIm, srcId, srcIm, iniDof)
+//      ) hook CopyFileHook(iniDof, iniDofPath, move = Workspace.shared)
+//
+//    val cond1 = s"${iniDof.name}.lastModified() > ${tgtDof.name}.lastModified()"
+//    val cond2 = s"${iniDof.name}.lastModified() > ${srcDof.name}.lastModified()"
+//    begin -- Skip(compose on Env.short, cond1 + " && " + cond2)
+//  }
+//}

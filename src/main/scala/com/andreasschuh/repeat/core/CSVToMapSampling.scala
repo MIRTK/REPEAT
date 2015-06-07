@@ -25,14 +25,14 @@ import java.io.File
 
 import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
 import org.openmole.core.workflow.sampling.Sampling
+import org.openmole.core.workflow.tools.ExpandedString
 
 
 object CSVToMapSampling {
-
-  def apply(file: File, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
+  def apply(file: ExpandedString, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
 }
 
-abstract class CSVToMapSampling(val file: File, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
+abstract class CSVToMapSampling(file: ExpandedString, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
 
   override def prototypes = List(p)
 
