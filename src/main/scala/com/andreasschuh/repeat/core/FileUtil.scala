@@ -49,7 +49,9 @@ object FileUtil {
     if (dst != src && dst.lastModified() < src.lastModified()) {
       val parent = dst.getParentFile
       if (parent != null) parent.mkdirs()
-      Files.copy(src.toPath, dst.toPath)
+      val dstPath = dst.toPath
+      Files.deleteIfExists(dstPath)
+      Files.copy(src.toPath, dstPath)
     }
   }
 
