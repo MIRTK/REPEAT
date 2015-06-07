@@ -30,7 +30,7 @@ import org.openmole.core.workflow.mole.Capsule
 import org.openmole.core.workflow.puzzle.Puzzle
 import org.openmole.core.workflow.transition.Condition
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.tool.pattern.{Switch, Case}
+import org.openmole.plugin.tool.pattern.{Switch, Case, Strain}
 
 import com.andreasschuh.repeat.core.{Environment => Env, Cmd, IRTK}
 
