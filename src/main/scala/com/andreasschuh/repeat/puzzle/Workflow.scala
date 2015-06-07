@@ -98,29 +98,27 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Set setId at start of workflow puzzle specific to a single dataset */
   protected def putDataSetId(id: String) =
-    Capsule(
+    Strain(
       EmptyTask() set (
         name    := wf + ".putDataSetId",
         outputs += setId,
         setId   := id
-      ),
-      strainer = true
+      )
     )
 
   /** Set setId at start of workflow puzzle specific to a single dataset */
   protected def putDataSet(d: Dataset) =
-    Capsule(
+    Strain(
       EmptyTask() set (
         name    := wf + ".putDataSet",
         outputs += dataSet,
         dataSet := d
-      ),
-      strainer = true
+      )
     )
 
   /** Inject dataset info object into workflow */
   protected def getDataSet =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
@@ -131,14 +129,13 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
         usedClasses += (Config.getClass, Dataset.getClass),
         inputs      += setId,
-        outputs     += (setId, dataSet)
-      ),
-      strainer = true
+        outputs     += dataSet
+      )
     )
 
   /** Inject dataset workspace info object into workflow */
   protected def getDataSpace = {
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
@@ -149,9 +146,8 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports     += "com.andreasschuh.repeat.core.{Config, Dataset, DatasetWorkspace}",
         usedClasses += (Config.getClass, Dataset.getClass, classOf[DatasetWorkspace]),
         inputs      += setId,
-        outputs     += (setId, dataSpace)
-      ),
-      strainer = true
+        outputs     += dataSpace
+      )
     )
   }
 
@@ -177,18 +173,17 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Set regId at start of workflow puzzle specific to a single registration */
   protected def putRegId(reg: Registration) =
-    Capsule(
+    Strain(
       EmptyTask() set (
         name    := wf + ".putRegId",
         outputs += regId,
         regId   := reg.id
-      ),
-      strainer = true
+      )
     )
 
   /** Inject registration info object into workflow */
   protected def getReg =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}"))
@@ -199,9 +194,8 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
         usedClasses += (Config.getClass, Dataset.getClass),
         inputs      += regId,
-        outputs     += (regId, reg)
-      ),
-      strainer = true
+        outputs     += reg
+      )
     )
 
   /** Explore parameter set IDs of a specific registration */
@@ -233,7 +227,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
    * the corresponding parIdx (i.e., CSV row index) if no such column exists
    */
   protected def getParId =
-    Capsule(
+    Strain(
       ScalaTask(
         """
           | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
@@ -243,8 +237,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
         name    := wf + ".putParId",
         inputs  += (parIdx, parVal),
         outputs += (parId,  parVal)
-      ),
-      strainer = true
+      )
     )
 
   /** Explore each image of dataset */
@@ -268,7 +261,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Copy file */
   protected def copy(from: Prototype[Path], to: Prototype[Path]) =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | if (${to.name} != ${from.name} &&
@@ -284,8 +277,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports += "java.nio.file.Files",
         inputs  += (from, to),
         outputs += to
-      ),
-      strainer = true
+      )
     )
 
   /** Demux aggregated results by taking head element only */
@@ -299,7 +291,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
       task.addInput(p.toArray)
       task.addOutput(p)
     })
-    Capsule(task)
+    Capsule(task).toPuzzle
   }
 
   /** Get full path of registration result table */
@@ -332,7 +324,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
           inputs  += regId,
           outputs += regId
         )
-    Capsule(task)
+    Strain(task)
   }
 
   /** Get path of backup table */
@@ -376,12 +368,12 @@ abstract class Workflow(start: Option[Capsule] = None) {
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
-    Capsule(task, strainer = true)
+    Strain(task)
   }
 
   /** Read previous result from backup table to save re-computation if nothing changed */
   protected def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | val enabled = $enabled
@@ -410,13 +402,12 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports += ("java.io.File","scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
         inputs  += (regId, parId, tgtId, srcId),
         outputs += (regId, parId, tgtId, srcId, values)
-      ),
-      strainer = true
+      )
     )
 
   /** Calculate mean of values over all registration results computed with a fixed set of parameters */
   protected def getMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | val ncols = ${result.name}.length
@@ -427,13 +418,12 @@ abstract class Workflow(start: Option[Capsule] = None) {
         name    := wf + s".getMean(${result.name})",
         inputs  += result.toArray,
         outputs += mean
-      ),
-      strainer = true
+      )
     )
 
   /** Calculate standard deviation of values over all registration results computed with a fixed set of parameters */
   protected def getSD(result: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | val ncols = ${result.name}.length
@@ -455,13 +445,12 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports += "scala.math.{pow, sqrt}",
         inputs  += result.toArray,
         outputs += sigma
-      ),
-      strainer = true
+      )
     )
 
   /** Calculate mean and standard deviation of values over all registration results computed with a fixed set of parameters */
   protected def getMeanAndSD(result: Prototype[Array[Double]], mean: Prototype[Array[Double]], sigma: Prototype[Array[Double]]) =
-    Capsule(
+    Strain(
       ScalaTask(
         s"""
           | val ncols = ${result.name}.length
@@ -481,8 +470,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
         imports += "scala.math.{pow, sqrt}",
         inputs  += result.toArray,
         outputs += (mean, sigma)
-      ),
-      strainer = true
+      )
     )
 
   /** Write individual registration result to CSV table */
@@ -551,7 +539,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
           inputs  += (regId, parId),
           outputs += (regId, parId)
         )
-    Capsule(task, strainer = true)
+    Strain(task)
   }
 
   /*

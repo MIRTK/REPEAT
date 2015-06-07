@@ -270,7 +270,8 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
     }
 
     def maskImages = {
-      val what = "Extracting background for {setId=${setId}, imgId=${imgId}}"
+      val maskMsg = "Padding background for {setId=${setId}, imgId=${imgId}}"
+      val skipMsg = "Padded image up-to-date for {setId=${setId}, imgId=${imgId}}"
       val cond =
         Condition(
           """
@@ -282,16 +283,16 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
           """.stripMargin
         )
       Switch(
-        Case( cond, QSUB(what, setId, imgId) -- Strain(applyMask on Env.local) -- DONE(what, setId, imgId)),
-        Case(!cond, SKIP(what, setId, imgId))
+        Case( cond, QSUB(maskMsg, setId, imgId) -- Strain(applyMask on Env.local) -- DONE(maskMsg, setId, imgId)),
+        Case(!cond, SKIP(skipMsg, setId, imgId))
       )
     }
 
-    val withDataSet = getDataSet -- getRefId -- getDataSpace -- copyMetaData
+    val withDataSet = nop("withDataSet")
 
-    (first -- forEachDataSet -< withDataSet) +
-      (withDataSet -< copyTemplates >- end) +
-      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- end)
+    (first -- forEachDataSet -< getDataSet -- getDataSpace -- getRefId -- copyMetaData -- withDataSet) +
+      (withDataSet -- copyTemplates >- end) +
+      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- nop("forEachImgEnd") >- end)
   }
 
   /** Get workflow puzzle */
