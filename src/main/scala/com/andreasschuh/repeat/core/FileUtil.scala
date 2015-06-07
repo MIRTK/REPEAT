@@ -45,13 +45,12 @@ object FileUtil {
    * @param src File to copy
    * @param dst Copy of file
    */
-  def copy(src: File, dst: File): Unit = {
-    if (dst != src && dst.lastModified() < src.lastModified()) {
-      val parent = dst.getParentFile
-      if (parent != null) parent.mkdirs()
-      val dstPath = dst.toPath
-      Files.deleteIfExists(dstPath)
-      Files.copy(src.toPath, dstPath)
+  def copy(src: Path, dst: Path): Unit = {
+    if (src != dst && (!Files.exists(dst) || Files.isSymbolicLink(dst) || Files.getLastModifiedTime(dst).compareTo(Files.getLastModifiedTime(src)) < 0)) {
+      val dir = dst.getParent
+      if (dir != null) Files.createDirectories(dir)
+      Files.deleteIfExists(dst)
+      Files.copy(src, dst)
     }
   }
 
@@ -61,7 +60,32 @@ object FileUtil {
    * @param src File to copy
    * @param dst Copy of file
    */
-  def copy(src: Path, dst: Path): Unit = copy(src.toFile, dst.toFile)
+  def copy(src: File, dst: File): Unit = copy(src.toPath, dst.toPath)
+
+  /**
+   * Create link from dst to src
+   * @param src File to link to
+   * @param dst Link file
+   */
+  def link(src: Path, dst: Path): Unit = {
+    try {
+      if (Files.isSymbolicLink(dst)) {
+        if (dst.toRealPath() != src.toRealPath()) {
+          Files.delete(dst)
+          Files.createSymbolicLink(dst, src)
+        }
+      } else {
+        val dir = dst.getParent
+        if (dir != null) {
+          Files.createDirectories(dir)
+          Files.deleteIfExists(dst)
+        }
+        Files.createSymbolicLink(dst, src)
+      }
+    } catch {
+      case _: UnsupportedOperationException => Files.copy(src, dst)
+    }
+  }
 
   /** Get file name */
   def getName(path: String) = new File(path).getName
