@@ -196,51 +196,26 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Explore parameter set IDs of a specific registration */
   protected def forEachParId = {
     // TODO: Unlike forEachPar, this requires an "ID" column to be present
-    val parCsvPath = Val[Path]
-    val getParCsv =
-      Capsule(
-        ScalaTask("val parCsvPath = reg.parCsv(parId)") set (
-          name    := wf + ".forEachParId.getParCsv",
-          inputs  += reg,
-          outputs += parCsvPath
-          ),
-        strainer = true
-      )
-    val sampling = CSVSampling("${parCsvPath}")
+    val sampling = CSVSampling("${reg.parCsv}")
     sampling.addColumn("ID", parId)
-    val getParId =
-      Capsule(
-        ExplorationTask(sampling) set (
-          name   := wf + ".forEachPar.getParId",
-          inputs += parCsvPath
-        ),
-        strainer = true
-      )
-    getParCsv -- getParId
+    Capsule(
+      ExplorationTask(sampling) set (
+        name   := wf + ".forEachParId",
+        inputs += reg
+      ),
+      strainer = true
+    )
   }
 
   /** Explore parameter sets of a specific registration */
-  protected def forEachPar = {
-    val parCsvPath = Val[Path]
-    val getParCsv =
-      Capsule(
-        ScalaTask("val parCsvPath = reg.parCsv(parId)") set (
-          name    := wf + ".forEachPar.getParCsv",
-          inputs  += reg,
-          outputs += parCsvPath
-        ),
-        strainer = true
-      )
-    val getParSet =
-      Capsule(
-        ExplorationTask(CSVToMapSampling("${parCsvPath}", parVal) zipWithIndex parIdx) set (
-          name   := wf + ".forEachPar.getParSet",
-          inputs += parCsvPath
-        ),
-        strainer = true
-      )
-    getParCsv -- getParSet
-  }
+  protected def forEachPar =
+    Capsule(
+      ExplorationTask(CSVToMapSampling("${reg.parCsv}", parVal) zipWithIndex parIdx) set (
+        name   := wf + ".forEachPar",
+        inputs += reg
+      ),
+      strainer = true
+    )
 
   /**
    * Set parId either to ID column entry of parameters table or
@@ -255,39 +230,23 @@ abstract class Workflow(start: Option[Capsule] = None) {
         """.stripMargin
       ) set (
         name    := wf + ".putParId",
-        inputs  += (regId, parIdx, parVal),
-        outputs += (regId, parId,  parVal)
+        inputs  += (parIdx, parVal),
+        outputs += (parId,  parVal)
       ),
       strainer = true
     )
 
   /** Explore each image of dataset */
   private def forEachImgInDataSet(p: Prototype[String]) = {
-    /*
-    val imgCsvPath = Val[Path]
-    val getImgCsv =
-      Capsule(
-        ScalaTask("val imgCsv = dataSet.imgCsv") set (
-          name    := wf + ".forEachImgInDataSet.getImgCsv",
-          inputs  += dataSet,
-          outputs += imgCsvPath
-        ),
-        strainer = true
-      )
-    */
-    //val getImgId =
     val sampling = CSVSampling("${dataSpace.imgCsv}")
     sampling.addColumn("Image ID", p)
-      Capsule(
-        ExplorationTask(sampling) set(
-          name    := wf + ".forEachImgInDataSet.getImgId",
-          //inputs += imgCsvPath
-          inputs  += dataSpace,
-          outputs += dataSpace
-        ),
-        strainer = true
-      )
-    //getImgCsv -- getImgId
+    Capsule(
+      ExplorationTask(sampling) set(
+        name   := wf + ".forEachImgInDataSet",
+        inputs += dataSpace
+      ),
+      strainer = true
+    )
   }
 
   /** Explore each image of dataset */
