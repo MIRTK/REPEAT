@@ -112,7 +112,10 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   val mskName = getStringProperty("masks.name")
 
   /** Get dataset image mask file path given the image ID */
-  def mskPath(imgId: String) = mskDir.resolve(mskName.replace("${imgId}", imgId))
+  def mskPath(imgId: String) = {
+    val msk = mskDir.resolve(mskName.replace("${imgId}", imgId))
+    if (Files.exists(msk)) Some(msk) else None
+  }
 
   /** ID of dataset specific template image */
   val refId = getStringOptionProperty("template.id") getOrElse Dataset.refId

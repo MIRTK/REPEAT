@@ -38,57 +38,85 @@ import com.andreasschuh.repeat.core.{Environment => Env, Cmd, IRTK}
 /**
  * Prepare workspace files
  *
- * @param begin End capsule of parent workflow puzzle.
+ * @param start End capsule of parent workflow puzzle.
  */
 class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
-  /** Copy CSV files of dataset to workspace (if necessary) */
-  protected def copyCsvFiles =
+  /** Link or copy CSV files of dataset to workspace (if necessary) */
+  protected def linkOrCopyCsvFiles(op: String = "copy") =
     Capsule(
       ScalaTask(
-        """
-          | copy(dataSet.imgCsv, dataSpace.imgCsv)
-          | copy(dataSet.segCsv, dataSpace.segCsv)
+        s"""
+          | $op(dataSet.imgCsv, dataSpace.imgCsv)
+          | $op(dataSet.segCsv, dataSpace.segCsv)
         """.stripMargin
       ) set (
-        name    := wf + ".copyCsvFiles",
-        imports += "com.andreasschuh.repeat.core.FileUtil.copy",
+        name    := wf + s".${op}CsvFiles",
+        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
         inputs  += (dataSet, dataSpace)
-      ),
-      strainer = true
+      )
     )
 
   /** Copy files associated with a template ID to workspace (if necessary) */
-  protected def copyTemplateData =
+  protected def linkOrCopyTemplateData(op: String = "copy") =
     Capsule(
       ScalaTask(
-        """
-          | copy(dataSet.refPath(dataSet.refId), dataSpace.refImg(dataSet.refId))
+        s"""
+          | $op(dataSet.refPath(dataSet.refId), dataSpace.refImg(dataSet.refId))
         """.stripMargin
       ) set (
-        name    := wf + ".copyTemplateData",
-        imports += "com.andreasschuh.repeat.core.FileUtil.copy",
+        name    := wf + s".${op}TemplateData",
+        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
         inputs  += (dataSet, dataSpace)
-      ),
-      strainer = true
+      )
     )
 
   /** Copy files associated with an image ID to workspace (if necessary) */
-  protected def copyImageData =
+  protected def linkOrCopyImageData(op: String = "copy") =
     Capsule(
       ScalaTask(
-        """
-          | copy(dataSet.imgPath(imgId), dataSpace.orgImg(imgId))
-          | copy(dataSet.imgPath(imgId), dataSpace.orgImg(imgId))
-          | copy(dataSet.imgPath(imgId), dataSpace.orgImg(imgId))
+        s"""
+          | $op(dataSet.imgPath(imgId), dataSpace.orgImg(imgId))
+          | $op(dataSet.segPath(imgId), dataSpace.orgSeg(imgId))
         """.stripMargin
       ) set (
-        name    := wf + ".copyImageData",
-        imports += "com.andreasschuh.repeat.core.FileUtil.copy",
+        name    := wf + s".${op}ImageData",
+        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
         inputs  += (dataSet, dataSpace, imgId)
-      ),
-      strainer = true
+      )
     )
+
+  /** Prepare mask image, i.e., either copy/link input mask or create one using the background threshold */
+  protected def prepareMask(op: String = "copy") = {
+    val calculate = Val[String]
+    Capsule(
+      ScalaTask(
+        s"""
+          | val outMsk = dataSpace.orgMsk(imgId)
+          | dataSet.mskPath(imgId) match {
+          |   case Some(orgMsk) => $op(orgMsk, outMsk)
+          |   case None =>
+          |     val outDir = outMsk.getParent
+          |     if (outDir != null) Files.createDirectories(outDir)
+          |     val cmd = Cmd(calculate, dataSet.imgPath(imgId).toString,
+          |                     "-mask", dataSet.padVal.toString,
+          |                     "-inside", "1", "-outside", "0",
+          |                     "-out", outMsk.toString, "uchar")
+          |     if (cmd.run().exitValue != 0) {
+          |       throw new Exception("Mask command returned non-zero exit code: " + Cmd.toString(cmd))
+          |     }
+          | }
+        """.stripMargin
+      ) set (
+        name        := wf + s".prepareMask",
+        imports     += ("java.nio.file.Files", "scala.sys.process._"),
+        imports     += ("com.andreasschuh.repeat.core.Cmd", s"com.andreasschuh.repeat.core.FileUtil.$op"),
+        usedClasses += Cmd.getClass,
+        inputs      += (dataSet, dataSpace,imgId),
+        calculate   := IRTK.binPath("calculate")
+      )
+    )
+  }
 
   /** Apply foreground mask and pad background */
   protected def applyMask = {
@@ -96,12 +124,14 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
     Capsule(
       ScalaTask(
         s"""
-          | val orgImg = dataSet.imgPath(imgId)
-          | val orgMsk = dataSet.mskPath(imgId)
+          | val orgMsk = dataSpace.orgMsk(imgId)
+          | val orgImg = dataSpace.orgImg(imgId)
           | val padImg = dataSpace.padImg(imgId)
           |
           | val outDir = padImg.getParent
           | if (outDir != null) Files.createDirectories(outDir)
+          |
+          | Files.deleteIfExists(padImg) // especially when it is a symbolic link!
           |
           | val cmd = Cmd(calculate, orgImg.toString, "-mask", orgMsk.toString, "-pad", dataSet.padVal.toString, "-out", padImg.toString)
           | if (cmd.run().exitValue != 0) {
@@ -110,66 +140,132 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
         """.stripMargin
       ) set (
         name        := wf + ".applyMask",
-        imports     += ("java.nio.file.Files", "scala.sys.process._", "com.andreasschuh.repeat.core.Cmd"),
+        imports     += ("java.nio.file.Files", "scala.sys.process._", "com.andreasschuh.repeat.core.{Cmd, FileUtil}"),
         usedClasses += Cmd.getClass,
         inputs      += (dataSet, dataSpace, imgId),
         calculate   := IRTK.binPath("calculate")
-      ),
-      strainer = true
+      )
     )
   }
 
   /** Workflow puzzle */
   private lazy val _puzzle = {
 
+    import Display._
+
+    val shared = Condition("dataSet.shared")
+
     def copyMetaData = {
-      val what = "Copying meta-data for {setId=${setId}}"
-      val cond =
+      val copyMsg = "Copying meta-data for {setId=${setId}}"
+      val linkMsg = "Linking meta-data for {setId=${setId}}"
+      val skipMsg = "Meta-data up-to-date for {setId=${setId}}"
+      val outdated =
         Condition(
           """
+            | import java.nio.file.Files
+            |
             | val imgCsv    = dataSet  .imgCsv.toFile
             | val imgCsvCpy = dataSpace.imgCsv.toFile
             | val segCsv    = dataSet  .segCsv.toFile
             | val segCsvCpy = dataSpace.segCsv.toFile
-            | (imgCsvCpy != imgCsv && imgCsvCpy.lastModified < imgCsv.lastModified) ||
-            | (segCsvCpy != segCsv && segCsvCpy.lastModified < segCsv.lastModified)
+            |
+            | val imgCsvLnk = Files.isSymbolicLink(imgCsvCpy.toPath)
+            | val segCsvLnk = Files.isSymbolicLink(segCsvCpy.toPath)
+            |
+            | (!dataSet.shared && imgCsvLnk) || imgCsvCpy.lastModified < imgCsv.lastModified
+            | (!dataSet.shared && segCsvLnk) || segCsvCpy.lastModified < segCsv.lastModified
           """.stripMargin
         )
+      val copyCond = !shared && outdated
+      val linkCond =  shared && outdated
       Switch(
-        Case( cond, Display.QSUB(what) -- (copyCsvFiles on Env.local) -- Display.DONE(what)),
-        Case(!cond, Display.SKIP(what))
+        Case( copyCond, QSUB(copyMsg, setId) -- Strain(linkOrCopyCsvFiles("copy") on Env.local) -- DONE(copyMsg, setId)),
+        Case( linkCond, QSUB(linkMsg, setId) -- Strain(linkOrCopyCsvFiles("link") on Env.local) -- DONE(linkMsg, setId)),
+        Case(!outdated, SKIP(skipMsg, setId))
       )
     }
 
     def copyImages = {
-      val what = "Copying image data to workspace for {setId=${setId}, imgId=${imgId}}"
-      val cond =
+      val copyMsg = "Copying image data to workspace for {setId=${setId}, imgId=${imgId}}"
+      val linkMsg = "Linking image data to workspace for {setId=${setId}, imgId=${imgId}}"
+      val skipMsg = "Image data up-to-date for {setId=${setId}, imgId=${imgId}}"
+      val outdated =
         Condition(
           """
+            | import java.nio.file.Files
+            |
             | val orgImg = dataSet.imgPath(imgId).toFile
             | val orgCpy = dataSpace.orgImg(imgId).toFile
-            | orgCpy != orgImg && orgCpy.lastModified < orgImg.lastModified
+            | val orgLnk = Files.isSymbolicLink(orgCpy.toPath)
+            |
+            | (!dataSet.shared && orgLnk) || orgCpy.lastModified < orgImg.lastModified
           """.stripMargin
         )
+      val copyCond = !shared && outdated
+      val linkCond =  shared && outdated
       Switch(
-        Case( cond, Display.QSUB(what) -- (copyImageData on Env.local) -- Display.DONE(what)),
-        Case(!cond, Display.SKIP(what))
+        Case( copyCond, QSUB(copyMsg, setId, imgId) -- Strain(linkOrCopyImageData("copy") on Env.local) -- DONE(copyMsg, setId, imgId)),
+        Case( linkCond, QSUB(linkMsg, setId, imgId) -- Strain(linkOrCopyImageData("link") on Env.local) -- DONE(linkMsg, setId, imgId)),
+        Case(!outdated, SKIP(skipMsg, setId, imgId))
       )
     }
 
     def copyTemplates = {
-      val what = "Copying template data to workspace for {setId=${setId}, refId=${refId}}"
-      val cond =
+      val copyMsg = "Copying template data to workspace for {setId=${setId}, refId=${refId}}"
+      val linkMsg = "Linking template data to workspace for {setId=${setId}, refId=${refId}}"
+      val skipMsg = "Template data up-to-date for {setId=${setId}, refId=${refId}}"
+      val outdated =
         Condition(
           """
+            | import java.nio.file.Files
+            |
             | val refImg = dataSet.refPath(refId).toFile
             | val refCpy = dataSpace.refImg(refId).toFile
-            | refCpy != refImg && refCpy.lastModified < refImg.lastModified
+            | val refLnk = Files.isSymbolicLink(refCpy.toPath)
+            |
+            | (!dataSet.shared && refLnk) || refCpy.lastModified < refImg.lastModified
           """.stripMargin
         )
+      val copyCond = !shared && outdated
+      val linkCond =  shared && outdated
       Switch(
-        Case( cond, Display.QSUB(what) -- (copyTemplateData on Env.local) -- Display.DONE(what)),
-        Case(!cond, Display.SKIP(what))
+        Case( copyCond, QSUB(copyMsg, setId, refId) -- Strain(linkOrCopyTemplateData("copy") on Env.local) -- DONE(copyMsg, setId, refId)),
+        Case( linkCond, QSUB(linkMsg, setId, refId) -- Strain(linkOrCopyTemplateData("link") on Env.local) -- DONE(linkMsg, setId, refId)),
+        Case(!outdated, SKIP(skipMsg, setId, refId))
+      )
+    }
+
+    def copyOrMakeMask = {
+      val copyMsg = "Copying mask for {setId=${setId}, imgId=${imgId}}"
+      val linkMsg = "Linking mask for {setId=${setId}, imgId=${imgId}}"
+      val makeMsg = "Making mask for {setId=${setId}, imgId=${imgId}}"
+      val skipMsg = "Mask up-to-date for {setId=${setId}, imgId=${imgId}}"
+      val outdated =
+        Condition(
+          """
+            | val outMsk = dataSpace.orgMsk(imgId).toFile
+            | dataSet.mskPath(imgId) match {
+            |   case Some(orgMsk) => outMsk.lastModified < orgMsk.toFile.lastModified
+            |   case None =>
+            |     val orgImg = dataSpace.orgImg(imgId).toFile
+            |     outMsk.lastModified < orgImg.lastModified
+            | }
+          """.stripMargin
+        )
+      val isLinked = Condition(
+        """
+          | import java.nio.file.Files
+          | Files.isSymbolicLink(dataSpace.orgMsk(imgId))
+        """.stripMargin
+      )
+      val copyCond = Condition("!dataSet.shared && dataSet.mskPath(imgId) != None") && (isLinked || outdated)
+      val linkCond = Condition(" dataSet.shared && dataSet.mskPath(imgId) != None") && outdated
+      val makeCond = Condition("dataSet.mskPath(imgId) == None") && outdated
+      Switch(
+        Case( copyCond, QSUB(copyMsg, setId, imgId) -- Strain(prepareMask("copy") on Env.local) -- DONE(copyMsg, setId, imgId)),
+        Case( linkCond, QSUB(linkMsg, setId, imgId) -- Strain(prepareMask("link") on Env.local) -- DONE(linkMsg, setId, imgId)),
+        Case( makeCond, QSUB(makeMsg, setId, imgId) -- Strain(prepareMask()       on Env.local) -- DONE(makeMsg, setId, imgId)),
+        Case(!outdated, SKIP(skipMsg, setId, imgId))
       )
     }
 
@@ -178,24 +274,24 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
       val cond =
         Condition(
           """
-            | val orgMsk = dataSet.mskPath(imgId).toFile
-            | val orgImg = dataSet.imgPath(imgId).toFile
+            | val orgMsk = dataSpace.orgMsk(imgId).toFile
+            | val orgImg = dataSpace.orgImg(imgId).toFile
             | val padImg = dataSpace.padImg(imgId).toFile
-            | orgMsk.exists && (padImg.lastModified < orgMsk.lastModified || padImg.lastModified < orgImg.lastModified)
+            |
+            | padImg.lastModified < orgMsk.lastModified || padImg.lastModified < orgImg.lastModified
           """.stripMargin
         )
       Switch(
-        Case( cond, Display.QSUB(what) -- (applyMask on Env.local) -- Display.DONE(what)),
-        Case(!cond, Display.SKIP(what))
+        Case( cond, QSUB(what, setId, imgId) -- Strain(applyMask on Env.local) -- DONE(what, setId, imgId)),
+        Case(!cond, SKIP(what, setId, imgId))
       )
     }
 
-    val withDataSet      = getDataSet -- getDataSpace -- copyMetaData
-    def exploreDataSets  = first -- forEachDataSet -< withDataSet
-    def prepareTemplates = withDataSet -< copyTemplates >- end
-    def prepareImages    = withDataSet -- forEachImg -< (copyImages, maskImages) >- end
+    val withDataSet = getDataSet -- getRefId -- getDataSpace -- copyMetaData
 
-    Puzzle.merge(first, Seq(end), puzzles = Seq(exploreDataSets, prepareTemplates, prepareImages))
+    (first -- forEachDataSet -< withDataSet) +
+      (withDataSet -< copyTemplates >- end) +
+      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- end)
   }
 
   /** Get workflow puzzle */

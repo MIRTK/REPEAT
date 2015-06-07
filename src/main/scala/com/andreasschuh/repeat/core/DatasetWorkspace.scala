@@ -14,46 +14,29 @@ object DatasetWorkspace {
  */
 class DatasetWorkspace(dataSet: Dataset) extends Workspace {
 
-  /** Template image used for spatial normalization */
-  def refImg(refId: String) =
-    if (dataSet.shared) dataSet.refPath(refId = refId)
-    else Workspace.refImg(setId = dataSet.id, refId = refId)
-
   /** Background intensity, padding value */
   def padVal = dataSet.padVal
+
+  /** Template image used for spatial normalization */
+  def refImg(refId: String) = Workspace.refImg(setId = dataSet.id, refId = refId)
 
   /** Get file path of log files directory */
   def logDir = Workspace.logDir(setId = dataSet.id)
 
   /** Get file path of image meta-data table */
-  def imgCsv = {
-    if (dataSet.shared) dataSet.imgCsv
-    else Workspace.imgCsv(setId = dataSet.id)
-  }
+  def imgCsv = Workspace.imgCsv(setId = dataSet.id)
 
   /** Get file path of segmentation labels table */
-  def segCsv = {
-    if (dataSet.shared) dataSet.segCsv
-    else Workspace.segCsv(setId = dataSet.id)
-  }
+  def segCsv = Workspace.segCsv(setId = dataSet.id)
 
   /** Get file path of original intensity image */
-  def orgImg(imgId: String) = {
-    if (dataSet.shared) dataSet.imgPath(imgId = imgId)
-    else Workspace.orgImg(setId = dataSet.id, imgId = imgId)
-  }
+  def orgImg(imgId: String) = Workspace.orgImg(setId = dataSet.id, imgId = imgId)
 
   /** Get file path of original image mask */
-  def orgMsk(imgId: String) = {
-    if (dataSet.shared) dataSet.mskPath(imgId = imgId)
-    else Workspace.orgMsk(setId = dataSet.id, imgId = imgId)
-  }
+  def orgMsk(imgId: String) = Workspace.orgMsk(setId = dataSet.id, imgId = imgId)
 
   /** Get file path of original segmentation image */
-  def orgSeg(imgId: String) = {
-    if (dataSet.shared) dataSet.segPath(imgId = imgId)
-    else Workspace.orgSeg(setId = dataSet.id, imgId = imgId)
-  }
+  def orgSeg(imgId: String) = Workspace.orgSeg(setId = dataSet.id, imgId = imgId)
 
   /** Get file path of padded intensity image */
   def padImg(imgId: String) = Workspace.padImg(setId = dataSet.id, imgId = imgId)

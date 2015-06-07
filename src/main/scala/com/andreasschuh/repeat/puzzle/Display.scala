@@ -24,23 +24,27 @@ package com.andreasschuh.repeat.puzzle
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
+import org.openmole.core.workflow.data.Prototype
 import org.openmole.plugin.task.scala._
+import org.openmole.plugin.tool.pattern.Strain
 
 
 /**
  * Instantiate capsule which writes a status message to STDOUT
  */
 object Display {
-  def apply(prefix: String, message: String) =
-    Capsule(
-      ScalaTask(s"""println(s"$${$prefix}$message") """) set (
+  def apply(prefix: String, message: String, p: Prototype[_]*) = {
+    val task =
+      ScalaTask( s"""println(s"$${$prefix}$message") """) set (
+        name    := s"Display.$prefix",
         imports += s"com.andreasschuh.repeat.core.Prefix.$prefix"
-      ),
-      strainer = true
-    )
-  def DONE(message: String) = apply("DONE", message)
-  def INFO(message: String) = apply("INFO", message)
-  def WARN(message: String) = apply("WARN", message)
-  def SKIP(message: String) = apply("SKIP", message)
-  def QSUB(message: String) = apply("QSUB", message)
+      )
+    p.foreach(p => task.addInput(p))
+    Strain(task)
+  }
+  def DONE(message: String, p: Prototype[_]*) = apply("DONE", message, p: _*)
+  def INFO(message: String, p: Prototype[_]*) = apply("INFO", message, p: _*)
+  def WARN(message: String, p: Prototype[_]*) = apply("WARN", message, p: _*)
+  def SKIP(message: String, p: Prototype[_]*) = apply("SKIP", message, p: _*)
+  def QSUB(message: String, p: Prototype[_]*) = apply("QSUB", message, p: _*)
 }
