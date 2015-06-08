@@ -109,7 +109,7 @@ class NormalizeImages(start: Option[Capsule] = None) extends Workflow(start) {
 
   /** Puzzle corresponding to this workflow */
   def puzzle = _puzzle
-  lazy val _puzzle = {
+  private lazy val _puzzle = {
 
     import Display._
 
