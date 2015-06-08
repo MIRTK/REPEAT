@@ -99,7 +99,7 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
           |     val outDir = outMsk.getParent
           |     if (outDir != null) Files.createDirectories(outDir)
           |     val cmd = Cmd(calculate, dataSet.imgPath(imgId).toString,
-          |                     "-mask", dataSet.padVal.toString,
+          |                     "-mask", dataSet.imgBkg.toString,
           |                     "-inside", "1", "-outside", "0",
           |                     "-out", outMsk.toString, "uchar")
           |     if (cmd.run().exitValue != 0) {
@@ -133,7 +133,7 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
           |
           | Files.deleteIfExists(padImg) // especially when it is a symbolic link!
           |
-          | val cmd = Cmd(calculate, orgImg.toString, "-mask", orgMsk.toString, "-pad", dataSet.padVal.toString, "-out", padImg.toString)
+          | val cmd = Cmd(calculate, orgImg.toString, "-mask", orgMsk.toString, "-pad", dataSet.imgBkg.toString, "-out", padImg.toString)
           | if (cmd.run().exitValue != 0) {
           |   throw new Exception("Mask command return non-zero exit code: " + Cmd.toString(cmd))
           | }

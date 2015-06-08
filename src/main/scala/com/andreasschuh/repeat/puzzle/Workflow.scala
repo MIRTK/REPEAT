@@ -154,9 +154,9 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Inject ID of dataset specific template image into workflow */
   protected def getRefId = {
     Strain(
-      ScalaTask("val refId = dataSet.refId") set (
+      ScalaTask("val refId = dataSpace.refId") set (
         name    := wf + ".getRefId",
-        inputs  += dataSet,
+        inputs  += dataSpace,
         outputs += refId
       )
     )

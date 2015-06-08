@@ -99,24 +99,23 @@ object IRTK extends Configurable("irtk") {
   def archive(): File = Bin.pack("IRTK-" + version + "-" + revision, usedApplications: _*)
 
   /** Execute IRTK command */
-  protected def execute(command: String, args: Seq[String], log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
-    val cmd = Seq[String](FileUtil.join(dir, command).getAbsolutePath) ++ args
-    val cmdString = cmd.mkString("> \"", "\" \"", "\"\n")
-    print('\n')
-    val returnCode = log match {
+  protected def execute(command: String, args: Cmd, log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
+    val cmd = Cmd(FileUtil.join(dir, command).getAbsolutePath) ++ args
+    val exitCode = log match {
       case Some(file) =>
         val logger = new TaskLogger(file)
-        if (!logger.tee) println(cmdString)
-        logger.out(cmdString)
-        cmd ! logger
+        logger.out("REPEAT> " + Cmd.toString(cmd) + "\n")
+        val exitValue = cmd.run(logger).exitValue()
+        logger.close()
+        exitValue
       case None =>
-        println(cmdString)
-        cmd.!
+        println("\nREPEAT> " + Cmd.toString(cmd) + "\n")
+        cmd.run().exitValue()
     }
-    if (errorOnReturnCode && returnCode != 0) {
-      throw new Exception(s"Error executing: ${cmd.head} return code was not 0 but $returnCode")
+    if (errorOnReturnCode && exitCode != 0) {
+      throw new Exception(s"Error executing: Command returned non-zero exit code: " + Cmd.toString(cmd))
     }
-    returnCode
+    exitCode
   }
 
   /** Type of transformation file */

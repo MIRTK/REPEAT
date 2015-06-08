@@ -93,6 +93,13 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   /** Get dataset intensity image file path given the image ID */
   def imgPath(imgId: String) = imgDir.resolve(imgName.replace("${imgId}", imgId))
 
+  /** Background intensity, padding value */
+  val imgBkg = getStringOptionProperty("images.bgvalue") match {
+    case Some("nan") => Double.NaN
+    case Some(s) => s.toDouble
+    case None => Dataset.padVal
+  }
+
   /** CSV file listing segmentation label numbers and names */
   val segCsv = dir.resolve(getStringProperty("labels.csv")).normalize
 
@@ -132,8 +139,8 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   /** Get dataset template image file path given the template ID */
   def refPath(refId: String) = refDir.resolve(refName.replace("${refId}", refId))
 
-  /** Background intensity, padding value */
-  val padVal = getStringOptionProperty("template.bgvalue") match {
+  /** Background intensity, padding value of template image */
+  val refBkg = getStringOptionProperty("template.bgvalue") match {
     case Some("nan") => Double.NaN
     case Some(s) => s.toDouble
     case None => Dataset.padVal

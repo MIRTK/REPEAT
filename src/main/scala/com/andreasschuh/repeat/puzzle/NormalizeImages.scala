@@ -21,115 +21,133 @@
 
 package com.andreasschuh.repeat.puzzle
 
-//import java.io.File
-//import java.nio.file.Path
-//import scala.language.reflectiveCalls
-//
-//import org.openmole.core.dsl._
-//import org.openmole.core.workflow.mole.{Capsule, Hook}
-//import org.openmole.core.workflow.transition.Condition
-//import org.openmole.plugin.grouping.batch._
-//import org.openmole.plugin.hook.file._
-//import org.openmole.plugin.sampling.combine._
-//import org.openmole.plugin.sampling.csv._
-//import org.openmole.plugin.source.file._
-//import org.openmole.plugin.task.scala._
-//import org.openmole.plugin.tool.pattern.{Switch, Case, Skip}
-//
-//import com.andreasschuh.repeat.core.{Environment => Env, _}
-//
-//
-///**
-// * Workflow puzzle for spatial normalization of input images
-// */
-//object NormalizeImages {
-//
-//  /** Get workflow puzzle for spatial normalization of input images */
-//  def apply() = new NormalizeImages()
-//}
-//
-///**
-// * Spatially normalize input images
-// *
-// * This currently only means the computation of an affine template to image transformation which is used as
-// * initial guess/input for the registration commands whose performance is to be evaluated. If it turns out
-// * later that some of these require the input images to be resampled in a common image space, this may be done
-// * by this workflow puzzle as well. In this case, however, the registration package under evaluation needs
-// * to provide a tool for deforming at least a segmentation image by the composition of an affine, deformable,
-// * and another affine transformation. Otherwise we would have to resample the segmentation images more than
-// * once using nearest neighbor interpolation which introduces a significant sampling error in the evaluation.
-// *
-// * Another option would be to store the affine image to template transformation in the sform matrix of the
-// * NIfTI-1 image file header. Not all registration packages will consider this transformation, however.
-// */
-//class NormalizeImages {
-//
-//  import Dataset.{refImg => _, _}
-//  import Workspace._
-//  import Variables._
-//
-//  val tgtImgPath = Val[Path]
-//  val srcImgPath = Val[Path]
-//
-//  /** Explore all images */
-//  private val forEachImg = {
-//    val imgIdSampling = CSVSampling(imgCsv)
-//    imgIdSampling.addColumn("Image ID", imgId)
-//    Capsule(
-//      ExplorationTask(imgIdSampling) set (
-//        name   := "NormalizeImages.forEachImg",
-//        inputs += go
-//      )
-//    )
-//  }
-//
-//  /** Set paths of workflow puzzle input/output files */
-//  private val initPaths =
-//    Capsule(
-//      ScalaTask(
-//        s"""
-//          | val tgtImgPath = Paths.get(s"$refImg")
-//          | val srcImgPath = Paths.get(s"$padImg")
-//        """.stripMargin
-//      ) set (
-//        name    := "NormalizeImages.initPaths",
-//        imports += "java.nio.file.Paths",
-//        inputs  += imgId,
-//        outputs += (imgId, srcImgPath)
-//      )
-//    )
-//
-//  /** Capsule executed at the end of this workflow puzzle */
-//  val end =
-//    Capsule(
-//      EmptyTask() set (
-//        name    := s"PrepareImages.end",
-//        inputs  += imgId.toArray,
-//        outputs += go,
-//        go      := true
-//      )
-//    )
-//
-//  /**
-//   * Get workflow puzzle
-//   *
-//   * @param begin   End capsule of parent workflow puzzle (if any). Must output a Boolean variable named "go",
-//   *                which is consumed by the first task of this workflow puzzle.
-//   * @param message Status message printed for each image to be prepared.
-//   *
-//   * @return Workflow puzzle which prepares the input images for registration.
-//   */
-//  def apply(begin: Option[Capsule] = None, message: String = "Apply input mask for {imgId=$imgId}") = {
-//
-//    val applyMaskCond =
-//      Condition("padImgPath.toFile.lastModified < orgMskPath.toFile.lastModified") ||
-//      Condition("padImgPath.toFile.lastModified < orgMskPath.toFile.lastModified")
-//
-//    begin.getOrElse(Tasks.start) -- forEachImg -< initPaths --
-//      copy(inImgPath, orgImgPath) -- copy(inMskPath, orgMskPath) -- copy(inSegPath, orgSegPath) -- Switch(
-//        Case( applyMaskCond, Display.QSUB(message) -- applyMask -- Display.DONE(message)),
-//        Case(!applyMaskCond, Display.SKIP(message))
-//      ) >-
-//    end
-//  }
-//}
+import java.io.File
+import java.nio.file.Path
+import scala.language.reflectiveCalls
+
+import org.openmole.core.dsl._
+import org.openmole.core.workflow.mole.Capsule
+import org.openmole.core.workflow.data.Prototype
+import org.openmole.core.workflow.transition.Condition
+import org.openmole.plugin.grouping.batch._
+import org.openmole.plugin.hook.file._
+import org.openmole.plugin.source.file._
+import org.openmole.plugin.task.scala._
+import org.openmole.plugin.tool.pattern._
+
+import com.andreasschuh.repeat.core.{Environment => Env, _}
+
+
+/**
+ * Workflow puzzle for spatial normalization of input images
+ */
+object NormalizeImages {
+
+  /** Get workflow puzzle for spatial normalization of input images */
+  def apply() = new NormalizeImages()
+
+}
+
+
+/**
+ * Spatially normalize input images
+ *
+ * This currently only means the computation of an affine template to image transformation which is used as
+ * initial guess/input for the registration commands whose performance is to be evaluated. If it turns out
+ * later that some of these require the input images to be resampled in a common image space, this may be done
+ * by this workflow puzzle as well. In this case, however, the registration package under evaluation needs
+ * to provide a tool for deforming at least a segmentation image by the composition of an affine, deformable,
+ * and another affine transformation. Otherwise we would have to resample the segmentation images more than
+ * once using nearest neighbor interpolation which introduces a significant sampling error in the evaluation.
+ *
+ * Another option would be to store the affine image to template transformation in the sform matrix of the
+ * NIfTI-1 image file header. Not all registration packages will consider this transformation, however.
+ *
+ * @param start End capsule of parent workflow puzzle.
+ */
+class NormalizeImages(start: Option[Capsule] = None) extends Workflow(start) {
+
+  /** Register image to template */
+  protected def ireg(model: String, outDof: Prototype[File], iniDof: Option[Prototype[File]] = None) = {
+    val outLog = Val[File]
+    val refImg = Val[File]
+    val srcImg = Val[File]
+    val task =
+      ScalaTask(
+        s"""
+          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
+          |
+          | val ${outDof.name} = new File(workDir, "result${Suffix.dof}")
+          | val outLog = new File(workDir, "output${Suffix.log}")
+        """.stripMargin + (iniDof match {
+          case Some(p) => s" val iniDof = Some(input.${p.name})"
+          case None    =>  " val iniDof = None"
+        }) +
+        s"""
+          | IRTK.ireg(refImg, srcImg, iniDof, ${outDof.name}, Some(outLog),
+          |   "Transformation model" -> "${model.capitalize}",
+          |   "Background value" -> dataSpace.refBkg.toString,
+          |   "Strict step length range" -> "No",
+          |   "Maximum streak of rejected steps" -> "4"
+          | )
+        """.stripMargin
+      ) set (
+        name        := wf + ".ireg-" + model,
+        imports     += ("java.io.File", "com.andreasschuh.repeat.core.{Config, IRTK}"),
+        usedClasses += (Config.getClass, IRTK.getClass),
+        inputs      += (dataSpace, setId, refId, imgId),
+        inputFiles  += (refImg, "${refId}" + Suffix.img, link = Workspace.shared),
+        inputFiles  += (srcImg, "${imgId}" + Suffix.img, link = Workspace.shared),
+        outputs     += (dataSpace, setId, refId, imgId, outDof, outLog)
+      )
+    if (iniDof != None) task.addInput(iniDof.get)
+    Capsule(task) source (
+      FileSource("${dataSpace.refImg(refId)}", refImg),
+      FileSource("${dataSpace.padImg(imgId)}", srcImg)
+    ) hook CopyFileHook(outLog, s"""$${dataSpace.logPath("ireg-$model", refId + "," + imgId + "${Suffix.log}")} """)
+  }
+
+  /** Puzzle corresponding to this workflow */
+  def puzzle = _puzzle
+  lazy val _puzzle = {
+
+    import Display._
+
+    val regImg = {
+
+      val dof = Val[File]
+
+      val inputSet = "{setId=${setId}, refId=${refId}, imgId=${imgId}}"
+      val rregMsg  = "Rigid alignment to template for " + inputSet
+      val aregMsg  = "Affine registration to template for " + inputSet
+      val skipMsg  = "Affine template transformation up-to-date for " + inputSet
+
+      val cond =
+        Condition(
+          """
+            | val refImg = dataSpace.refImg(refId).toFile
+            | val srcImg = dataSpace.padImg(imgId).toFile
+            | val affDof = dataSpace.affDof(refId, imgId).toFile
+            | affDof.lastModified < refImg.lastModified || affDof.lastModified < srcImg.lastModified
+          """.stripMargin
+        )
+
+      val save = CopyFileHook(dof, "${dataSpace.affDof(refId, imgId)}")
+
+      Switch(
+        Case(cond,
+          QSUB(rregMsg, setId, refId, imgId) --
+            (ireg("rigid", dof, None) on Env.short by 10) --
+          DONE(rregMsg, setId, refId, imgId) --
+          QSUB(aregMsg, setId, refId, imgId) --
+            (ireg("affine", dof, Some(dof)) on Env.short by 10 hook save) --
+          DONE(aregMsg, setId, refId, imgId)
+        ),
+        Case(!cond, SKIP(skipMsg, setId, refId, imgId))
+      )
+    }
+
+    first -- forEachDataSet -< getDataSpace -- getRefId -- forEachImg -< regImg >- nop("forEachImgEnd") >- end
+  }
+
+}

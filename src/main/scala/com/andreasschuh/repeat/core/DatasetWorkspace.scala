@@ -14,14 +14,23 @@ object DatasetWorkspace {
  */
 class DatasetWorkspace(dataSet: Dataset) extends Workspace {
 
-  /** Background intensity, padding value */
-  def padVal = dataSet.padVal
+  /** Background intensity, padding value of intensity images */
+  def imgBkg = dataSet.imgBkg
+
+  /** Background intensity, padding value of template image */
+  def refBkg = dataSet.refBkg
+
+  /** ID of template image */
+  def refId = dataSet.refId
 
   /** Template image used for spatial normalization */
   def refImg(refId: String) = Workspace.refImg(setId = dataSet.id, refId = refId)
 
   /** Get file path of log files directory */
   def logDir = Workspace.logDir(setId = dataSet.id)
+
+  /** Get log file path */
+  def logPath(s: String*) = s.flatMap(_.split("/")).foldLeft(logDir)( (b, a) => b.resolve(a) )
 
   /** Get file path of image meta-data table */
   def imgCsv = Workspace.imgCsv(setId = dataSet.id)
@@ -45,9 +54,9 @@ class DatasetWorkspace(dataSet: Dataset) extends Workspace {
   def imgPts(imgId: String) = Workspace.imgPts(setId = dataSet.id, imgId = imgId)
 
   /** Get file path of rigid template to image transformation */
-  def rigDof(imgId: String, refId: String) = Workspace.rigDof(setId = dataSet.id, refId = refId, imgId = imgId)
+  def rigDof(refId: String, imgId: String) = Workspace.rigDof(setId = dataSet.id, refId = refId, imgId = imgId)
 
   /** Get file path of affine template to image transformation */
-  def affDof(imgId: String, refId: String) = Workspace.affDof(setId = dataSet.id, refId = refId, imgId = imgId)
+  def affDof(refId: String, imgId: String) = Workspace.affDof(setId = dataSet.id, refId = refId, imgId = imgId)
 
 }
