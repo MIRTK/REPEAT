@@ -27,6 +27,7 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.mole.Capsule
+import org.openmole.core.workflow.transition.Condition
 import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.hook.display._
@@ -43,7 +44,7 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(start) {
 
   /** Compose template to image transformations to get an initial guess of the target to source transformation */
-  protected def getIniDof(outDof: Prototype[File]) = {
+  protected def compose(outDof: Prototype[File]) = {
     val tgtDof = Val[File]
     val srcDof = Val[File]
     val dofcombine = Val[String]
@@ -57,13 +58,13 @@ class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(st
           | }
         """.stripMargin
       ) set (
-        name        := wf + ".getIniDof",
+        name        := wf + ".compose",
         imports     += ("java.io.File", "scala.sys.process._", "com.andreasschuh.repeat.core._"),
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (dataSpace, tgtId, srcId),
+        inputs      += (dataSpace, setId, tgtId, srcId),
         inputFiles  += (tgtDof, "${tgtId}" + Suffix.dof, link = Workspace.shared),
         inputFiles  += (srcDof, "${srcId}" + Suffix.dof, link = Workspace.shared),
-        outputs     += (dataSpace, tgtId, srcId, outDof),
+        outputs     += (dataSpace, setId, tgtId, srcId, outDof),
         dofcombine  := IRTK.binPath("dofcombine")
       )
     Capsule(task) source (
@@ -101,10 +102,10 @@ class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(st
         name        := wf + ".ireg-" + model,
         imports     += ("java.io.File", "com.andreasschuh.repeat.core.{Config, IRTK}"),
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (dataSpace, tgtId, srcId),
+        inputs      += (dataSpace, setId, tgtId, srcId),
         inputFiles  += (tgtImg, s"$${${tgtId.name}}" + Suffix.img, link = Workspace.shared),
         inputFiles  += (srcImg, s"$${${srcId.name}}" + Suffix.img, link = Workspace.shared),
-        outputs     += (dataSpace, tgtId, srcId, outDof, outLog)
+        outputs     += (dataSpace, setId, tgtId, srcId, outDof, outLog)
       )
     if (iniDof != None) task.addInput(iniDof.get)
     Capsule(task) source (
@@ -114,32 +115,33 @@ class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(st
   }
 
   /** Average target to source and inverse of source to target transformation */
-  protected def averageDofs(dof1: Prototype[File], dof2: Prototype[File], outDof: Prototype[File]) = {
+  protected def dofaverage(outDof: Prototype[File], dof: Prototype[File]*) = {
     val dofaverage = Val[String]
-    Capsule(
+    val task =
       ScalaTask(
         s"""
           | val ${outDof.name} = new File(workDir, "avg${Suffix.dof}")
-          | val average = Cmd(dofaverage, ${outDof.name}, ${dof1.name}, ${dof2.name}, "-all")
+          | val average = Cmd(dofaverage, ${outDof.name}, ${dof.map(_.name).mkString(", ")}, "-all", "-max-frechet-iterations", "100")
           | if (average.run().exitValue() != 0) {
           |   throw new Exception("Transformation averaging command returned non-zero exit code: " + Cmd.toString(average))
           | }
         """.stripMargin
       ) set (
-        name        := wf + ".averageDofs",
+        name        := wf + ".dofaverage",
         imports     += ("java.io.File", "scala.sys.process._", "com.andreasschuh.repeat.core._"),
         usedClasses += Cmd.getClass,
-        inputs      += (dataSpace, tgtId, srcId),
-        inputFiles  += (dof1, "dof1" + Suffix.dof, link = Workspace.shared),
-        inputFiles  += (dof2, "dof2" + Suffix.dof, link = Workspace.shared),
-        outputs     += (dataSpace, tgtId, srcId, dof1, dof2, outDof),
+        inputs      += (dataSpace, setId, tgtId, srcId),
+        outputs     += (dataSpace, setId, tgtId, srcId, outDof),
         dofaverage  := IRTK.binPath("dofaverage")
       )
-    )
+    dof.zipWithIndex.foreach {
+      case (p, i) => task.addInputFile(p, (i+1).toString + Suffix.dof, link = Workspace.shared)
+    }
+    Capsule(task)
   }
 
   /** Invert affine transformation */
-  protected def invertDof(outDof: Prototype[File], invDof: Prototype[File]) = {
+  protected def dofinvert(outDof: Prototype[File], invDof: Prototype[File]) = {
     val dofinvert = Val[String]
     val task =
       ScalaTask(
@@ -151,12 +153,12 @@ class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(st
           | }
         """.stripMargin
       ) set (
-        name        := wf + ".invertDof",
+        name        := wf + ".dofinvert",
         imports     += ("java.io.File", "scala.sys.process._", "com.andreasschuh.repeat.core._"),
         usedClasses += Cmd.getClass,
-        inputs      += (dataSpace, tgtId, srcId),
+        inputs      += (dataSpace, setId, tgtId, srcId),
         inputFiles  += (outDof, "out" + Suffix.dof, link = Workspace.shared),
-        outputs     += (dataSpace, tgtId, srcId, outDof),
+        outputs     += (dataSpace, setId, tgtId, srcId, outDof),
         dofinvert   := IRTK.binPath("dofinvert")
       )
     if (invDof != outDof) task.addOutput(invDof)
@@ -169,48 +171,93 @@ class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(st
 
     import Display._
 
-    val iniDof = Val[File]
-    val fwdDof = Val[File]
-    val bwdDof = Val[File]
-    val invDof = Val[File]
-    val avgDof = Val[File]
-
-    val fwdRegEnd =
+    val withImagePair =
       Capsule(
         EmptyTask() set (
-          name    := wf + ".fwdRegEnd",
-          inputs  += (dataSpace, tgtId, srcId, fwdDof),
-          outputs += (dataSpace, tgtId, srcId, fwdDof)
+          name    := wf + ".withImagePair",
+          inputs  += (dataSpace, setId, tgtId, srcId),
+          outputs += (dataSpace, setId, tgtId, srcId)
         )
       )
 
-    val bwdRegEnd =
-      Capsule(
-        EmptyTask() set (
-          name    := wf + ".bwdRegEnd",
-          inputs  += invDof,
-          outputs += invDof
+    val exploreImagePairs = first -- forEachDataSet -< getDataSpace -- forEachUniqueImgPair -< withImagePair
+    val registerImagePair = {
+
+      val iniDof = Val[File]
+      val fwdDof = Val[File]
+      val bwdDof = Val[File]
+      val invDof = Val[File]
+      val avgDof = Val[File]
+
+      val infoVals = Seq(setId, tgtId, srcId)
+      val fwdInfo  = "{setId=${setId}, tgtId=${tgtId}, srcId=${srcId}}"
+      val bwdInfo  = "{setId=${setId}, tgtId=${srcId}, srcId=${tgtId}}"
+
+      val iniMsg = "Making initial guess for "
+      val regMsg = "Affine registering image pair for "
+      val avgMsg = "Averaging forward and backward transformation for "
+
+      // Compute target to source transformation
+      val fwdRegEnd =
+        Capsule(
+          EmptyTask() set (
+            name    := wf + ".fwdRegEnd",
+            inputs  += (dataSpace, setId, tgtId, srcId, fwdDof),
+            outputs += (dataSpace, setId, tgtId, srcId, fwdDof)
+          )
         )
+
+      val fwdReg =
+          QSUB(iniMsg + fwdInfo, infoVals: _*) -- compose(iniDof) -- DONE(iniMsg + fwdInfo, infoVals: _*) --
+          QSUB(regMsg + fwdInfo, infoVals: _*) -- ireg("affine", tgtId, srcId, fwdDof, Some(iniDof)) -- DONE(regMsg + fwdInfo, infoVals: _*) --
+        fwdRegEnd
+
+      // Compute source to target transformation
+      val bwdRegEnd =
+        Capsule(
+          EmptyTask() set (
+            name    := wf + ".bwdRegEnd",
+            inputs  += invDof,
+            outputs += invDof
+          )
+        )
+
+      val bwdReg =
+        fwdRegEnd --
+          QSUB(iniMsg + bwdInfo, infoVals: _*) -- compose(iniDof) -- DONE(iniMsg + bwdInfo, infoVals: _*) --
+          QSUB(regMsg + bwdInfo, infoVals: _*) -- ireg("affine", srcId, tgtId, bwdDof, Some(iniDof)) -- DONE(regMsg + bwdInfo, infoVals: _*) --
+          QSUB(avgMsg + fwdInfo, infoVals: _*) -- dofinvert(bwdDof, invDof) --
+        bwdRegEnd
+
+      // Average transformations to get unbiased and symmetric transformations
+      val avgDofs    = Slot(dofaverage(avgDof, fwdDof, invDof))
+      val saveAvgDof = CopyFileHook(avgDof, "${dataSpace.affDof(tgtId, srcId)}")
+      val saveInvDof = CopyFileHook(invDof, "${dataSpace.affDof(srcId, tgtId)}")
+
+      val makeSym =
+        (fwdRegEnd -- avgDofs) + (bwdRegEnd -- avgDofs) +
+        (avgDofs hook saveAvgDof) -- (dofinvert(avgDof, invDof) hook saveInvDof) -- DONE(avgMsg + fwdInfo, infoVals: _*)
+
+      // Perform symmetric affine registration only when needed
+      val cond =
+        Condition(
+          """
+            | val tgtImg = dataSpace.padImg(tgtId).toFile
+            | val srcImg = dataSpace.padImg(srcId).toFile
+            | val fwdDof = dataSpace.affDof(tgtId, srcId).toFile
+            | val bwdDof = dataSpace.affDof(srcId, tgtId).toFile
+            |
+            | fwdDof.lastModified < tgtImg.lastModified || fwdDof.lastModified < srcImg.lastModified ||
+            | bwdDof.lastModified < tgtImg.lastModified || bwdDof.lastModified < srcImg.lastModified
+          """.stripMargin
+        )
+
+      withImagePair -- Switch(
+        Case( cond, fwdReg + bwdReg + makeSym),
+        Case(!cond, SKIP("Affine transformation up-to-date for " + fwdInfo, infoVals: _*))
       )
+    }
 
-    val avgDofs = Slot(averageDofs(fwdDof, invDof, avgDof))
-
-    val saveAvgDof = CopyFileHook(avgDof, "${dataSpace.affDof(tgtId, srcId)}")
-    val saveInvDof = CopyFileHook(invDof, "${dataSpace.affDof(srcId, tgtId)}")
-
-    val p1 =
-      first -- forEachDataSet -< getDataSpace -- forEachUniqueImgPair -<
-        getIniDof(iniDof) -- ireg("affine", tgtId, srcId, fwdDof, Some(iniDof)) --
-      fwdRegEnd
-
-    val p2 =
-      fwdRegEnd --
-        getIniDof(iniDof) -- ireg("affine", srcId, tgtId, bwdDof, Some(iniDof)) -- invertDof(bwdDof, invDof) --
-      bwdRegEnd
-
-    val p3 = (fwdRegEnd -- avgDofs) + (bwdRegEnd -- avgDofs)
-    val p4 = (avgDofs hook saveAvgDof) -- (invertDof(avgDof, invDof) hook saveInvDof) >- nop("forEachUniqueImgPairEnd") >- end
-
-    p1 + p2 + p3 + p4
+    exploreImagePairs + (registerImagePair >- nop("forEachUniqueImgPairEnd") >- end)
   }
 }
