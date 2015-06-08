@@ -14,6 +14,9 @@ object DatasetWorkspace {
  */
 class DatasetWorkspace(dataSet: Dataset) extends Workspace {
 
+  /** Dataset ID */
+  def setId = dataSet.id
+
   /** Background intensity, padding value of intensity images */
   def imgBkg = dataSet.imgBkg
 
@@ -53,10 +56,7 @@ class DatasetWorkspace(dataSet: Dataset) extends Workspace {
   /** Get file path of image voxel-center points file */
   def imgPts(imgId: String) = Workspace.imgPts(setId = dataSet.id, imgId = imgId)
 
-  /** Get file path of rigid template to image transformation */
-  def rigDof(refId: String, imgId: String) = Workspace.rigDof(setId = dataSet.id, refId = refId, imgId = imgId)
-
-  /** Get file path of affine template to image transformation */
-  def affDof(refId: String, imgId: String) = Workspace.affDof(setId = dataSet.id, refId = refId, imgId = imgId)
+  /** Get file path of affine target to image transformation */
+  def affDof(tgtId: String, srcId: String) = Workspace.affDof(setId = dataSet.id, tgtId = tgtId, srcId = srcId)
 
 }

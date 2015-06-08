@@ -153,19 +153,12 @@ object Workspace extends Configurable("workspace") {
   def regSeg(setId: String, regId: String, parId: String, imgId: String): Path =
     expand(regSeg, Map("setId" -> setId, "regId" -> regId, "parId" -> parId, "imgId" -> imgId))
 
-  /** File path template of rigid template to image transformation */
-  val rigDof = dir.resolve(getStringProperty("dofs.rigid")).normalize
-
-  /** Get file path of particular rigid template to image transformation */
-  def rigDof(setId: String, refId: String, imgId: String): Path =
-    expand(rigDof, Map("setId" -> setId, "tgtId" -> refId, "srcId" -> imgId))
-
   /** File path template of affine template to image transformation */
   val affDof = dir.resolve(getStringProperty("dofs.affine")).normalize
 
   /** Get file path of particular affine template to image transformation */
-  def affDof(setId: String, refId: String, imgId: String): Path =
-    expand(affDof, Map("setId" -> setId, "tgtId" -> refId, "srcId" -> imgId))
+  def affDof(setId: String, tgtId: String, srcId: String): Path =
+    expand(affDof, Map("setId" -> setId, "tgtId" -> tgtId, "srcId" -> srcId))
 
 }
 
