@@ -282,10 +282,8 @@ abstract class Workflow(start: Option[Capsule] = None) {
     val srcIdSampling = CSVSampling("${dataSpace.imgCsv}")
     tgtIdSampling.addColumn("Image ID", tgtId)
     srcIdSampling.addColumn("Image ID", srcId)
-    // FIXME: The filtering condition should be "tgtId != srcId"
-    //        (cf. https://github.com/openmole/openmole/issues/74)
     Capsule(
-      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId == srcId") set (
+      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId != srcId") set (
         name   := wf + ".forEachUniqueImgPair",
         inputs += dataSpace
       ),
@@ -299,13 +297,11 @@ abstract class Workflow(start: Option[Capsule] = None) {
     val srcIdSampling = CSVSampling("${dataSpace.imgCsv}")
     tgtIdSampling.addColumn("Image ID", tgtId)
     srcIdSampling.addColumn("Image ID", srcId)
-    // FIXME: The filtering condition should be "tgtId < srcId" (or greater, but not equal)
-    //        (cf. https://github.com/openmole/openmole/issues/74)
     Capsule(
-      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId >= srcId") set (
+      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId < srcId") set (
         name    := wf + ".forEachUniqueImgPair",
-        inputs  += dataSpace,
-        outputs += dataSpace
+        inputs  += (dataSpace, setId),
+        outputs += (dataSpace, setId)
       )
     )
   }
