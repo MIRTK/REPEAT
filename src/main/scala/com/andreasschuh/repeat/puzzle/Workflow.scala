@@ -87,6 +87,23 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Capsule at the end of workflow puzzle */
   val end = nop("end")
 
+  /** Swap values of two prototype variables */
+  protected def swap(p1: Prototype[_], p2: Prototype[_]) = {
+    val taskName = s"swap(${p1.name}, ${p2.name})"
+    Strain(
+      ScalaTask(
+        """
+          | val p1 = input.p2
+          | val p2 = input.p1
+        """.stripMargin
+      ) set(
+        name    := wf + "." + taskName,
+        inputs  += (p1, p2),
+        outputs += (p1, p2)
+      )
+    ) -- getHead(taskName, p1, p2)
+  }
+
   /** Explore datasets to be used, usually the start of any workflow puzzle */
   protected def forEachDataSet =
     Capsule(
@@ -245,7 +262,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
     val sampling = CSVSampling("${dataSpace.imgCsv}")
     sampling.addColumn("Image ID", p)
     Capsule(
-      ExplorationTask(sampling) set(
+      ExplorationTask(sampling) set (
         name   := wf + ".forEachImgInDataSet",
         inputs += dataSpace
       ),
@@ -258,6 +275,40 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Explore each reference image of dataset */
   protected def forEachImgAsRef = forEachImgInDataSet(refId)
+
+  /** Explore each pair of images */
+  protected def forEachImgPair = {
+    val tgtIdSampling = CSVSampling("${dataSpace.imgCsv}")
+    val srcIdSampling = CSVSampling("${dataSpace.imgCsv}")
+    tgtIdSampling.addColumn("Image ID", tgtId)
+    srcIdSampling.addColumn("Image ID", srcId)
+    // FIXME: The filtering condition should be "tgtId != srcId"
+    //        (cf. https://github.com/openmole/openmole/issues/74)
+    Capsule(
+      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId == srcId") set (
+        name   := wf + ".forEachUniqueImgPair",
+        inputs += dataSpace
+      ),
+      strainer = true
+    )
+  }
+
+  /** Explore each unique pair of images */
+  protected def forEachUniqueImgPair = {
+    val tgtIdSampling = CSVSampling("${dataSpace.imgCsv}")
+    val srcIdSampling = CSVSampling("${dataSpace.imgCsv}")
+    tgtIdSampling.addColumn("Image ID", tgtId)
+    srcIdSampling.addColumn("Image ID", srcId)
+    // FIXME: The filtering condition should be "tgtId < srcId" (or greater, but not equal)
+    //        (cf. https://github.com/openmole/openmole/issues/74)
+    Capsule(
+      ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId >= srcId") set (
+        name    := wf + ".forEachUniqueImgPair",
+        inputs  += dataSpace,
+        outputs += dataSpace
+      )
+    )
+  }
 
   /** Copy file */
   protected def copy(from: Prototype[Path], to: Prototype[Path]) =
@@ -283,15 +334,14 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Demux aggregated results by taking head element only */
   protected def getHead(taskName: String, input: Prototype[_]*) = {
     val inputNames = input.toSeq.map(_.name)
-    val task =
-      ScalaTask(inputNames.map(name => s"val $name = input.$name.head").mkString("\n")) set (
-        name := wf + s".$taskName.getHead(${inputNames.mkString(",")})"
-      )
+    val nameSuffix = s".getHead(${inputNames.mkString(",")})"
+    val _taskName  = if (taskName.isEmpty) nameSuffix else "." + taskName + nameSuffix
+    val task = ScalaTask(inputNames.map(name => s"val $name = input.$name.head").mkString("\n")) set (name := wf + _taskName)
     input.foreach(p => {
       task.addInput(p.toArray)
       task.addOutput(p)
     })
-    Capsule(task).toPuzzle
+    Capsule(task, strainer = true)
   }
 
   /** Get full path of registration result table */
