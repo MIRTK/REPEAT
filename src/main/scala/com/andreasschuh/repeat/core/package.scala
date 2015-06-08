@@ -21,6 +21,9 @@
 
 package com.andreasschuh.repeat
 
+import scala.language.implicitConversions
+
+import java.io.File
 import java.nio.file.{Path, Paths}
 
 
@@ -61,4 +64,7 @@ package object core {
   implicit class Regex(sc: StringContext) {
     def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
   }
+
+  implicit def convertFileToString(f: File): String = f.toString
+  implicit def convertPathToString(p: Path): String = p.toString
 }
