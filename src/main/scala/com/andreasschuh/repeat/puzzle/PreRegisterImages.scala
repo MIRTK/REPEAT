@@ -46,13 +46,13 @@ import com.andreasschuh.repeat.puzzle.Display._
 object PreRegisterImages {
 
   /** Get workflow puzzle for affine pre-registration of image pairs */
-  def apply() = new AffineRegisterImages()
+  def apply() = new PreRegisterImages()
 
   /**
    * Get workflow puzzle for affine pre-registration of image pairs
    * @param start End capsule of parent workflow puzzle.
    */
-  def apply(start: Capsule) = new AffineRegisterImages(Some(start))
+  def apply(start: Capsule) = new PreRegisterImages(Some(start))
 
 }
 
