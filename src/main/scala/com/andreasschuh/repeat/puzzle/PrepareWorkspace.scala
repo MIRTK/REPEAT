@@ -26,6 +26,7 @@ import java.nio.file.Path
 import scala.language.reflectiveCalls
 
 import org.openmole.core.dsl._
+import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.mole.Capsule
 import org.openmole.core.workflow.puzzle.Puzzle
 import org.openmole.core.workflow.tools.Condition
@@ -175,6 +176,36 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
         usedClasses += Cmd.getClass,
         inputs      += (dataSet, dataSpace, imgId),
         calculate   := IRTK.binPath("calculate")
+      )
+    )
+  }
+
+  /**
+   * Obtain reference VTK point set to be transformed
+   *
+   * This task converts the image to a VTK poly data file which stores the world coordinates of the foreground voxel
+   * centers as its points. The points are used for the inverse-consistency and transitivity error evaluation.
+   */
+  protected def preparePoints(imgId: Prototype[String]) = {
+    val image2vtk = Val[String]
+    Capsule(
+      ScalaTask(
+        s"""
+          | val refImg = dataSpace.orgImg(${imgId.name})
+          | val refMsk = dataSpace.orgMsk(${imgId.name})
+          | val refPts = dataSpace.imgPts(${imgId.name})
+          | val outDir = refPts.getParent
+          | if (outDir != null) Files.createDirectories(outDir)
+          | val cmd = Cmd(image2vtk, refImg, refPts, "-mask", refMsk, "-points")
+          | if (cmd.run().exitValue() != 0) {
+          |   throw new Exception("Image to points conversion command returned non-zero exit code: " + Cmd.toString(cmd))
+          | }
+        """.stripMargin
+      ) set(
+        name      := wf + ".preparePoints",
+        imports   += ("java.nio.file.Files", "scala.sys.process._", "com.andreasschuh.repeat.core._"),
+        inputs    += (dataSpace, imgId),
+        image2vtk := IRTK.binPath("image2vtk")
       )
     )
   }
@@ -360,11 +391,32 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
       )
     }
 
-    val withDataSet = nop("withDataSet")
+    def getImgPoints = {
+      val msgVals = Seq(setId, imgId)
+      val convMsg = "Get voxel-center positions for {setId=${setId}, imgId=${imgId}}"
+      val skipMsg = "Reference points up-to-date for {setId=${setId}, imgId=${imgId}}"
+      // TODO: Add condition to only extract the points when they are needed for the evaluation
+      val convCond =
+        Condition(
+          """
+            | val refImg = dataSpace.orgImg(imgId).toFile
+            | val refMsk = dataSpace.orgMsk(imgId).toFile
+            | val refPts = dataSpace.imgPts(imgId).toFile
+            | refPts.lastModified < refImg.lastModified || refPts.lastModified < refMsk.lastModified
+          """.stripMargin
+        )
+      val skipCond = !convCond
+      Switch(
+        Case(convCond, QSUB(convMsg, msgVals: _*) -- Strain(preparePoints(imgId) on Env.local) -- DONE(convMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
+      )
+    }
+
+    val withDataSet = Slot(nop("withDataSet"))
 
     (begin -- forEachDataSet -< getDataSet -- getDataSpace -- getRefId -- copyMetaData -- withDataSet) +
       (withDataSet -- copyTemplates >- end) +
-      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- nop("forEachImgEnd") >- end) +
+      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages -- getImgPoints >- nop("forEachImgEnd") >- end) +
       (withDataSet -- forEachReg -< getReg -- copyParams >- nop("forEachRegEnd") >- end)
   }
 
