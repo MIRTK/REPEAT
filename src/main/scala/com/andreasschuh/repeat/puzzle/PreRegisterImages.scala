@@ -43,16 +43,16 @@ import com.andreasschuh.repeat.puzzle.Display._
 /**
  * Affine pre-registration of image pairs
  */
-object RegisterImagesSymAffine {
+object PreRegisterImages {
 
   /** Get workflow puzzle for affine pre-registration of image pairs */
-  def apply() = new RegisterImagesSymAffine()
+  def apply() = new AffineRegisterImages()
 
   /**
    * Get workflow puzzle for affine pre-registration of image pairs
    * @param start End capsule of parent workflow puzzle.
    */
-  def apply(start: Capsule) = new RegisterImagesSymAffine(Some(start))
+  def apply(start: Capsule) = new AffineRegisterImages(Some(start))
 
 }
 
@@ -62,7 +62,7 @@ object RegisterImagesSymAffine {
  *
  * @param start End capsule of parent workflow puzzle.
  */
-class RegisterImagesSymAffine(start: Option[Capsule] = None) extends Workflow(start) {
+class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
 
   /** Compose template to image transformations to get an initial guess of the target to source transformation */
   protected def compose(tgtDof: Prototype[File], srcDof: Prototype[File], outDof: Prototype[File]) = {
