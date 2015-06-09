@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.sampling
 
-import java.io.{ File, FileReader }
-import java.math.{ BigDecimal, BigInteger }
+import java.io.{File, FileReader}
+import java.math.{BigDecimal, BigInteger}
 
 import au.com.bytecode.opencsv.CSVReader
 import org.openmole.core.exception.UserBadDataError

@@ -19,31 +19,21 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.sampling
 
-import java.io.File
+import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
+import org.openmole.core.workflow.sampling.Sampling
+import org.openmole.core.workflow.tools.ExpandedString
 
-import org.openmole.core.workflow.mole._
-import org.openmole.core.workflow.data._
 
-
-object ParamsCSVFileSource {
-
-  def apply(regId: Prototype[String], dataSpace: Prototype[DataSpace], parCsv: Prototype[File]) =
-    new SourceBuilder {
-      addInput(regId)
-      addInput(dataSpace)
-      addOutput(parCsv)
-      def toSource = new ParamsCSVFileSource(regId, dataSpace, parCsv) with Built
-    }
-
+object CSVToMapSampling {
+  def apply(file: ExpandedString, p: Prototype[Map[String, String]]) = new CSVToMapSamplingBuilder(file, p)
 }
 
-abstract class ParamsCSVFileSource(regId: Prototype[String], dataSpace: Prototype[DataSpace], parCsv: Prototype[File]) extends Source {
+abstract class CSVToMapSampling(file: ExpandedString, p: Prototype[Map[String, String]]) extends Sampling with CSVToMapVariable {
 
-  override def process(context: Context, executionContext: ExecutionContext)(implicit rng: RandomProvider) = {
-    val regID = context.option(regId).get
-    val space = context.option(dataSpace).get
-    Variable(parCsv, space.parCsv(regID).toFile)
-  }
+  override def prototypes = List(p)
+
+  override def build(context: ⇒ Context)(implicit rng: RandomProvider): Iterator[Iterable[Variable[_]]] = toMapVariable(file, p, context)
+
 }

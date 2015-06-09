@@ -40,6 +40,8 @@ import org.openmole.plugin.task.scala._
 import org.openmole.plugin.tool.pattern._
 
 import com.andreasschuh.repeat.core._
+import com.andreasschuh.repeat.sampling._
+import com.andreasschuh.repeat.source._
 
 
 /**

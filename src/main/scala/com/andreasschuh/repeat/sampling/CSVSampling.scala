@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.sampling
 
 import org.openmole.core.workflow.data._
 import org.openmole.core.workflow.sampling._

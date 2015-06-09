@@ -19,28 +19,30 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.source
 
 import org.openmole.core.workflow.mole._
 import org.openmole.core.workflow.data._
 import org.openmole.core.workflow.tools.ExpandedString
 
+import com.andreasschuh.repeat.core.DataSet
 
-object RegistrationSource {
 
-  def apply(regId: Prototype[String], reg: Prototype[Registration]) =
+object DataSetSource {
+
+  def apply(setId: Prototype[String], dataSet: Prototype[DataSet]) =
     new SourceBuilder {
-      addInput(regId)
-      addOutput(reg)
-      def toSource = new RegistrationSource(regId, reg) with Built
+      addInput(setId)
+      addOutput(dataSet)
+      def toSource = new DataSetSource(setId, dataSet) with Built
     }
 
 }
 
-abstract class RegistrationSource(regId: Prototype[String], reg: Prototype[Registration]) extends Source {
+abstract class DataSetSource(setId: Prototype[String], dataSet: Prototype[DataSet]) extends Source {
 
   override def process(context: Context, executionContext: ExecutionContext)(implicit rng: RandomProvider) = {
-    val name = context.option(regId).get
-    Variable(reg, Registration(name))
+    val name = context.option(setId).get
+    Variable(dataSet, DataSet(name))
   }
 }

@@ -19,24 +19,26 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.sampling
 
-import java.io.File
+import java.io.{File, FileReader}
 
-import org.openmole.core.workflow.builder.SamplingBuilder
-import org.openmole.core.workflow.data.Prototype
+import au.com.bytecode.opencsv.CSVReader
+import org.openmole.core.workflow.data.{Prototype, Variable, Context, RandomProvider}
 import org.openmole.core.workflow.tools.ExpandedString
 
 
-class CSVToMapSamplingBuilder(file: ExpandedString, p: Prototype[Map[String, String]]) extends SamplingBuilder { builder ⇒
-  private var separator: Option[Char] = None
+trait CSVToMapVariable {
 
-  def setSeparator(s: Option[Char]) = {
-    separator = s
-    this
-  }
+  def separator: Char
 
-  def toSampling = new CSVToMapSampling(file, p) {
-    val separator = builder.separator.getOrElse(',')
+  def toMapVariable(file: ExpandedString, p: Prototype[Map[String, String]], context: Context)(implicit rng: RandomProvider): Iterator[Iterable[Variable[_]]] = {
+    val reader = new CSVReader(new FileReader(new File(file.from(context))), separator)
+    val header = reader.readNext.toArray
+    Iterator.continually(reader.readNext).takeWhile(_ != null).map {
+      line ⇒ List(Variable(p, line.view.zipWithIndex.map {
+        case (value, column) => header(column) -> value
+      }.toMap))
+    }
   }
 }

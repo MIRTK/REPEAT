@@ -15,18 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.sampling
 
 import java.io.File
 
-import org.openmole.core.workflow.builder.SamplingBuilder
+import org.openmole.core.workflow.builder.{ Builder, InputOutputBuilder, SamplingBuilder }
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.core.workflow.tools.ExpandedString
 
 import scala.collection.mutable.ListBuffer
 
 
-class CSVSamplingBuilder(file: ExpandedString) extends SamplingBuilder { builder ⇒
+trait CSVToVariablesBuilder extends Builder { builder ⇒
   private var _columns = new ListBuffer[(String, Prototype[_])]
   private var _fileColumns = new ListBuffer[(String, File, Prototype[File])]
   private var separator: Option[Char] = Some(',')
@@ -35,7 +34,7 @@ class CSVSamplingBuilder(file: ExpandedString) extends SamplingBuilder { builder
   def fileColumns = _fileColumns.toList
 
   def addColumn(proto: Prototype[_]): this.type = this.addColumn(proto.name, proto)
-  def addColumn(name: String, proto: Prototype[_]): builder.type = {
+  def addColumn(name: String, proto: Prototype[_]): this.type = {
     _columns += (name -> proto)
     this
   }
@@ -52,7 +51,7 @@ class CSVSamplingBuilder(file: ExpandedString) extends SamplingBuilder { builder
     this
   }
 
-  def toSampling = new CSVSampling(file) {
+  trait BuiltCSVToVariables {
     val columns = builder.columns
     val fileColumns = builder.fileColumns
     val separator = builder.separator.getOrElse(',')

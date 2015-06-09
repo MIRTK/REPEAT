@@ -19,11 +19,13 @@
  * Contact: Andreas Schuh <andreas.schuh.84@gmail.com>
  */
 
-package com.andreasschuh.repeat.core
+package com.andreasschuh.repeat.source
 
 import org.openmole.core.workflow.mole._
 import org.openmole.core.workflow.data._
 import org.openmole.core.workflow.tools.ExpandedString
+
+import com.andreasschuh.repeat.core.DataSpace
 
 
 object DataSpaceSource {
