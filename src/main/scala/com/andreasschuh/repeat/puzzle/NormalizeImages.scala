@@ -28,7 +28,7 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.mole.Capsule
 import org.openmole.core.workflow.data.Prototype
-import org.openmole.core.workflow.transition.Condition
+import org.openmole.core.workflow.tools.Condition
 import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
 import org.openmole.plugin.source.file._
@@ -39,12 +39,18 @@ import com.andreasschuh.repeat.core.{Environment => Env, _}
 
 
 /**
- * Workflow puzzle for spatial normalization of input images
+ * Spatially normalize input images
  */
 object NormalizeImages {
 
   /** Get workflow puzzle for spatial normalization of input images */
   def apply() = new NormalizeImages()
+
+  /**
+   * Get workflow puzzle for spatial normalization of input images
+   * @param start End capsule of parent workflow puzzle.
+   */
+  def apply(start: Capsule) = new NormalizeImages(Some(start))
 
 }
 
@@ -95,16 +101,16 @@ class NormalizeImages(start: Option[Capsule] = None) extends Workflow(start) {
         name        := wf + ".ireg-" + model,
         imports     += ("java.io.File", "com.andreasschuh.repeat.core.{Config, IRTK}"),
         usedClasses += (Config.getClass, IRTK.getClass),
-        inputs      += (dataSpace, setId, refId, imgId),
-        inputFiles  += (refImg, "${refId}" + Suffix.img, link = Workspace.shared),
-        inputFiles  += (srcImg, "${imgId}" + Suffix.img, link = Workspace.shared),
-        outputs     += (dataSpace, setId, refId, imgId, outDof, outLog)
+        inputs      += (dataSpace, setId, regId, refId, imgId),
+        inputFiles  += (refImg, "${refId}" + Suffix.img, link = WorkSpace.shared),
+        inputFiles  += (srcImg, "${imgId}" + Suffix.img, link = WorkSpace.shared),
+        outputs     += (dataSpace, setId, regId, refId, imgId, outDof, outLog)
       )
     if (iniDof != None) task.addInput(iniDof.get)
     Capsule(task) source (
       FileSource("${dataSpace.refImg(refId)}", refImg),
       FileSource("${dataSpace.padImg(imgId)}", srcImg)
-    ) hook CopyFileHook(outLog, s"""$${dataSpace.logPath("ireg-$model", refId + "," + imgId + "${Suffix.log}")} """)
+    ) hook CopyFileHook(outLog, s"""$${dataSpace.logPath("ireg-$model", refId + "," + imgId + "${Suffix.log}")}""")
   }
 
   /** Puzzle corresponding to this workflow */
@@ -117,37 +123,34 @@ class NormalizeImages(start: Option[Capsule] = None) extends Workflow(start) {
 
       val dof = Val[File]
 
-      val inputSet = "{setId=${setId}, refId=${refId}, imgId=${imgId}}"
-      val rregMsg  = "Rigid alignment to template for " + inputSet
-      val aregMsg  = "Affine registration to template for " + inputSet
-      val skipMsg  = "Affine template transformation up-to-date for " + inputSet
+      val msgVals = Seq(setId, refId, imgId)
+      val whatMsg = "{setId=${setId}, refId=${refId}, imgId=${imgId}}"
+      val rregMsg = "Rigid alignment to template for " + whatMsg
+      val aregMsg = "Affine registration to template for " + whatMsg
+      val skipMsg = "Affine template transformation up-to-date for " + whatMsg
 
       val cond =
         Condition(
           """
             | val refImg = dataSpace.refImg(refId).toFile
             | val srcImg = dataSpace.padImg(imgId).toFile
-            | val affDof = dataSpace.affDof(refId, imgId).toFile
+            | val affDof = dataSpace.affDof(regId, refId, imgId).toFile
             | affDof.lastModified < refImg.lastModified || affDof.lastModified < srcImg.lastModified
           """.stripMargin
         )
 
-      val save = CopyFileHook(dof, "${dataSpace.affDof(refId, imgId)}")
+      val save = CopyFileHook(dof, "${dataSpace.affDof(regId, refId, imgId)}")
 
-      Switch(
+      putRegId("ireg") -- Switch(
         Case(cond,
-          QSUB(rregMsg, setId, refId, imgId) --
-            (ireg("rigid", dof, None) on Env.short by 10) --
-          DONE(rregMsg, setId, refId, imgId) --
-          QSUB(aregMsg, setId, refId, imgId) --
-            (ireg("affine", dof, Some(dof)) on Env.short by 10 hook save) --
-          DONE(aregMsg, setId, refId, imgId)
+          QSUB(rregMsg, msgVals: _*) -- (ireg("rigid",  dof, None)      on Env.short by 10)           -- DONE(rregMsg, msgVals: _*) --
+          QSUB(aregMsg, msgVals: _*) -- (ireg("affine", dof, Some(dof)) on Env.short by 10 hook save) -- DONE(aregMsg, msgVals: _*)
         ),
-        Case(!cond, SKIP(skipMsg, setId, refId, imgId))
+        Case(!cond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
-    first -- forEachDataSet -< getDataSpace -- getRefId -- forEachImg -< regImg >- nop("forEachImgEnd") >- end
+    begin -- forEachDataSet -< getDataSpace -- getRefId -- forEachImg -< regImg >- nop("forEachImgEnd") >- end
   }
 
 }

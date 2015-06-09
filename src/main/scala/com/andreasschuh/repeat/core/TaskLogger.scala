@@ -46,7 +46,7 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
   protected val writer = {
     val logFile = log.getAbsoluteFile
     logFile.getParentFile.mkdirs()
-    new FileWriter(logFile, Workspace.appLog)
+    new FileWriter(logFile, WorkSpace.appLog)
   }
 
   /** Close log file */

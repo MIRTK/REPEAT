@@ -27,7 +27,7 @@ import java.nio.file.{Paths, Files}
 /**
  * Information about input datasets used for evaluation
  */
-object Dataset extends Configurable("dataset") {
+object DataSet extends Configurable("dataset") {
 
   /** Default base directory for all datasets */
   val topDir = getPathOptionProperty("dir") getOrElse Paths.get(System.getProperty("user.home"))
@@ -62,24 +62,24 @@ object Dataset extends Configurable("dataset") {
   }
 
   /** Get information object for named dataset */
-  def apply(name: String) = new Dataset(name)
+  def apply(name: String) = new DataSet(name)
 }
 
 /**
  * Information about input dataset used for evaluation
  */
-class Dataset(val id: String) extends Configurable("dataset." + id) {
+class DataSet(val id: String) extends Configurable("dataset." + id) {
 
   /** Default base directory of this dataset */
   val dir = getPathOptionProperty("dir") getOrElse {
-    val subDir = Dataset.topDir.resolve(id)
+    val subDir = DataSet.topDir.resolve(id)
     if (Files.isDirectory(subDir)) subDir
-    else if (Files.isDirectory(Dataset.topDir)) Dataset.topDir
+    else if (Files.isDirectory(DataSet.topDir)) DataSet.topDir
     else throw new Exception("Directory of " + id + " dataset does not exist: " + subDir)
   }
 
   /** Whether the files in this dataset are read-/writable by cluster compute nodes */
-  val shared = getBooleanOptionProperty("shared") getOrElse Dataset.shared
+  val shared = getBooleanOptionProperty("shared") getOrElse DataSet.shared
 
   /** CSV file listing image IDs */
   val imgCsv = dir.resolve(getStringProperty("images.csv")).normalize
@@ -97,7 +97,7 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   val imgBkg = getStringOptionProperty("images.bgvalue") match {
     case Some("nan") => Double.NaN
     case Some(s) => s.toDouble
-    case None => Dataset.padVal
+    case None => DataSet.padVal
   }
 
   /** CSV file listing segmentation label numbers and names */
@@ -125,16 +125,16 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   }
 
   /** ID of dataset specific template image */
-  val refId = getStringOptionProperty("template.id") getOrElse Dataset.refId
+  val refId = getStringOptionProperty("template.id") getOrElse DataSet.refId
 
   /** Template image used for spatial normalization */
   val refDir = getStringOptionProperty("template.dir") match {
     case Some(s) => dir.resolve(s).normalize
-    case None => Dataset.refDir
+    case None => DataSet.refDir
   }
 
   /** File name template of input reference/template image */
-  val refName = getStringOptionProperty("template.name") getOrElse Dataset.refName
+  val refName = getStringOptionProperty("template.name") getOrElse DataSet.refName
 
   /** Get dataset template image file path given the template ID */
   def refPath(refId: String) = refDir.resolve(refName.replace("${refId}", refId))
@@ -143,6 +143,6 @@ class Dataset(val id: String) extends Configurable("dataset." + id) {
   val refBkg = getStringOptionProperty("template.bgvalue") match {
     case Some("nan") => Double.NaN
     case Some(s) => s.toDouble
-    case None => Dataset.padVal
+    case None => DataSet.padVal
   }
 }

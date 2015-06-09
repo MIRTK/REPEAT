@@ -31,7 +31,7 @@ import org.openmole.core.workflow.data.Prototype
 import org.openmole.core.workflow.mole.Capsule
 import org.openmole.core.workflow.puzzle.Puzzle
 import org.openmole.core.workflow.sampling._
-import org.openmole.core.workflow.transition.Condition
+import org.openmole.core.workflow.tools.Condition
 import org.openmole.plugin.domain.collection._
 import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
@@ -44,22 +44,27 @@ import com.andreasschuh.repeat.core._
 
 /**
  * Workflow puzzle
+ *
+ * @param start Capsule at end of parent workflow which has to finish first. This capsule must emit a Boolean "go"
+ *              dataflow variable. Only when this variable is true the execution of this workflow begins.
  */
 abstract class Workflow(start: Option[Capsule] = None) {
 
   // Name of workflow puzzle for identification in formal validation errors
   protected val wf = this.getClass.getSimpleName
 
-  protected lazy val dataSet   = Val[Dataset]      ///< Dataset info object
-  protected lazy val dataSpace = Val[DatasetWorkspace]
-  protected lazy val evalSpace = Val[EvaluationWorkspace]
+  protected lazy val dataSet   = Val[DataSet]      ///< Dataset info object
+  protected lazy val dataSpace = Val[DataSpace]
+  protected lazy val evalSpace = Val[EvalSpace]
   protected lazy val reg       = Val[Registration] ///< Registration info object
 
   // Commonly used workflow variable prototypes
+  protected lazy val go     = Val[Boolean]
   protected lazy val setId  = Val[String]               ///< Dataset name/ID
   protected lazy val regId  = Val[String]               ///< Registration name/ID
-  protected lazy val parVal = Val[Map[String, String]]  ///< Registration parameter name/value map
-  protected lazy val parIdx = Val[Int]                  ///< Row index of parameter set
+  protected lazy val parCsv = Val[File]                 ///< Registration parameters CSV file
+  protected lazy val parVal = Val[Map[String, String]]  ///< Registration parameters name/value map
+  protected lazy val parIdx = Val[Int]                  ///< Row index of registration parameters
   protected lazy val parId  = Val[String]               ///< Parameter set ID
   protected lazy val refId  = Val[String]               ///< Reference image ID
   protected lazy val tgtId  = Val[String]               ///< Target image ID (i.e., fixed  image in pairwise registration)
@@ -78,14 +83,34 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Empty strainer capsule */
   protected def nop(taskName: String) = Capsule(EmptyTask() set (name := wf + "." + taskName), strainer = true)
 
-  /** Capsule at start of workflow puzzle */
-  val begin = start getOrElse nop("begin")
+  /** First slot of this workflow puzzle */
+  val first = Slot(nop("first"))
 
-  /** First slot of workflow puzzle */
-  protected lazy val first = Slot(begin)
+  /** Puzzle piece triggering start of workflow */
+  lazy val begin = {
+    def _start =
+      Capsule(
+        EmptyTask() set (
+          name    := wf + ".start",
+          outputs += go,
+          go      := true
+        )
+      )
+    (start getOrElse _start) -- (first when "go")
+  }
 
-  /** Capsule at the end of workflow puzzle */
-  val end = nop("end")
+  /** Slot at the end of entire workflow puzzle */
+  val end =
+    Slot(
+      Capsule(
+        EmptyTask() set (
+          name    := wf + ".end",
+          outputs += go,
+          go      := true
+        ),
+        strainer = true
+      )
+    )
 
   /** Swap values of two prototype variables */
   protected def swap(p1: Prototype[_], p2: Prototype[_]) = {
@@ -107,7 +132,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Explore datasets to be used, usually the start of any workflow puzzle */
   protected def forEachDataSet =
     Capsule(
-      ExplorationTask(setId in Dataset.use) set (
+      ExplorationTask(setId in DataSet.use) set (
         name := wf + ".forEachDataSet"
       ),
       strainer = true
@@ -115,67 +140,46 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Set setId at start of workflow puzzle specific to a single dataset */
   protected def putDataSetId(id: String) =
-    Strain(
+    Capsule(
       EmptyTask() set (
         name    := wf + ".putDataSetId",
         outputs += setId,
         setId   := id
-      )
-    )
-
-  /** Set setId at start of workflow puzzle specific to a single dataset */
-  protected def putDataSet(d: Dataset) =
-    Strain(
-      EmptyTask() set (
-        name    := wf + ".putDataSet",
-        outputs += dataSet,
-        dataSet := d
-      )
+      ),
+      strainer = true
     )
 
   /** Inject dataset info object into workflow */
   protected def getDataSet =
-    Strain(
-      ScalaTask(
-        s"""
-          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-          | val dataSet = Dataset(setId)
-        """.stripMargin
-      ) set (
-        name        := wf +".getDataSet",
-        imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
-        usedClasses += (Config.getClass, Dataset.getClass),
-        inputs      += setId,
-        outputs     += dataSet
-      )
-    )
+    Capsule(
+      EmptyTask() set (
+        name    := wf + ".getDataSet",
+        inputs  += (setId, dataSet),
+        outputs += (setId, dataSet)
+      ),
+      strainer = true
+    ) source DataSetSource(setId, dataSet)
 
   /** Inject dataset workspace info object into workflow */
-  protected def getDataSpace = {
-    Strain(
-      ScalaTask(
-        s"""
-          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}")
-          | val dataSpace = DatasetWorkspace(Dataset(setId))
-        """.stripMargin
-      ) set (
-        name        := wf +".getDataSpace",
-        imports     += "com.andreasschuh.repeat.core.{Config, Dataset, DatasetWorkspace}",
-        usedClasses += (Config.getClass, Dataset.getClass, classOf[DatasetWorkspace]),
-        inputs      += setId,
-        outputs     += dataSpace
-      )
-    )
-  }
+  protected def getDataSpace =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + "getDataSpace",
+        inputs  += (setId, dataSpace),
+        outputs += (setId, dataSpace)
+      ),
+      strainer = true
+    ) source DataSpaceSource(setId, dataSpace)
 
   /** Inject ID of dataset specific template image into workflow */
   protected def getRefId = {
-    Strain(
+    Capsule(
       ScalaTask("val refId = dataSpace.refId") set (
         name    := wf + ".getRefId",
         inputs  += dataSpace,
         outputs += refId
-      )
+      ),
+      strainer = true
     )
   }
 
@@ -189,41 +193,47 @@ abstract class Workflow(start: Option[Capsule] = None) {
     )
 
   /** Set regId at start of workflow puzzle specific to a single registration */
-  protected def putRegId(reg: Registration) =
-    Strain(
+  protected def putRegId(id: String) =
+    Capsule(
       EmptyTask() set (
         name    := wf + ".putRegId",
         outputs += regId,
-        regId   := reg.id
-      )
+        regId   := id
+      ),
+      strainer = true
     )
 
   /** Inject registration info object into workflow */
   protected def getReg =
-    Strain(
-      ScalaTask(
-        s"""
-          | Config.parse(\"\"\"${Config()}\"\"\", "${Config().base}"))
-          | val reg = Registration(regId)
-        """.stripMargin
-      ) set (
-        name        := wf + ".getRegInfo",
-        imports     += "com.andreasschuh.repeat.core.{Config, Dataset}",
-        usedClasses += (Config.getClass, Dataset.getClass),
-        inputs      += regId,
-        outputs     += reg
-      )
-    )
+    Capsule(
+      EmptyTask() set (
+        name    := wf + "getReg",
+        inputs  += (regId, reg),
+        outputs += (regId, reg)
+      ),
+      strainer = true
+    ) source RegistrationSource(regId, reg)
+
+  /** Inject registration parameters CSV file into workflow */
+  protected def getParCsv =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + "getParCsv",
+        inputs  += (regId, dataSpace, parCsv),
+        outputs += (regId, dataSpace, parCsv)
+      ),
+      strainer = true
+    ) source ParamsCSVFileSource(regId, dataSpace, parCsv)
 
   /** Explore parameter set IDs of a specific registration */
   protected def forEachParId = {
     // TODO: Unlike forEachPar, this requires an "ID" column to be present
-    val sampling = CSVSampling("${reg.parCsv}")
+    val sampling = CSVSampling("${dataSpace.parCsv(regId)}")
     sampling.addColumn("ID", parId)
     Capsule(
       ExplorationTask(sampling) set (
         name   := wf + ".forEachParId",
-        inputs += reg
+        inputs += (dataSpace, regId)
       ),
       strainer = true
     )
@@ -232,9 +242,9 @@ abstract class Workflow(start: Option[Capsule] = None) {
   /** Explore parameter sets of a specific registration */
   protected def forEachPar =
     Capsule(
-      ExplorationTask(CSVToMapSampling("${reg.parCsv}", parVal) zipWithIndex parIdx) set (
+      ExplorationTask(CSVToMapSampling("${dataSpace.parCsv(regId)}", parVal) zipWithIndex parIdx) set (
         name   := wf + ".forEachPar",
-        inputs += reg
+        inputs += (dataSpace, regId)
       ),
       strainer = true
     )
@@ -244,7 +254,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
    * the corresponding parIdx (i.e., CSV row index) if no such column exists
    */
   protected def getParId =
-    Strain(
+    Capsule(
       ScalaTask(
         """
           | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
@@ -254,7 +264,8 @@ abstract class Workflow(start: Option[Capsule] = None) {
         name    := wf + ".putParId",
         inputs  += (parIdx, parVal),
         outputs += (parId,  parVal)
-      )
+      ),
+      strainer = true
     )
 
   /** Explore each image of dataset */
@@ -299,10 +310,10 @@ abstract class Workflow(start: Option[Capsule] = None) {
     srcIdSampling.addColumn("Image ID", srcId)
     Capsule(
       ExplorationTask((tgtIdSampling x srcIdSampling) filter "tgtId < srcId") set (
-        name    := wf + ".forEachUniqueImgPair",
-        inputs  += (dataSpace, setId),
-        outputs += (dataSpace, setId)
-      )
+        name   := wf + ".forEachUniqueImgPair",
+        inputs += dataSpace
+      ),
+      strainer = true
     )
   }
 

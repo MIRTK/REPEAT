@@ -27,10 +27,19 @@ import java.nio.file.Path
 /**
  * Workspace settings, i.e., location of input and output files (possibly with "${var}" place holders)
  */
-object Workspace extends Configurable("workspace") {
+object WorkSpace extends Configurable("workspace") {
 
   /** Whether workspace directory is read-/writable by cluster compute nodes */
   val shared = getBooleanOptionProperty("shared") getOrElse false
+
+  /** Whether to link to input images of dataset if it is shared */
+  val linkOrg = getBooleanProperty("link.orig")
+
+  /** Whether to link to template image of dataset if it is shared */
+  val linkRef = getBooleanProperty("link.ref")
+
+  /** Whether to link to CSV files of dataset if it is shared */
+  val linkCsv = getBooleanProperty("link.csv")
 
   /** Whether to append mean results to existing summary tables */
   val appCsv = getBooleanProperty("tables.append")
@@ -157,21 +166,21 @@ object Workspace extends Configurable("workspace") {
   val affDof = dir.resolve(getStringProperty("dofs.affine")).normalize
 
   /** Get file path of particular affine template to image transformation */
-  def affDof(setId: String, tgtId: String, srcId: String): Path =
-    expand(affDof, Map("setId" -> setId, "tgtId" -> tgtId, "srcId" -> srcId))
+  def affDof(setId: String, regId: String, tgtId: String, srcId: String): Path =
+    expand(affDof, Map("setId" -> setId, "regId" -> regId, "tgtId" -> tgtId, "srcId" -> srcId))
 
 }
 
 
-class Workspace {
+class WorkSpace {
 
   /** Whether workspace directory is read-/writable by cluster compute nodes */
-  val shared = Workspace.shared
+  val shared = WorkSpace.shared
 
   /** Whether to append mean results to existing summary tables */
-  val appCsv = Workspace.appCsv
+  val appCsv = WorkSpace.appCsv
 
   /** Whether to append command output to existing log files */
-  val appLog = Workspace.appLog
+  val appLog = WorkSpace.appLog
 
 }

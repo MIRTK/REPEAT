@@ -25,7 +25,7 @@ package com.andreasschuh.repeat.core
 /**
  * Contains information about segmentation labels and groups
  */
-class Segmentation(dataset: Dataset) {
+class Segmentation(dataset: DataSet) {
 
   protected val info  = CSVUtil.fromFile(dataset.segCsv.toFile)
   protected val nrows = info("Label Number").length

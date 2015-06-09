@@ -33,7 +33,7 @@ object Registration extends Configurable("registration") {
   lazy val times = List("User", "System", "Total", "Real")
 
   /** Names of available/configured registrations */
-  val names = getPropertyKeySet(".registration")
+  val names = getPropertyKeySet(".registration") - "params"
 
   /** Names of registrations to evaluate */
   val use = {
@@ -65,7 +65,7 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   /** File path template of CSV file with command parameters */
   val parCsv = expand(getStringOptionProperty("params") match {
     case Some(name) =>
-      val testPath = Paths.get(expand(name, Map("setId" -> Dataset.use.head, "regId" -> id)))
+      val testPath = Paths.get(expand(name, Map("setId" -> DataSet.use.head, "regId" -> id)))
       if (Files.exists(testPath)) Paths.get(name).toAbsolutePath
       else Registration.parDir.resolve(name)
     case None => Registration.parDir.resolve(Registration.parName)
@@ -81,7 +81,7 @@ class Registration(val id: String) extends Configurable("registration." + id) {
   val dof2affCmd = getCmdOptionProperty("dof2aff")
 
   /** Directory of registration log files */
-  val logDir = Workspace.logDir.resolve("${regId}-${parId}")
+  val logDir = WorkSpace.logDir.resolve("${regId}-${parId}")
 
   /** File name suffix for Jacobian determinant map */
   val jacSuf = getStringOptionProperty("suffix.jac") getOrElse Suffix.img

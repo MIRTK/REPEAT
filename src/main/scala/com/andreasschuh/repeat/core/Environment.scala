@@ -80,8 +80,8 @@ object Environment extends Configurable("environment") {
           nodes = _nodes,
           threads = _threads,
           constraints = _requirements,
-          sharedDirectory = Workspace.comDir,
-          storageSharedLocally = Workspace.shared
+          sharedDirectory = WorkSpace.comDir,
+          storageSharedLocally = WorkSpace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "condor" | "htcondor" =>
         addAuthenticationFor("condor")
@@ -93,8 +93,8 @@ object Environment extends Configurable("environment") {
           nodes = nodes,
           threads = threads,
           requirements = if (_requirements.isEmpty) None else Some("( " + _requirements.mkString(" ) && ( ") + " )"),
-          sharedDirectory = Workspace.comDir,
-          storageSharedLocally = Workspace.shared
+          sharedDirectory = WorkSpace.comDir,
+          storageSharedLocally = WorkSpace.shared
         )(OpenMOLEWorkspace.instance.authenticationProvider)
       case "local" =>
         LocalEnvironment(_nodes match {

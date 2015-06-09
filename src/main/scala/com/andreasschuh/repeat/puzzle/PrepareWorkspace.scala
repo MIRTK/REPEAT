@@ -28,11 +28,28 @@ import scala.language.reflectiveCalls
 import org.openmole.core.dsl._
 import org.openmole.core.workflow.mole.Capsule
 import org.openmole.core.workflow.puzzle.Puzzle
-import org.openmole.core.workflow.transition.Condition
+import org.openmole.core.workflow.tools.Condition
 import org.openmole.plugin.task.scala._
-import org.openmole.plugin.tool.pattern.{Switch, Case, Strain}
+import org.openmole.plugin.tool.pattern._
 
-import com.andreasschuh.repeat.core.{Environment => Env, Cmd, IRTK}
+import com.andreasschuh.repeat.core.{Environment => Env, WorkSpace, Cmd, IRTK}
+
+
+/**
+ * Prepare workspace files
+ */
+object PrepareWorkspace {
+
+  /** Get workflow puzzle for setting up the workspace */
+  def apply() = new PrepareWorkspace()
+
+  /**
+   * Get workflow puzzle for setting up the workspace
+   * @param start End capsule of parent workflow puzzle.
+   */
+  def apply(start: Capsule) = new PrepareWorkspace(Some(start))
+
+}
 
 
 /**
@@ -42,22 +59,7 @@ import com.andreasschuh.repeat.core.{Environment => Env, Cmd, IRTK}
  */
 class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
-  /** Link or copy CSV files of dataset to workspace (if necessary) */
-  protected def linkOrCopyCsvFiles(op: String = "copy") =
-    Capsule(
-      ScalaTask(
-        s"""
-          | $op(dataSet.imgCsv, dataSpace.imgCsv)
-          | $op(dataSet.segCsv, dataSpace.segCsv)
-        """.stripMargin
-      ) set (
-        name    := wf + s".${op}CsvFiles",
-        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
-        inputs  += (dataSet, dataSpace)
-      )
-    )
-
-  /** Copy files associated with a template ID to workspace (if necessary) */
+  /** Copy files associated with a template ID to workspace */
   protected def linkOrCopyTemplateData(op: String = "copy") =
     Capsule(
       ScalaTask(
@@ -71,7 +73,22 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
       )
     )
 
-  /** Copy files associated with an image ID to workspace (if necessary) */
+  /** Link or copy image meta-data CSV files of dataset to workspace */
+  protected def linkOrCopyImageMetaData(op: String = "copy") =
+    Capsule(
+      ScalaTask(
+        s"""
+          | $op(dataSet.imgCsv, dataSpace.imgCsv)
+          | $op(dataSet.segCsv, dataSpace.segCsv)
+        """.stripMargin
+      ) set (
+        name    := wf + s".${op}CsvFiles",
+        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
+        inputs  += (dataSet, dataSpace)
+      )
+    )
+
+  /** Copy files associated with an image ID to workspace */
   protected def linkOrCopyImageData(op: String = "copy") =
     Capsule(
       ScalaTask(
@@ -83,6 +100,20 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
         name    := wf + s".${op}ImageData",
         imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
         inputs  += (dataSet, dataSpace, imgId)
+      )
+    )
+
+  /** Link or copy registration parameters CSV files of dataset to workspace */
+  protected def linkOrCopyParams(op: String = "copy") =
+    Capsule(
+      ScalaTask(
+        s"""
+          | $op(reg.parCsvPath(dataSet.id), dataSpace.parCsv(reg.id))
+        """.stripMargin
+      ) set (
+        name    := wf + s".${op}Params",
+        imports += s"com.andreasschuh.repeat.core.FileUtil.$op",
+        inputs  += (dataSet, dataSpace, reg)
       )
     )
 
@@ -153,9 +184,13 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     import Display._
 
-    val shared = Condition("dataSet.shared")
+    val shared    = Condition("dataSet.shared")
+    val csvShared = if (WorkSpace.linkCsv) shared else Condition.False
+    val orgShared = if (WorkSpace.linkOrg) shared else Condition.False
+    val refShared = if (WorkSpace.linkRef) shared else Condition.False
 
     def copyMetaData = {
+      val msgVals = Seq(setId)
       val copyMsg = "Copying meta-data for {setId=${setId}}"
       val linkMsg = "Linking meta-data for {setId=${setId}}"
       val skipMsg = "Meta-data up-to-date for {setId=${setId}}"
@@ -176,16 +211,45 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
             | (!dataSet.shared && segCsvLnk) || segCsvCpy.lastModified < segCsv.lastModified
           """.stripMargin
         )
-      val copyCond = !shared && outdated
-      val linkCond =  shared && outdated
+      val copyCond = !csvShared && outdated
+      val linkCond =  csvShared && outdated
+      val skipCond = !copyCond && !linkCond
       Switch(
-        Case( copyCond, QSUB(copyMsg, setId) -- Strain(linkOrCopyCsvFiles("copy") on Env.local) -- DONE(copyMsg, setId)),
-        Case( linkCond, QSUB(linkMsg, setId) -- Strain(linkOrCopyCsvFiles("link") on Env.local) -- DONE(linkMsg, setId)),
-        Case(!outdated, SKIP(skipMsg, setId))
+        Case(copyCond, QSUB(copyMsg, msgVals: _*) -- Strain(linkOrCopyImageMetaData("copy") on Env.local) -- DONE(copyMsg, msgVals: _*)),
+        Case(linkCond, QSUB(linkMsg, msgVals: _*) -- Strain(linkOrCopyImageMetaData("link") on Env.local) -- DONE(linkMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
+      )
+    }
+
+    def copyParams = {
+      val msgVals = Seq(setId, regId)
+      val copyMsg = "Copying parameters for {setId=${setId}, regId=${regId}}"
+      val linkMsg = "Linking parameters for {setId=${setId}, regId=${regId}}"
+      val skipMsg = "Parameters up-to-date for {setId=${setId}, regId=${regId}}"
+      val outdated =
+        Condition(
+          """
+            | import java.nio.file.Files
+            |
+            | val parCsv    = reg.parCsvPath(dataSet.id).toFile
+            | val parCsvCpy = dataSpace.parCsv(reg.id).toFile
+            | val parCsvLnk = Files.isSymbolicLink(parCsvCpy.toPath)
+            |
+            | (!dataSet.shared && parCsvLnk) || parCsvCpy.lastModified < parCsv.lastModified
+          """.stripMargin
+        )
+      val copyCond = !csvShared && outdated
+      val linkCond =  csvShared && outdated
+      val skipCond = !copyCond && !linkCond
+      Switch(
+        Case(copyCond, QSUB(copyMsg, msgVals: _*) -- Strain(linkOrCopyParams("copy") on Env.local) -- DONE(copyMsg, msgVals: _*)),
+        Case(linkCond, QSUB(linkMsg, msgVals: _*) -- Strain(linkOrCopyParams("link") on Env.local) -- DONE(linkMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
     def copyImages = {
+      val msgVals = Seq(setId, imgId)
       val copyMsg = "Copying image data to workspace for {setId=${setId}, imgId=${imgId}}"
       val linkMsg = "Linking image data to workspace for {setId=${setId}, imgId=${imgId}}"
       val skipMsg = "Image data up-to-date for {setId=${setId}, imgId=${imgId}}"
@@ -201,16 +265,18 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
             | (!dataSet.shared && orgLnk) || orgCpy.lastModified < orgImg.lastModified
           """.stripMargin
         )
-      val copyCond = !shared && outdated
-      val linkCond =  shared && outdated
+      val copyCond = !orgShared && outdated
+      val linkCond =  orgShared && outdated
+      val skipCond = !copyCond && !linkCond
       Switch(
-        Case( copyCond, QSUB(copyMsg, setId, imgId) -- Strain(linkOrCopyImageData("copy") on Env.local) -- DONE(copyMsg, setId, imgId)),
-        Case( linkCond, QSUB(linkMsg, setId, imgId) -- Strain(linkOrCopyImageData("link") on Env.local) -- DONE(linkMsg, setId, imgId)),
-        Case(!outdated, SKIP(skipMsg, setId, imgId))
+        Case(copyCond, QSUB(copyMsg, msgVals: _*) -- Strain(linkOrCopyImageData("copy") on Env.local) -- DONE(copyMsg, msgVals: _*)),
+        Case(linkCond, QSUB(linkMsg, msgVals: _*) -- Strain(linkOrCopyImageData("link") on Env.local) -- DONE(linkMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
     def copyTemplates = {
+      val msgVals = Seq(setId, refId)
       val copyMsg = "Copying template data to workspace for {setId=${setId}, refId=${refId}}"
       val linkMsg = "Linking template data to workspace for {setId=${setId}, refId=${refId}}"
       val skipMsg = "Template data up-to-date for {setId=${setId}, refId=${refId}}"
@@ -226,16 +292,18 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
             | (!dataSet.shared && refLnk) || refCpy.lastModified < refImg.lastModified
           """.stripMargin
         )
-      val copyCond = !shared && outdated
-      val linkCond =  shared && outdated
+      val copyCond = !refShared && outdated
+      val linkCond =  refShared && outdated
+      val skipCond = !copyCond && !linkCond
       Switch(
-        Case( copyCond, QSUB(copyMsg, setId, refId) -- Strain(linkOrCopyTemplateData("copy") on Env.local) -- DONE(copyMsg, setId, refId)),
-        Case( linkCond, QSUB(linkMsg, setId, refId) -- Strain(linkOrCopyTemplateData("link") on Env.local) -- DONE(linkMsg, setId, refId)),
-        Case(!outdated, SKIP(skipMsg, setId, refId))
+        Case(copyCond, QSUB(copyMsg, msgVals: _*) -- Strain(linkOrCopyTemplateData("copy") on Env.local) -- DONE(copyMsg, msgVals: _*)),
+        Case(linkCond, QSUB(linkMsg, msgVals: _*) -- Strain(linkOrCopyTemplateData("link") on Env.local) -- DONE(linkMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
     def copyOrMakeMask = {
+      val msgVals = Seq(setId, imgId)
       val copyMsg = "Copying mask for {setId=${setId}, imgId=${imgId}}"
       val linkMsg = "Linking mask for {setId=${setId}, imgId=${imgId}}"
       val makeMsg = "Making mask for {setId=${setId}, imgId=${imgId}}"
@@ -258,21 +326,24 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
           | Files.isSymbolicLink(dataSpace.orgMsk(imgId))
         """.stripMargin
       )
-      val copyCond = Condition("!dataSet.shared && dataSet.mskPath(imgId) != None") && (isLinked || outdated)
-      val linkCond = Condition(" dataSet.shared && dataSet.mskPath(imgId) != None") && outdated
-      val makeCond = Condition("dataSet.mskPath(imgId) == None") && outdated
+      val haveMask = Condition("dataSet.mskPath(imgId) != None")
+      val copyCond = !orgShared && haveMask && (isLinked || outdated)
+      val linkCond =  orgShared && haveMask && outdated
+      val makeCond = !haveMask && outdated
+      val skipCond = !copyCond && !linkCond && !makeCond
       Switch(
-        Case( copyCond, QSUB(copyMsg, setId, imgId) -- Strain(prepareMask("copy") on Env.local) -- DONE(copyMsg, setId, imgId)),
-        Case( linkCond, QSUB(linkMsg, setId, imgId) -- Strain(prepareMask("link") on Env.local) -- DONE(linkMsg, setId, imgId)),
-        Case( makeCond, QSUB(makeMsg, setId, imgId) -- Strain(prepareMask()       on Env.local) -- DONE(makeMsg, setId, imgId)),
-        Case(!outdated, SKIP(skipMsg, setId, imgId))
+        Case(copyCond, QSUB(copyMsg, msgVals: _*) -- Strain(prepareMask("copy") on Env.local) -- DONE(copyMsg, msgVals: _*)),
+        Case(linkCond, QSUB(linkMsg, msgVals: _*) -- Strain(prepareMask("link") on Env.local) -- DONE(linkMsg, msgVals: _*)),
+        Case(makeCond, QSUB(makeMsg, msgVals: _*) -- Strain(prepareMask()       on Env.local) -- DONE(makeMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
     def maskImages = {
+      val msgVals = Seq(setId, imgId)
       val maskMsg = "Padding background for {setId=${setId}, imgId=${imgId}}"
       val skipMsg = "Padded image up-to-date for {setId=${setId}, imgId=${imgId}}"
-      val cond =
+      val maskCond =
         Condition(
           """
             | val orgMsk = dataSpace.orgMsk(imgId).toFile
@@ -282,17 +353,19 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
             | padImg.lastModified < orgMsk.lastModified || padImg.lastModified < orgImg.lastModified
           """.stripMargin
         )
+      val skipCond = !maskCond
       Switch(
-        Case( cond, QSUB(maskMsg, setId, imgId) -- Strain(applyMask on Env.local) -- DONE(maskMsg, setId, imgId)),
-        Case(!cond, SKIP(skipMsg, setId, imgId))
+        Case(maskCond, QSUB(maskMsg, msgVals: _*) -- Strain(applyMask on Env.local) -- DONE(maskMsg, msgVals: _*)),
+        Case(skipCond, SKIP(skipMsg, msgVals: _*))
       )
     }
 
     val withDataSet = nop("withDataSet")
 
-    (first -- forEachDataSet -< getDataSet -- getDataSpace -- getRefId -- copyMetaData -- withDataSet) +
+    (begin -- forEachDataSet -< getDataSet -- getDataSpace -- getRefId -- copyMetaData -- withDataSet) +
       (withDataSet -- copyTemplates >- end) +
-      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- nop("forEachImgEnd") >- end)
+      (withDataSet -- forEachImg -< copyImages -- copyOrMakeMask -- maskImages >- nop("forEachImgEnd") >- end) +
+      (withDataSet -- forEachReg -< getReg -- copyParams >- nop("forEachRegEnd") >- end)
   }
 
   /** Get workflow puzzle */
