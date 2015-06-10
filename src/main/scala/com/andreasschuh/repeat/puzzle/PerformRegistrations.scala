@@ -171,7 +171,7 @@ class PerformRegistrations(registration: Registration, start: Option[Capsule] = 
 
     // Run pairwise registrations
     val msgVals = Seq(setId, regId, parId, tgtId, srcId)
-    val execMsg = "Performing registration"
+    val execMsg = "Registration"
     val skipMsg = "Registration"
 
     def register =
