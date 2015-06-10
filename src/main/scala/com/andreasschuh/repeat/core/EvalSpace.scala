@@ -41,6 +41,10 @@ class EvalSpace(setId: String, val regId: String) extends DataSpace(setId) {
   /** Get file path of registration parameters table */
   def parCsv = WorkSpace.parCsv(setId = setId, regId = regId)
 
+  /** Get file path of affine target to image transformation */
+  def phiDof(parId: String, tgtId: String, srcId: String, phiPre: String, phiSuf: String) =
+    WorkSpace.phiDof(setId = setId, regId = regId, parId = parId, tgtId = tgtId, srcId = srcId, phiPre = phiPre, phiSuf = phiSuf)
+
   /** Get file path of registered output image */
   def regImg(parId: String, imgId: String) = WorkSpace.regImg(setId = setId, regId = regId, parId = parId, imgId = imgId)
 
@@ -49,5 +53,8 @@ class EvalSpace(setId: String, val regId: String) extends DataSpace(setId) {
 
   /** Get file path of intensity average image */
   def avgImg(parId: String, refId: String) = WorkSpace.avgImg(setId = setId, regId = regId, parId = parId, refId = refId)
+
+  /** Get file path of output directory for CSV files listing evaluation results */
+  def csvDir(parId: String) = WorkSpace.csvDir(setId = setId, regId = regId, parId = parId)
 
 }

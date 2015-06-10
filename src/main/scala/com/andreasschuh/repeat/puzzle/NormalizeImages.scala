@@ -124,10 +124,9 @@ class NormalizeImages(start: Option[Capsule] = None) extends Workflow(start) {
       val dof = Val[File]
 
       val msgVals = Seq(setId, refId, imgId)
-      val whatMsg = "{setId=${setId}, refId=${refId}, imgId=${imgId}}"
-      val rregMsg = "Rigid alignment to template for " + whatMsg
-      val aregMsg = "Affine registration to template for " + whatMsg
-      val skipMsg = "Affine template transformation up-to-date for " + whatMsg
+      val rregMsg = "Rigid alignment to template"
+      val aregMsg = "Affine registration to template"
+      val skipMsg = "Affine template transformation up-to-date"
 
       val cond =
         Condition(

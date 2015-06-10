@@ -24,7 +24,6 @@ package com.andreasschuh
 import scala.language.implicitConversions
 
 import com.andreasschuh.repeat.core.Registration
-import com.andreasschuh.repeat.workflow._
 
 
 /**

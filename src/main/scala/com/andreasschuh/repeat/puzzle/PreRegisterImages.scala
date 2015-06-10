@@ -226,11 +226,9 @@ class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
     val bwdLog = Val[File]
 
     val msgVals = Seq(setId, tgtId, srcId)
-    val fwdInfo = s"{setId=$${setId}, tgtId=$${${tgtId.name}}, srcId=$${${srcId.name}}}"
-    val bwdInfo = s"{setId=$${setId}, tgtId=$${${srcId.name}}, srcId=$${${tgtId.name}}}"
-
-    val iniMsg = "Making initial guess for "
-    val regMsg = "Affine registering image pair for "
+    val iniMsg = "Making initial guess"
+    val fwdMsg = "Affine register target to source"
+    val bwdMsg = "Affine register source to target"
     val avgMsg = "Averaging forward and backward transformation for "
 
     val first =
@@ -263,12 +261,10 @@ class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
 
     val fwdReg =
       first --
-        QSUB(iniMsg + fwdInfo, msgVals: _*) --
-          compose(tgtDof, srcDof, iniDof)   --
-        DONE(iniMsg + fwdInfo, msgVals: _*) --
-        QSUB(regMsg + fwdInfo, msgVals: _*) --
+        QSUB(iniMsg, msgVals: _*) -- compose(tgtDof, srcDof, iniDof) -- DONE(iniMsg, msgVals: _*) --
+        QSUB(fwdMsg, msgVals: _*) --
           ireg(model, tgtId, tgtImg, srcId, srcImg, fwdDof, Some(iniDof), Some(fwdLog)) --
-        DONE(regMsg + fwdInfo, msgVals: _*) --
+        DONE(fwdMsg, msgVals: _*) --
       fwdRegEnd
 
     // Compute source to target transformation
@@ -283,12 +279,10 @@ class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
 
     val bwdReg =
       fwdRegEnd --
-        QSUB(iniMsg + bwdInfo, msgVals: _*) --
-          compose(srcDof, tgtDof, iniDof)   --
-        DONE(iniMsg + bwdInfo, msgVals: _*) --
-        QSUB(regMsg + bwdInfo, msgVals: _*) --
+        QSUB(iniMsg, msgVals: _*) -- compose(srcDof, tgtDof, iniDof) -- DONE(iniMsg, msgVals: _*) --
+        QSUB(bwdMsg, msgVals: _*) --
           ireg(model, srcId, srcImg, tgtId, tgtImg, bwdDof, Some(iniDof), Some(bwdLog)) --
-        DONE(regMsg + bwdInfo, msgVals: _*) --
+        DONE(bwdMsg, msgVals: _*) --
       bwdRegEnd
 
     // Average transformations to get unbiased and symmetric result
@@ -306,9 +300,9 @@ class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
     val finalize =
       (fwdRegEnd -- regResults) + (bwdRegEnd -- regResults) + (
         regResults --
-        QSUB(avgMsg + fwdInfo, msgVals: _*) --
+        QSUB(avgMsg, msgVals: _*) --
           dofinvert(bwdDof, invDof) -- dofaverage(avgDof, fwdDof, invDof) -- dofinvert(avgDof, invDof) --
-        DONE(avgMsg + fwdInfo, msgVals: _*) --
+        DONE(avgMsg, msgVals: _*) --
         makeLog(outLog, fwdLog, bwdLog) -- last
       )
 
@@ -331,8 +325,8 @@ class PreRegisterImages(start: Option[Capsule] = None) extends Workflow(start) {
     val outLog = Val[File]
 
     val msgVals = Seq(setId, tgtId, srcId)
-    val aregMsg = "Inverse-consistent registration for {setId=${setId}, tgtId=${tgtId}, srcId=${srcId}}"
-    val skipMsg = "Affine transformation up-to-date for {setId=${setId}, tgtId=${tgtId}, srcId=${srcId}}"
+    val aregMsg = "Inverse-consistent registration"
+    val skipMsg = "Affine transformation up-to-date"
 
     // Condition on when to run affine registration
     val cond =

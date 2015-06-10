@@ -33,68 +33,68 @@ abstract class Configurable(val propGroup: String = "") {
   protected val propPrefix = if (propGroup.isEmpty) "" else propGroup + "."
 
   /** Path of property in configuration */
-  protected def getPropPath(propName: String) = if (propName(0) == '.') propName.drop(1) else propPrefix + propName
+  protected def getPropertyPath(propName: String) = if (propName(0) == '.') propName.drop(1) else propPrefix + propName
 
   /** Whether property value is set */
-  protected def hasProperty(propName: String) = Config().hasPath(getPropPath(propName))
+  protected def hasProperty(propName: String) = Config().hasPath(getPropertyPath(propName))
 
   /** Get set of keys of property in this group */
-  protected def getPropertyKeySet(propName: String) = Config().getKeySet(getPropPath(propName))
+  protected def getPropertyKeySet(propName: String) = Config().getKeySet(getPropertyPath(propName))
 
   /** Get boolean value of property in this group */
-  protected def getBooleanProperty(propName: String) = Config().getBoolean(getPropPath(propName))
+  protected def getBooleanProperty(propName: String) = Config().getBoolean(getPropertyPath(propName))
 
   /** Get optional boolean value of property in this group */
   protected def getBooleanOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getBoolean(propPath)) else None
   }
 
   /** Get integer value of property in this group */
-  protected def getIntProperty(propName: String) = Config().getInt(getPropPath(propName))
+  protected def getIntProperty(propName: String) = Config().getInt(getPropertyPath(propName))
 
   /** Get optional integer value of property in this group */
   protected def getIntOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getInt(propPath)) else None
   }
 
   /** Get list of string values */
-  protected def getIntListProperty(propName: String) = Config().getIntList(getPropPath(propName))
+  protected def getIntListProperty(propName: String) = Config().getIntList(getPropertyPath(propName))
 
   /** Get string value of property in this group */
-  protected def getStringProperty(propName: String) = Config().getString(getPropPath(propName))
+  protected def getStringProperty(propName: String) = Config().getString(getPropertyPath(propName))
 
   /** Get optional string value of property in this group */
   protected def getStringOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getString(propPath)) else None
   }
 
   /** Get string value of property in this group */
-  protected def getStringListProperty(propName: String) = Config().getStringList(getPropPath(propName))
+  protected def getStringListProperty(propName: String) = Config().getStringList(getPropertyPath(propName))
 
   /** Get optional string value of property in this group */
   protected def getStringListOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getStringList(propPath)) else None
   }
 
   /** Get absolute path of property in this group */
-  protected def getPathProperty(propName: String) = Config().getPath(getPropPath(propName))
+  protected def getPathProperty(propName: String) = Config().getPath(getPropertyPath(propName))
 
   /** Get optional absolute path of property in this group */
   protected def getPathOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getPath(propPath)) else None
   }
 
   /** Get absolute path of property in this group */
-  protected def getFileProperty(propName: String) = Config().getFile(getPropPath(propName))
+  protected def getFileProperty(propName: String) = Config().getFile(getPropertyPath(propName))
 
   /** Get optional absolute path of property in this group */
   protected def getFileOptionProperty(propName: String) = {
-    val propPath = getPropPath(propName)
+    val propPath = getPropertyPath(propName)
     if (Config().hasPath(propPath)) Some(Config().getFile(propPath)) else None
   }
 

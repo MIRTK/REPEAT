@@ -222,9 +222,9 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def copyMetaData = {
       val msgVals = Seq(setId)
-      val copyMsg = "Copying meta-data for {setId=${setId}}"
-      val linkMsg = "Linking meta-data for {setId=${setId}}"
-      val skipMsg = "Meta-data up-to-date for {setId=${setId}}"
+      val copyMsg = "Copying meta-data"
+      val linkMsg = "Linking meta-data"
+      val skipMsg = "Meta-data up-to-date"
       val outdated =
         Condition(
           """
@@ -254,9 +254,9 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def copyParams = {
       val msgVals = Seq(setId, regId)
-      val copyMsg = "Copying parameters for {setId=${setId}, regId=${regId}}"
-      val linkMsg = "Linking parameters for {setId=${setId}, regId=${regId}}"
-      val skipMsg = "Parameters up-to-date for {setId=${setId}, regId=${regId}}"
+      val copyMsg = "Copying parameters"
+      val linkMsg = "Linking parameters"
+      val skipMsg = "Parameters up-to-date"
       val outdated =
         Condition(
           """
@@ -281,9 +281,9 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def copyImages = {
       val msgVals = Seq(setId, imgId)
-      val copyMsg = "Copying image data to workspace for {setId=${setId}, imgId=${imgId}}"
-      val linkMsg = "Linking image data to workspace for {setId=${setId}, imgId=${imgId}}"
-      val skipMsg = "Image data up-to-date for {setId=${setId}, imgId=${imgId}}"
+      val copyMsg = "Copying image data to workspace"
+      val linkMsg = "Linking image data to workspace"
+      val skipMsg = "Image data up-to-date"
       val outdated =
         Condition(
           """
@@ -308,9 +308,9 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def copyTemplates = {
       val msgVals = Seq(setId, refId)
-      val copyMsg = "Copying template data to workspace for {setId=${setId}, refId=${refId}}"
-      val linkMsg = "Linking template data to workspace for {setId=${setId}, refId=${refId}}"
-      val skipMsg = "Template data up-to-date for {setId=${setId}, refId=${refId}}"
+      val copyMsg = "Copying template data to workspace"
+      val linkMsg = "Linking template data to workspace"
+      val skipMsg = "Template data up-to-date"
       val outdated =
         Condition(
           """
@@ -335,10 +335,10 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def copyOrMakeMask = {
       val msgVals = Seq(setId, imgId)
-      val copyMsg = "Copying mask for {setId=${setId}, imgId=${imgId}}"
-      val linkMsg = "Linking mask for {setId=${setId}, imgId=${imgId}}"
-      val makeMsg = "Making mask for {setId=${setId}, imgId=${imgId}}"
-      val skipMsg = "Mask up-to-date for {setId=${setId}, imgId=${imgId}}"
+      val copyMsg = "Copying mask"
+      val linkMsg = "Linking mask"
+      val makeMsg = "Making mask"
+      val skipMsg = "Mask up-to-date"
       val outdated =
         Condition(
           """
@@ -372,8 +372,8 @@ class PrepareWorkspace(start: Option[Capsule] = None) extends Workflow(start) {
 
     def maskImages = {
       val msgVals = Seq(setId, imgId)
-      val maskMsg = "Padding background for {setId=${setId}, imgId=${imgId}}"
-      val skipMsg = "Padded image up-to-date for {setId=${setId}, imgId=${imgId}}"
+      val maskMsg = "Padding background"
+      val skipMsg = "Padded image up-to-date"
       val maskCond =
         Condition(
           """

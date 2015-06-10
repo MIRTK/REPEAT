@@ -80,4 +80,12 @@ class DataSpace(val setId: String) extends WorkSpace {
   /** Get file path of affine target to image transformation */
   def affDof(regId: String, tgtId: String, srcId: String) = WorkSpace.affDof(setId = setId, regId = regId, tgtId = tgtId, srcId = srcId)
 
+  /** Get file path of affine target to image transformation */
+  def phiDof(regId: String, parId: String, tgtId: String, srcId: String, phiPre: String = "", phiSuf: String = Suffix.dof) =
+    WorkSpace.phiDof(setId = setId, regId = regId, parId = parId, tgtId = tgtId, srcId = srcId, phiPre = phiPre, phiSuf = phiSuf)
+
+  /** Get file path of output directory for CSV files listing evaluation results */
+  def csvDir(regId: String, parId: String) =
+    WorkSpace.csvDir(setId = setId, regId = regId, parId = parId)
+
 }

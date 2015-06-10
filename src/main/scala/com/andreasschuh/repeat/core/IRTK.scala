@@ -101,21 +101,14 @@ object IRTK extends Configurable("irtk") {
   /** Execute IRTK command */
   protected def execute(command: String, args: Cmd, log: Option[File] = None, errorOnReturnCode: Boolean = true): Int = {
     val cmd = Cmd(FileUtil.join(dir, command).getAbsolutePath) ++ args
-    val exitCode = log match {
-      case Some(file) =>
-        val logger = new TaskLogger(file)
-        logger.out("REPEAT> " + Cmd.toString(cmd) + "\n")
-        val exitValue = cmd.run(logger).exitValue()
-        logger.close()
-        exitValue
-      case None =>
-        println("\nREPEAT> " + Cmd.toString(cmd) + "\n")
-        cmd.run().exitValue()
-    }
-    if (errorOnReturnCode && exitCode != 0) {
+    val logger = new TaskLogger(log)
+    logger.out("\nREPEAT> " + Cmd.toString(cmd) + "\n")
+    val exitValue = cmd.run(logger).exitValue()
+    logger.close()
+    if (errorOnReturnCode && exitValue != 0) {
       throw new Exception(s"Error executing: Command returned non-zero exit code: " + Cmd.toString(cmd))
     }
-    exitCode
+    exitValue
   }
 
   /** Type of transformation file */

@@ -29,7 +29,7 @@ import scala.sys.process.ProcessLogger
 /**
  * File process logger
  */
-class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessLogger {
+class TaskLogger(log: Option[File] = None) extends Configurable("workspace.logs") with ProcessLogger {
 
   private var t = Array.fill(3)(.0)
 
@@ -39,38 +39,47 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
   /** Whether any time measurements were recorded */
   def hasTime: Boolean = t.sum != 0
 
-  /** Get runtime measurements in seconds: user, system, total, real */
-  def time = Array(t(0), t(1), (100.0 * (t(0) + t(1))).toInt.toDouble / 100.0, t(2))
+  /** Whether no time measurements were recorded */
+  def noTime: Boolean = !hasTime
+
+  /** Get runtime measurements in seconds: user, system, real */
+  def time = t
 
   /** File writer object */
-  protected val writer = {
-    val logFile = log.getAbsoluteFile
-    logFile.getParentFile.mkdirs()
-    new FileWriter(logFile, WorkSpace.appLog)
+  protected val writer = log match {
+    case Some(f) =>
+      val logFile = f.getAbsoluteFile
+      logFile.getParentFile.mkdirs()
+      Some(new FileWriter(logFile, WorkSpace.appLog))
+    case None => None
   }
 
   /** Close log file */
-  def close() = writer.close()
+  def close() = writer.foreach(_.close())
 
   /** Whether to flush buffers after each line read from STDOUT (STDERR is always written immediately) */
   val flush = getBooleanProperty("flush")
 
-  /** Whether to also print output to STDOUT */
-  val tee = getBooleanProperty("tee")
+  /** Whether to (also) print output to standard output streams */
+  val tee = (writer == None) || getBooleanProperty("tee")
 
   /** Write line of process' STDOUT */
   def out(s: => String): Unit = {
-    writer.write(s)
-    writer.write('\n')
-    if (flush) writer.flush()
+    writer.foreach(log => {
+      log.write(s)
+      log.write('\n')
+      if (flush) log.flush()
+    })
     if (tee) Console.out.println(s)
   }
 
   /** Write line of process' STDERR */
   def err(s: => String): Unit = {
-    writer.write(s)
-    writer.write('\n')
-    writer.flush()
+    writer.foreach(log => {
+      log.write(s)
+      log.write('\n')
+      log.flush()
+    })
     if (tee) Console.err.println(s)
     """(user|sys|real)\s+([0-9]+\.[0-9]+)""".r.findAllMatchIn(s).foreach(m =>
       m.group(1) match {
@@ -81,6 +90,13 @@ class TaskLogger(log: File) extends Configurable("workspace.logs") with ProcessL
     )
   }
 
-  /** Wrap process execution and close file when finished */
+  /** Wrap process execution */
   def buffer[T](f: => T): T = f
+
+  /** Print content of log file to STDERR */
+  def printToErr() = if (log != None) {
+    try { writer.foreach(_.flush()) } catch { case _: java.io.IOException => }
+    val logFile = log.get.getAbsoluteFile
+    scala.io.Source.fromFile(logFile).getLines().foreach(Console.err.println)
+  }
 }

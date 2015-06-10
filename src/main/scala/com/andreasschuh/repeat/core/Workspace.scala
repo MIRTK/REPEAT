@@ -29,6 +29,9 @@ import java.nio.file.Path
  */
 object WorkSpace extends Configurable("workspace") {
 
+  /** Top-level directory of workspace */
+  val dir = getPathProperty("dir")
+
   /** Whether workspace directory is read-/writable by cluster compute nodes */
   val shared = getBooleanOptionProperty("shared") getOrElse false
 
@@ -41,14 +44,11 @@ object WorkSpace extends Configurable("workspace") {
   /** Whether to link to CSV files of dataset if it is shared */
   val linkCsv = getBooleanProperty("link.csv")
 
-  /** Whether to append mean results to existing summary tables */
-  val appCsv = getBooleanProperty("tables.append")
+  /** Whether to store output transformations in workspace */
+  val keepDofs = getBooleanProperty("keep.dofs")
 
-  /** Whether to append command output to existing log files */
-  val appLog = getBooleanProperty("logs.append")
-
-  /** Top-level directory of workspace */
-  val dir = getPathProperty("dir")
+  /** Whether to store output log files in workspace */
+  val keepLogs = getBooleanProperty("keep.logs")
 
   /** Shared directory used by OpenMOLE for cluster environments */
   val comDir: Option[String] = if (shared) Some(dir.resolve(FileUtil.hidden("openmole")).toString) else None
@@ -79,6 +79,9 @@ object WorkSpace extends Configurable("workspace") {
 
   /** Get file path of a particular log files directory */
   def logDir(setId: String): Path = expand(logDir, Map("setId" -> setId))
+
+  /** Whether to append command output to existing log files */
+  val appLog = getBooleanProperty("logs.append")
 
   /** File path template of image meta-data table */
   val imgCsv = dir.resolve(getStringProperty("images.csv")).normalize
@@ -168,6 +171,30 @@ object WorkSpace extends Configurable("workspace") {
   /** Get file path of particular affine template to image transformation */
   def affDof(setId: String, regId: String, tgtId: String, srcId: String): Path =
     expand(affDof, Map("setId" -> setId, "regId" -> regId, "tgtId" -> tgtId, "srcId" -> srcId))
+
+  /** File path template of registration output transformation */
+  val phiDof = dir.resolve(getStringProperty("dofs.output")).normalize
+
+  /** Get file path of particular registration output transformation */
+  def phiDof(setId: String, regId: String, parId: String, tgtId: String, srcId: String,
+             phiPre: String = "", phiSuf: String = Suffix.dof): Path =
+    expand(
+      phiDof,
+      Map(
+        "setId" -> setId, "regId" -> regId, "parId" -> parId, "tgtId" -> tgtId, "srcId" -> srcId,
+        "phiPre" -> phiPre, "phiSuf" -> phiSuf
+      )
+    )
+
+  /** File path template of output directory for CSV files listing the evaluation results */
+  val csvDir = dir.resolve(getStringProperty("tables.dir")).normalize
+
+  /** Get file path of output directory for CSV files listing evaluation results for particular registration */
+  def csvDir(setId: String, regId: String, parId: String): Path =
+    expand(csvDir, Map("setId" -> setId, "regId" -> regId, "parId" -> parId))
+
+  /** Whether to append mean results to existing summary tables */
+  val appCsv = getBooleanProperty("tables.append")
 
 }
 

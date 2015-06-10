@@ -26,12 +26,15 @@ import java.nio.file.{Path, Paths}
 
 import scala.language.reflectiveCalls
 
-import org.openmole.core.dsl._
-import org.openmole.core.workflow.data.Prototype
-import org.openmole.core.workflow.mole.Capsule
-import org.openmole.core.workflow.puzzle.Puzzle
+import org.openmole.core.dsl.Val
+import org.openmole.core.workflow.builder._
+import org.openmole.core.workflow.data._
+import org.openmole.core.workflow.mole._
+import org.openmole.core.workflow.puzzle._
 import org.openmole.core.workflow.sampling._
-import org.openmole.core.workflow.tools.Condition
+import org.openmole.core.workflow.task._
+import org.openmole.core.workflow.tools._
+import org.openmole.core.workflow.transition._
 import org.openmole.plugin.domain.collection._
 import org.openmole.plugin.grouping.batch._
 import org.openmole.plugin.hook.file._
@@ -42,6 +45,7 @@ import org.openmole.plugin.tool.pattern._
 import com.andreasschuh.repeat.core._
 import com.andreasschuh.repeat.sampling._
 import com.andreasschuh.repeat.source._
+
 
 
 /**
@@ -56,27 +60,27 @@ abstract class Workflow(start: Option[Capsule] = None) {
   protected val wf = this.getClass.getSimpleName
 
   protected lazy val dataSet   = Val[DataSet]      ///< Dataset info object
-  protected lazy val dataSpace = Val[DataSpace]
-  protected lazy val evalSpace = Val[EvalSpace]
+  protected lazy val dataSpace = Val[DataSpace]    ///< Dataset specific workspace info object
+  protected lazy val evalSpace = Val[EvalSpace]    ///< Dataset and registration specific workspace info object
   protected lazy val reg       = Val[Registration] ///< Registration info object
 
   // Commonly used workflow variable prototypes
   protected lazy val go     = Val[Boolean]
-  protected lazy val setId  = Val[String]               ///< Dataset name/ID
-  protected lazy val regId  = Val[String]               ///< Registration name/ID
-  protected lazy val parCsv = Val[File]                 ///< Registration parameters CSV file
-  protected lazy val parVal = Val[Map[String, String]]  ///< Registration parameters name/value map
-  protected lazy val parIdx = Val[Int]                  ///< Row index of registration parameters
-  protected lazy val parId  = Val[String]               ///< Parameter set ID
-  protected lazy val refId  = Val[String]               ///< Reference image ID
-  protected lazy val tgtId  = Val[String]               ///< Target image ID (i.e., fixed  image in pairwise registration)
-  protected lazy val srcId  = Val[String]               ///< Source image ID (i.e., moving image in pairwise registration)
-  protected lazy val imgId  = Val[String]               ///< An image ID
+  protected lazy val setId  = Val[String]              ///< Dataset name/ID
+  protected lazy val regId  = Val[String]              ///< Registration name/ID
+  protected lazy val parCsv = Val[File]                ///< Registration parameters CSV file
+  protected lazy val parVal = Val[Map[String, String]] ///< Registration parameters name/value map
+  protected lazy val parIdx = Val[Int]                 ///< Row index of registration parameters
+  protected lazy val parId  = Val[String]              ///< Parameter set ID
+  protected lazy val refId  = Val[String]              ///< Reference image ID
+  protected lazy val tgtId  = Val[String]              ///< Target image ID (i.e., fixed  image in pairwise registration)
+  protected lazy val srcId  = Val[String]              ///< Source image ID (i.e., moving image in pairwise registration)
+  protected lazy val imgId  = Val[String]              ///< An image ID
 
   // Info about workflow stream for inclusion in status messages
-  protected lazy val setInfo             = "{setId=${setId}}"
-  protected lazy val regInfo             = "{setId=${setId}, regId=${regId}}"
-  protected lazy val regAndParInfo       = "{setId=${setId}, regId=${regId}, parId=${parId}}"
+  protected lazy val setInfo = "{setId=${setId}}"
+  protected lazy val regInfo = "{setId=${setId}, regId=${regId}}"
+  protected lazy val regAndParInfo = "{setId=${setId}, regId=${regId}, parId=${parId}}"
   protected lazy val regParTgtAndSrcInfo = "{setId=${setId}, regId=${regId}, parId=${parId}, tgtId=${tgtId}, srcId=${srcId}}"
 
   /** OpenMOLE puzzle corresponding to this (sub-)workflow */
@@ -116,19 +120,19 @@ abstract class Workflow(start: Option[Capsule] = None) {
 
   /** Swap values of two prototype variables */
   protected def swap(p1: Prototype[_], p2: Prototype[_]) = {
-    val taskName = s"swap(${p1.name}, ${p2.name})"
+    val _taskName = s"swap(${p1.name}, ${p2.name})"
     Strain(
       ScalaTask(
         """
           | val p1 = input.p2
           | val p2 = input.p1
         """.stripMargin
-      ) set(
-        name    := wf + "." + taskName,
+      ) set (
+        name    := wf + "." + _taskName,
         inputs  += (p1, p2),
         outputs += (p1, p2)
       )
-    ) -- getHead(taskName, p1, p2)
+    ) -- getHead(Seq(p1, p2), taskName = Some(_taskName))
   }
 
   /** Explore datasets to be used, usually the start of any workflow puzzle */
@@ -205,6 +209,29 @@ abstract class Workflow(start: Option[Capsule] = None) {
       strainer = true
     )
 
+  /** Set regId to ID of input registration info object */
+  protected def getRegId =
+    Capsule(
+      ScalaTask("val regId = reg.id") set (
+        name    := wf + ".getRegId",
+        inputs  += reg,
+        outputs += regId
+      ),
+      strainer = true
+    )
+
+  /** Inject registration info object into workflow */
+  protected def putReg(r: Registration) =
+    Capsule(
+      EmptyTask() set (
+        name    := wf + ".putReg",
+        outputs += (regId, reg),
+        reg     := r,
+        regId   := r.id
+      ),
+      strainer = true
+    )
+
   /** Inject registration info object into workflow */
   protected def getReg =
     Capsule(
@@ -260,7 +287,7 @@ abstract class Workflow(start: Option[Capsule] = None) {
       ScalaTask(
         """
           | val parId  = input.parVal.getOrElse("ID", f"$parIdx%02d")
-          | val parVal = input.parVal - "ID"
+          | val parVal = input.parVal + ("ID" -> parId)
         """.stripMargin
       ) set (
         name    := wf + ".putParId",
@@ -341,11 +368,17 @@ abstract class Workflow(start: Option[Capsule] = None) {
     )
 
   /** Demux aggregated results by taking head element only */
-  protected def getHead(taskName: String, input: Prototype[_]*) = {
+  protected def getHead(input: Iterable[Prototype[_]], taskName: Option[String] = None) = {
     val inputNames = input.toSeq.map(_.name)
     val nameSuffix = s".getHead(${inputNames.mkString(",")})"
-    val _taskName  = if (taskName.isEmpty) nameSuffix else "." + taskName + nameSuffix
-    val task = ScalaTask(inputNames.map(name => s"val $name = input.$name.head").mkString("\n")) set (name := wf + _taskName)
+    val _taskName  = taskName match {
+      case Some(s) => "." + s + nameSuffix
+      case None => nameSuffix
+    }
+    val task =
+      ScalaTask(inputNames.map(name => s"val $name = input.$name.head").mkString("\n")) set (
+        name := wf + _taskName
+      )
     input.foreach(p => {
       task.addInput(p.toArray)
       task.addOutput(p)
@@ -353,85 +386,86 @@ abstract class Workflow(start: Option[Capsule] = None) {
     Capsule(task, strainer = true)
   }
 
-  /** Get full path of registration result table */
-  protected def resultTable(dir: File, name: String) = Paths.get(dir.getAbsolutePath, name + Suffix.csv).toString
+  /** Demux aggregated results by taking head element only */
+  protected def getHead(input: Prototype[_]*): Capsule = getHead(input.toSeq)
 
-  /** Get full path of registration result summary table */
-  protected def summaryTable(dir: File, name: String) = Paths.get(dir.getAbsolutePath, name + Suffix.csv).toString
+  /** Demux aggregated results by taking head element only */
+  protected def getHead(taskName: String, input: Prototype[_]*): Capsule = getHead(input.toSeq, Some(taskName))
+
+  /** Inject (local) file path into workflow */
+  protected def putPath(path: ExpandedString, p: Prototype[Path], taskName: Option[String] = None) = {
+    val _taskName = taskName getOrElse p.name
+    Capsule(
+      EmptyTask() set (
+        name    := wf + s".putPath(${_taskName})",
+        outputs += p
+      )
+    ) source PathSource(path, p)
+  }
 
   /** Delete table with summary results which can be recomputed from individual result tables */
-  protected def deleteTable(path: String, enabled: Boolean = true) = {
-    val task =
-      if (enabled)
+  protected def deleteTable(path: ExpandedString, enabled: Boolean = true, taskName: Option[String] = None) = {
+    val _taskName = taskName getOrElse path.string.split(File.separator).last
+    if (enabled) {
+      val table = Prototype[Path]("table")
+      Strain(
         ScalaTask(
-          s"""
-            | val table = Paths.get(s"$path")
+          """
             | if (Files.exists(table)) {
             |   Files.delete(table)
-            |   println(s"$${DONE}Delete $${table.getFileName} for $regInfo")
+            |   println(DONE + "Delete " + table)
             | }
           """.stripMargin
         ) set (
-          name    := wf + s".deleteTable(${FileUtil.getName(path)})",
-          imports += ("java.nio.file.{Paths, Files}","com.andreasschuh.repeat.core.Prefix.DONE"),
-          inputs  += regId,
-          outputs += regId
-        )
-      else
-        EmptyTask() set (
-          name    := wf + s".keepTable(${FileUtil.getName(path)})",
-          inputs  += regId,
-          outputs += regId
-        )
-    Strain(task)
-  }
-
-  /** Get path of backup table */
-  protected def backupTablePath(path: String) = {
-    val p = Paths.get(path)
-    p.getParent.resolve(FileUtil.hidden(p.getFileName.toString)).toString
+          name    := wf + s".deleteTable(${_taskName})",
+          imports += ("java.nio.file.Files", "com.andreasschuh.repeat.core.Prefix.DONE"),
+          inputs  += table
+        ) source PathSource(path, table)
+      )
+    } else
+      nop(s"keepTable(${_taskName})").toPuzzle
   }
 
   /** Make copy of previous result tables and merge them with previously copied results to ensure none are lost */
-  protected def backupTable(path: String, enabled: Boolean = true) = {
-    val task =
-      if (enabled)
+  protected def backupTable(path: ExpandedString, enabled: Boolean = true, taskName: Option[String] = None) = {
+    val _taskName = taskName getOrElse path.string.split(File.separator).last
+    val table = Prototype[Path]("table")
+    if (enabled)
+      Strain(
         ScalaTask(
           s"""
-            | val from = new File(s"$path")
-            | val to   = new File(s"${backupTablePath(path)}")
-            | if (from.exists) {
-            |   val l1 = if (to.exists) fromFile(to).getLines().toList.drop(1) else List[String]()
-            |   val l2 = fromFile(from).getLines().toList
-            |   val fw = new FileWriter(to)
+            | if (Files.exists(table)) {
+            |   val backup = FileUtil.hidden(table)
+            |   val l1 = if (Files.exists(backup)) Source.fromFile(backup).getLines().toList.drop(1) else List[String]()
+            |   val l2 = Source.fromFile(table).getLines().toList
+            |   val fw = new FileWriter(backup)
             |   try {
             |     fw.write(l2.head + "\\n")
             |     val l: List[String] = (l1 ::: l2.tail).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
             |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
             |   }
             |   finally fw.close()
-            |   java.nio.file.Files.delete(from.toPath)
-            |   println(s"$${DONE}Backup $${from.getName} for $regAndParInfo")
+            |   Files.delete(table)
+            |   println(Prefix.DONE + s"Backup $${table.getFileName} for $regAndParInfo")
             | }
           """.stripMargin
         ) set (
-          name    := wf + s".backupTable(${FileUtil.getName(path)})",
-          imports += ("java.io.{File, FileWriter}", "scala.io.Source.fromFile", "scala.collection.breakOut"),
-          imports += "com.andreasschuh.repeat.core.Prefix.DONE",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := wf + s".keepTable(${FileUtil.getName(path)})",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-    Strain(task)
+          name        := wf + s".backupTable(${_taskName})",
+          imports     += ("java.io.FileWriter", "java.nio.file.Files", "scala.io.Source", "scala.collection.breakOut"),
+          imports     += "com.andreasschuh.repeat.core._",
+          usedClasses += FileUtil.getClass,
+          inputs      += (setId, regId, parId, table)
+        ) source PathSource(path, table)
+      )
+    else
+      nop(s"keepTable(${_taskName})").toPuzzle
   }
 
   /** Read previous result from backup table to save re-computation if nothing changed */
-  protected def readFromTable(path: String, columns: Seq[_], values: Prototype[Array[Double]], enabled: Boolean = true) =
+  protected def readFromTable(path: ExpandedString, columns: Seq[_], values: Prototype[Array[Double]],
+                              enabled: Boolean = true, taskName: Option[String] = None) = {
+    val _taskName = taskName getOrElse values.name
+    val table = Prototype[Path]("table")
     Strain(
       ScalaTask(
         s"""
@@ -441,14 +475,14 @@ abstract class Workflow(start: Option[Capsule] = None) {
           | val ${values.name} =
           |   if (enabled)
           |     try {
-          |       val file = new File(s"${backupTablePath(path)}")
-          |       val rows = fromFile(file).getLines().toList
+          |       val file = FileUtil.hidden(table).toFile
+          |       val rows = Source.fromFile(file).getLines().toList
           |       if (!rows.head.startsWith("Target,Source,")) throw new Exception("Invalid table " + file.getPath)
           |       val hdr = rows.head.split(",").zipWithIndex.toMap
-          |       val row = rows.tail.view.filter(_.startsWith(s"$${${tgtId.name}},$${${srcId.name}},")).last.split(",")
+          |       val row = rows.tail.view.filter(_.startsWith(s"$${tgtId},$${srcId},")).last.split(",")
           |       if (row.size != hdr.size) throw new Exception("Invalid table " + file.getPath)
           |       val values = columns.map(name => row(hdr(name)).toDouble)
-          |       println(HAVE + s"${values.name.capitalize} for $regParTgtAndSrcInfo")
+          |       println(Prefix.HAVE + s"${_taskName.capitalize} for $regParTgtAndSrcInfo")
           |       values
           |     }
           |     catch {
@@ -457,12 +491,14 @@ abstract class Workflow(start: Option[Capsule] = None) {
           |   else Array[Double]()
         """.stripMargin
       ) set (
-        name    := wf + s".read(${values.name})",
-        imports += ("java.io.File","scala.io.Source.fromFile", "Double.NaN", "com.andreasschuh.repeat.core.Prefix.HAVE"),
-        inputs  += (regId, parId, tgtId, srcId),
-        outputs += (regId, parId, tgtId, srcId, values)
-      )
+        name        := wf + s".read(${_taskName})",
+        imports     += ("java.io.File","scala.io.Source", "Double.NaN", "com.andreasschuh.repeat.core._"),
+        usedClasses += FileUtil.getClass,
+        inputs      += (setId, regId, parId, tgtId, srcId, table),
+        outputs     += values
+      ) source PathSource(path, table)
     )
+  }
 
   /** Calculate mean of values over all registration results computed with a fixed set of parameters */
   protected def getMean(result: Prototype[Array[Double]], mean: Prototype[Array[Double]]) =
@@ -533,110 +569,109 @@ abstract class Workflow(start: Option[Capsule] = None) {
     )
 
   /** Write individual registration result to CSV table */
-  protected def saveToTable(path: String, header: Seq[_], result: Prototype[Array[Double]]) =
+  protected def saveToTable(table: ExpandedString, header: Seq[_], result: Prototype[Array[Double]]) =
     Capsule(
-      ScalaTask(s"""println(SAVE + s"${result.name.capitalize} for $regParTgtAndSrcInfo") """) set (
+      ScalaTask(s"""println(SAVE + s"${result.name.capitalize} for $regParTgtAndSrcInfo")""") set (
         name    := wf + s".saveToTable(${result.name})",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
-        inputs  += (regId, parId, tgtId, srcId, result),
-        outputs += (regId, parId, tgtId, srcId, result)
+        inputs  += (setId, regId, parId, tgtId, srcId, result),
+        outputs += (setId, regId, parId, tgtId, srcId, result)
       )
     ) hook (
-      AppendToCSVFileHook(path, tgtId, srcId, result) set (
+      AppendToCSVFileHook(table, tgtId, srcId, result) set (
         csvHeader := "Target,Source," + header.mkString(","),
         singleRow := true
       )
     )
 
   /** Write mean values calculated over all registration results computed with a fixed set of parameters to CSV table */
-  protected def saveToSummary(path: String, header: Seq[_], mean: Prototype[Array[Double]]) =
+  protected def saveToSummary(table: ExpandedString, header: Seq[_], mean: Prototype[Array[Double]]) =
     Capsule(
-      ScalaTask(s"""println(SAVE + s"${mean.name.capitalize} for $regAndParInfo") """) set (
+      ScalaTask(s"""println(SAVE + s"${mean.name.capitalize} for $regAndParInfo")""") set (
         name    := wf + s".saveToSummary(${mean.name})",
         imports += "com.andreasschuh.repeat.core.Prefix.SAVE",
-        inputs  += (regId, parId, mean),
-        outputs += (regId, parId, mean)
+        inputs  += (setId, regId, parId, mean),
+        outputs += (setId, regId, parId, mean)
       )
     ) hook (
-      AppendToCSVFileHook(path, regId, parId, mean) set (
+      AppendToCSVFileHook(table, regId, parId, mean) set (
         csvHeader := "Registration,Parameters," + header.mkString(","),
         singleRow := true
       )
     )
 
   /** Finalize result table, appending non-overwritten previous results again and sorting the final table */
-  protected def finalizeTable(path: String, enabled: Boolean = true) = {
-    val task =
-      if (enabled)
+  protected def finalizeTable(path: ExpandedString, enabled: Boolean = true, taskName: Option[String] = None) = {
+    val _taskName = taskName getOrElse path.string.split(File.separator).last
+    if (enabled) {
+      val table = Prototype[Path]("table")
+      Strain(
         ScalaTask(
           s"""
-            | val from = new java.io.File(s"${backupTablePath(path)}")
-            | val to   = new java.io.File(s"$path")
-            | if (from.exists) {
-            |   val l1 = fromFile(from).getLines().toList
-            |   val l2 = if (to.exists) fromFile(to).getLines().toList.tail else List[String]()
-            |   val fw = new java.io.FileWriter(to)
+            | val backup = FileUtil.hidden(table)
+            | if (Files.exists(backup)) {
+            |   val l1 = Source.fromFile(backup).getLines().toList
+            |   val l2 = if (Files.exists(table)) Source.fromFile(table).getLines().toList.tail else List[String]()
+            |   val fw = new FileWriter(table)
             |   try {
             |     fw.write(l1.head + "\\n")
             |     val l: List[String] = (l1.tail ::: l2).groupBy( _.split(",").take(2).mkString(",") ).map(_._2.last)(breakOut)
             |     l.sortBy( _.split(",").take(2).mkString(",") ).foreach( row => fw.write(row + "\\n") )
             |   }
             |   finally fw.close()
-            |   java.nio.file.Files.delete(from.toPath)
-            |   println(DONE + s"Finalize $${to.getName} for $regAndParInfo")
+            |   Files.delete(backup)
+            |   println(Prefix.DONE + s"Finalize $${table.getFileName} for $regAndParInfo")
             | }
           """.stripMargin
         ) set (
-          name    := wf + s".finalizeTable(${FileUtil.getName(path)}})",
-          imports += ("scala.io.Source.fromFile", "scala.collection.breakOut","com.andreasschuh.repeat.core.Prefix.DONE"),
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-      else
-        EmptyTask() set (
-          name    := wf + s".keepTable(${FileUtil.getName(path)}})",
-          inputs  += (regId, parId),
-          outputs += (regId, parId)
-        )
-    Strain(task)
+          name        := wf + s".finalizeTable(${_taskName})",
+          imports     += ("java.io.File", "java.nio.file.Files", "scala.io.Source", "scala.collection.breakOut"),
+          imports     += "com.andreasschuh.repeat.core._",
+          usedClasses += FileUtil.getClass,
+          inputs      += (setId, regId, parId, table)
+        ) source PathSource(path, table)
+      )
+    }
+    else
+      nop(s"keepTable(${_taskName}})").toPuzzle
   }
 
   /*
 
-  /** Deform image using the transformation obtained by a registration */
-  def deformImage(outDof: Option[Prototype[File]] = None, name: String = "UnknownPuzzle") = {
-    val deformCmd = Val[Cmd]
-    val task =
-      ScalaTask(
-        s"""
-          | val tgtImg = Paths.get(s"$imgDir", "$imgPre" + tgtId + "$imgSuf")
-          | val srcImg = Paths.get(s"$imgDir", "$imgPre" + imgId + "$imgSuf")
-          | val outImg = new File(workDir, imgId + "-" + refId + "$imgExt")
-        """.stripMargin + (if (outDof == None)
-        s"""
-          | val outDof = Paths.get(s"${reg.dofDir}", "$dofPre" + refId + "," + imgId + "${reg.dofSuf}")
-        """.stripMargin else "") +
-        s"""
-          | val args = Map(
-          |   "target" -> refImg.toString,
-          |   "source" -> srcImg.toString,
-          |   "phi"    -> outDof.toString,
-          |   "out"    -> outImg.toString
-          | )
-          | val cmd = Cmd(deformImg, args)
-          | if (0 != cmd.!) {
-          |   throw new Exception("Image transformation command returned non-zero exit code: " + Cmd.toString(cmd))
-          | }
-        """.stripMargin
-      ) set (
-        name      := s"UnknownPuzzle(${reg.id}).deformImage",
-        imports   += ("java.io.File", "java.nio.file.{Paths, Files}", "com.andreasschuh.repeat.core._"),
-        inputs    += (regId, parId, refId, imgId),
-        outputs   += (regId, parId, refId, imgId, outImg),
-        deformCmd := reg.deformImageCmd
-      )
-    task
-  }
+/** Deform image using the transformation obtained by a registration */
+def deformImage(outDof: Option[Prototype[File]] = None, name: String = "UnknownPuzzle") = {
+val deformCmd = Val[Cmd]
+val task =
+ScalaTask(
+  s"""
+    | val tgtImg = Paths.get(s"$imgDir", "$imgPre" + tgtId + "$imgSuf")
+    | val srcImg = Paths.get(s"$imgDir", "$imgPre" + imgId + "$imgSuf")
+    | val outImg = new File(workDir, imgId + "-" + refId + "$imgExt")
+  """.stripMargin + (if (outDof == None)
+  s"""
+    | val outDof = Paths.get(s"${reg.dofDir}", "$dofPre" + refId + "," + imgId + "${reg.dofSuf}")
+  """.stripMargin else "") +
+  s"""
+    | val args = Map(
+    |   "target" -> refImg.toString,
+    |   "source" -> srcImg.toString,
+    |   "phi"    -> outDof.toString,
+    |   "out"    -> outImg.toString
+    | )
+    | val cmd = Cmd(deformImg, args)
+    | if (0 != cmd.!) {
+    |   throw new Exception("Image transformation command returned non-zero exit code: " + Cmd.toString(cmd))
+    | }
+  """.stripMargin
+) set (
+  name      := s"UnknownPuzzle(${reg.id}).deformImage",
+  imports   += ("java.io.File", "java.nio.file.{Paths, Files}", "com.andreasschuh.repeat.core._"),
+  inputs    += (regId, parId, refId, imgId),
+  outputs   += (regId, parId, refId, imgId, outImg),
+  deformCmd := reg.deformImageCmd
+)
+task
+}
 
 */
 }

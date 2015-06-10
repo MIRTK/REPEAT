@@ -34,8 +34,9 @@ import org.openmole.plugin.tool.pattern.Strain
  */
 object Display {
   def apply(prefix: String, message: String, p: Prototype[_]*) = {
+    val vals = "{" + p.map(p => p.name + "=${" + p.name + "}").mkString(", ") + "}"
     val task =
-      ScalaTask( s"""println(s"$${$prefix}$message") """) set (
+      ScalaTask(s"""println($prefix + s"$message for $vals") """) set (
         name    := s"Display.$prefix",
         imports += s"com.andreasschuh.repeat.core.Prefix.$prefix"
       )

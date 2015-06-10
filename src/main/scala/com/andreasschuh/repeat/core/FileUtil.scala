@@ -22,7 +22,7 @@
 package com.andreasschuh.repeat.core
 
 import java.io.File
-import java.nio.file.{Path, Files}
+import java.nio.file.{Path, Paths, Files}
 
 
 /**
@@ -36,8 +36,25 @@ object FileUtil {
     if (f.exists) f.delete()
   }
 
+  /** Whether the OS is a Unix system */
+  private def isUnix = "(Linux|Mac OS X)".r.findPrefixOf(System.getProperty("os.name")) != None
+
+  /** Prefix identifying hidden files */
+  private lazy val _hiddenFilePrefix = if (isUnix) "." else "_"
+
+  /** Get path corresponding to hidden file */
+  def hidden(p: Path): Path = {
+    val name = p.getFileName.toString
+    if (name.startsWith(_hiddenFilePrefix)) p
+    else {
+      val hfname = _hiddenFilePrefix + name
+      val parent = p.getParent
+      if (parent != null) parent.resolve(hfname) else Paths.get(hfname)
+    }
+  }
+
   /** Prepend dot on Linux and "_" on Windows to make file/directory "hidden" */
-  def hidden(a: String) = (if ("(Linux|Mac OS X)".r.findPrefixOf(System.getProperty("os.name")) != None) "." else "_") + a
+  def hidden(a: String): String = hidden(Paths.get(a)).toString
 
   /**
    * Copy file if it was modified

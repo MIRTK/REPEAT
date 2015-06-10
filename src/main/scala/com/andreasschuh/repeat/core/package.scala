@@ -42,7 +42,7 @@ package object core {
     def apply(argv: String*): Cmd = argv.toSeq
 
     /** Substitute placeholder arguments by args("name") */
-    def apply(template: Cmd, args: Map[String, String]): Cmd = expand(template, args)
+    def apply(template: Cmd, args: Map[String, _]): Cmd = expand(template, args)
 
     /** Make properly quoted string from command arguments */
     def toString(cmd: Cmd) = cmd.mkString("\"", "\" \"", "\"")
@@ -65,6 +65,9 @@ package object core {
     def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
   }
 
+  // Implicit file path conversions
   implicit def convertFileToString(f: File): String = f.toString
   implicit def convertPathToString(p: Path): String = p.toString
+  implicit def convertFileToPath(f: File): Path = f.toPath
+  implicit def convertPathToFile(p: Path): File = p.toFile
 }
