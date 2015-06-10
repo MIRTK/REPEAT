@@ -95,7 +95,7 @@ class PerformRegistrations(registration: Registration, start: Option[Capsule] = 
         outLog.map(p => s""" val ${p.name} = new File(workDir, tgtId + \",\" + srcId + \"${Suffix.log}\")""").mkString +
         s"""
           | val params = Map("bgvalue" -> ${workspace.name}.imgBkg.toString) ++ input.${par.name}
-          | val ${outDof.name}, _time =
+          | val (${outDof.name}, _time) =
           |   reg(${tgtId.name}, tgtImg, ${srcId.name}, srcImg, parMap = Some(params),
           |       iniDof = Some(iniDof),  outLog = ${if (outLog == None) "None" else "Some(" + outLog.get.name + ")"},
           |       outDir = Some(workDir), tmpDir = Some(workDir))
