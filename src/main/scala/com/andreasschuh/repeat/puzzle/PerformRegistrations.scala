@@ -89,16 +89,20 @@ class PerformRegistrations(registration: Registration, start: Option[Capsule] = 
     val tgtImg = Val[File]
     val srcImg = Val[File]
     val iniDof = Val[File]
+    val regId  = Val[String]
+    val parId  = Val[String]
 
     val task =
       ScalaTask(
         outLog.map(p => s""" val ${p.name} = new File(workDir, tgtId + \",\" + srcId + \"${Suffix.log}\")""").mkString +
         s"""
-          | val params = Map("bgvalue" -> ${workspace.name}.imgBkg.toString) ++ input.${par.name}
+          | val param = Map("bgvalue" -> ${workspace.name}.imgBkg.toString) ++ input.${par.name}
           | val (${outDof.name}, _time) =
-          |   reg(${tgtId.name}, tgtImg, ${srcId.name}, srcImg, parMap = Some(params),
+          |   reg(${tgtId.name}, tgtImg, ${srcId.name}, srcImg, parMap = Some(param),
           |       iniDof = Some(iniDof),  outLog = ${if (outLog == None) "None" else "Some(" + outLog.get.name + ")"},
           |       outDir = Some(workDir), tmpDir = Some(workDir))
+          | val regId = reg.id
+          | val parId = param("ID")
         """.stripMargin +
         runTime.map(p => s""" val ${p.name} = _time""").mkString
       ) set (
@@ -108,7 +112,7 @@ class PerformRegistrations(registration: Registration, start: Option[Capsule] = 
         inputFiles += (tgtImg, "${tgtId}" + Suffix.img, link = WorkSpace.shared),
         inputFiles += (srcImg, "${srcId}" + Suffix.img, link = WorkSpace.shared),
         inputFiles += (iniDof, "${tgtId},${srcId}-aff" + Suffix.dof, link = WorkSpace.shared),
-        outputs    += outDof
+        outputs    += (workspace, regId, parId, tgtId, srcId, outDof)
       )
 
     outLog .foreach(task.addOutput(_))
