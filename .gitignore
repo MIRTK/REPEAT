@@ -1,0 +1,5 @@
+/bin/mirtk
+/bin/mirtk-*
+/etc/*.csv
+/etc/*.par
+/var

@@ -1,0 +1,141 @@
+#!/bin/bash
+
+## Generate HTCondor job description file to average voxel-wise quality measures
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#rois[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: rois not set"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+if [ $evlice = true -a $allsym != true ]; then
+  echo "Info: No need to evaluate inverse consistency error when allsym not 'true'."
+  evlice=false
+fi
+if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
+  echo "Info: Cannot evaluate mean transitivity error when not all srcimgs are used as tgtimgs."
+  evlmte=false
+fi
+
+# change to top-level directory
+run cd "$topdir"
+
+# ------------------------------------------------------------------------------
+# average quality measures of affine pre-alignment
+if [ "$regid" = 'affine' ]; then
+
+  # TODO
+  false
+
+# ------------------------------------------------------------------------------
+# average quality measures of pairwise deformations
+else
+
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+  cfgids=("$@")
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+
+  regdir="$vardir/$dataset/$regid"
+
+  for cfgid in "${cfgids[@]}"; do
+
+    roidir="$regdir/$cfgid/roi"
+    outdir="$regdir/$cfgid/evl/avg"
+    jobdir="$regdir/$cfgid/bin"
+    logdir="$regdir/$cfgid/log/average-measures"
+
+    makedir "$jobdir"
+    makedir "$logdir"
+    makedir "$outdir"
+
+    jobdsc="$jobdir/average-measures.condor"
+    cat > "$jobdsc" <<EOF_HEADER
+universe    = vanilla
+executable  = $mirtk
+environment = "$condor_environment"
+initialdir  = $topdir
+getenv      = $condor_getenv
+
+EOF_HEADER
+
+    for tgtid in "${tgtids[@]}"; do
+
+      outcsv="$outdir/$tgtid-mean.csv"
+      stdcsv="$outdir/$tgtid-sdev.csv"
+      numcsv="$outdir/$tgtid-n.csv"
+      [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
+
+      val_names=()
+      val_paths=()
+      if [ $evlice = true ]; then
+        measure="mice"
+        val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
+        val_names=("${val_names[@]}" "'${measure}'")
+        val_paths=("${val_paths[@]}" "'$val_path'")
+      fi
+      if [ $evlmte = true ]; then
+        measure="mte"
+        val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
+        val_names=("${val_names[@]}" "'${measure}'")
+        val_paths=("${val_paths[@]}" "'$val_path'")
+      fi
+      for mod in "${mods[@]}"; do
+        for measure in $(get_measures "$mod"); do
+          [ $measure != 'overlap' ] || measure='dsc'
+          [ $(is_overlap_measure $measure) != true ] || continue
+          val_path="$regdir/$cfgid/evl/$mod/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${mod}_${measure}'")
+          val_paths=("${val_paths[@]}" "'$val_path'")
+        done
+      done
+
+      roi_names=()
+      roi_paths=()
+      for roi in "${rois[@]}"; do
+        if [ $(is_seg "$roi") = true ]; then
+          for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
+            label="$(basename "$roi_path")"
+            label=${roi_path%.nii.gz}
+            label=${label/*-l}
+            roi_names=("${roi_names[@]}" "'$roi=$label'")
+            roi_paths=("${roi_paths[@]}" "'$roi_path'")
+          done
+        else
+          roi_path="$roidir/$roi/$tgtid.nii.gz"
+          roi_names=("${roi_names[@]}" "'$roi'")
+          roi_paths=("${roi_paths[@]}" "'$roi_path'")
+        fi
+      done
+
+      cat >> "$jobdsc" <<EOF_JOB
+arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+
+    done
+  done
+
+fi

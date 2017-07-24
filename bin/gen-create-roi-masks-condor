@@ -1,0 +1,115 @@
+#!/bin/bash
+
+## Generate HTCondor job description file to transform/create
+## binary or probabilistic ROI masks used to computed weighted
+## average of voxel-wise quality measures for each ROI
+##
+## Images must first be transformed to each target image using
+## the gen-transform-image-condor job description. When a given
+## ROI mask is a hard segmentation, i.e., a label image, a
+## separate probabilistic ROI mask is created by this the job
+## description created by this script for each positive label.
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#rois[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: rois not set"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+# change to top-level directory
+run cd "$topdir"
+
+# ------------------------------------------------------------------------------
+# create ROI masks for evaluation of affine pre-alignment
+if [ "$regid" = 'affine' ]; then
+
+  # TODO
+  false
+
+# ------------------------------------------------------------------------------
+# create ROI masks for evaluation of pairwise deformations
+else
+
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+  cfgids=("$@")
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+
+  regdir="$vardir/$dataset/$regid"
+
+  for cfgid in "${cfgids[@]}"; do
+
+    pardir="$regdir/$cfgid/etc"
+    jobdir="$regdir/$cfgid/bin"
+
+    makedir "$pardir"
+    makedir "$jobdir"
+
+    for roi in "${rois[@]}"; do
+      isseg=$(is_seg "$roi")
+
+      outdir="$regdir/$cfgid/roi/$roi"
+      logdir="$regdir/$cfgid/log/create-$roi-masks"
+
+      imgdir="$regdir/$cfgid/out/$roi"
+      imgpre=""
+      imgsuf=".nii.gz"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      jobdsc="$jobdir/create-$roi-masks.condor"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        if [ "$isseg" = true ]; then
+          outimg="$outdir/${tgtid}-l%02d.nii.gz"
+          [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
+          labels="-labels"
+        else
+          outimg="$outdir/$tgtid.nii.gz"
+          [ $force = true ] || [ ! -f "$outimg" ] || continue
+          labels=""
+        fi
+        images="../out/$roi"  # imgdir relative to pardir
+        for srcid in "${srcids[@]}"; do
+          images="${images}\n$imgpre$srcid-$tgtid$imgsuf"
+        done
+        echo -e "$images" > "$pardir/$roi-images-$tgtid.txt"
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "average-images '$outimg' -target 'max-size' -images '$pardir/$roi-images-$tgtid.txt' $labels -v"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+    
+    done
+  done
+
+fi
+

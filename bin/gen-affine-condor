@@ -1,0 +1,70 @@
+#!/bin/bash
+
+## Affine registration of reference image to all images of the dataset
+##
+## The target image for the affine registration is each respective image,
+## such that we can ensure with 'Allow shearing = No' that the image to
+## reference coordinate transformation has no shearing component and thus
+## can be applied to the image coordinate axes using the '-dof' and
+## '-source-affdof' option of the 'register' and 'transform-image' commands.
+## For other registration tools, the 'edit-image' tool can be used to
+## modify the image header explicitly and save it to a new file.
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset>"
+}
+
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+dataset="$1"
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+[ -n "$refid" ] || refid="${imgids[0]}"
+
+parin="etc/mirtk-affine.cfg"
+regdir="$vardir/$dataset/affine"
+dofdir="$regdir/dof"
+
+jobdir="$regdir/bin"
+jobdsc="$jobdir/register.condor"
+logdir="$regdir/log/register"
+
+makedir "$topdir/$jobdir"
+makedir "$topdir/$dofdir"
+makedir "$topdir/$logdir"
+
+cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+
+for imgid in "${imgids[@]}"; do
+  if [ $imgid = $refid ]; then
+    if [ ! -f "$dofdir/$imgid.dof.gz" ]; then
+      run mirtk init-dof "$dofdir/$imgid.dof.gz"
+    fi
+  else
+    images=()
+    for chn in "${chns[@]}"; do
+      imgpre="$(get_prefix "$chn")"
+      imgsuf="$(get_suffix "$chn")"
+      [ -n "$imgsuf" ] || imgsuf=".nii.gz"
+      images=("${images[@]}" -image "'$imgdir/$imgpre$imgid$imgsuf'" "'$imgdir/$imgpre$refid$imgsuf'")
+    done
+    cat >> "$jobdsc" <<EOF_CLUSTER
+arguments = "register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz'"
+error     = $logdir/$imgid.err
+output    = $logdir/$imgid.out
+log       = $logdir/$imgid.log
+queue
+
+EOF_CLUSTER
+  fi
+done

@@ -1,0 +1,123 @@
+#!/bin/bash
+
+## Transform images using MIRTK on local machine
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#mods[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: mods not set"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+# change to top-level directory
+run cd "$topdir"
+
+# affinely align images to reference
+if [ "$regid" = 'affine' ]; then
+
+  regdir="$vardir/$dataset/affine"
+  dofdir="$regdir/dof"
+
+  for mod in "${mods[@]}"; do
+
+    outdir="$regdir/out/$mod"
+    logdir="$regdir/log/transform-$mod"
+
+    makedir "$outdir"
+    makedir "$logdir"
+
+    imgpre="$(get_prefix "$mod")"
+    imgsuf="$(get_suffix "$mod")"
+    [ -n "$imgsuf" ] || imgsuf=".nii.gz"
+
+    if [ "$(is_seg "$mod")" = true ]; then
+      labels="-labels"
+    else
+      labels=""
+    fi
+    
+    for imgid in "${imgids[@]}"; do
+      outimg="$outdir/$imgid.nii.gz"
+      [ $force = true ] || [ ! -f "$outimg" ] || continue
+      { { \
+        run "$mirtk" transform-image \
+            "$imgdir/$imgpre$imgid$imgsuf" "$outimg" \
+            -target "$imgdir/$imgpre$refid$imgsuf" \
+            -dofin "$dofdir/$imgid.dof.gz" -invert $labels; \
+      } 1> >(tee "$logdir/$imgid.out"); } 2> >(tee "$logdir/$imgid.err" >&2)
+    done
+  done
+
+# deform images to each respective target image
+else
+
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+  cfgids=("$@")
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  issym="$(is_sym "$regid")"
+
+  regdir="$vardir/$dataset/$regid"
+  imgdir="$vardir/$dataset/affine/out"
+  imgsuf='.nii.gz'
+
+  for cfgid in "${cfgids[@]}"; do
+
+    dofdir="$regdir/$cfgid/dof"
+
+    for mod in "${mods[@]}"; do
+
+      printf "\nTransform $mod images using $regid output for configuration $cfgid\n"
+
+      imgpre="$mod/"
+      outdir="$regdir/$cfgid/out/$mod"
+      logdir="$regdir/$cfgid/log/transform-$mod"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      if [ "$(is_seg "$mod")" = true ]; then
+        labels="-labels"
+      else
+        labels=""
+      fi
+
+      for tgtid in "${tgtids[@]}"; do
+      for srcid in "${srcids[@]}"; do
+        outimg="$outdir/$srcid-$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        { { \
+          if [ ! -f "$dofdir/$tgtid-$srcid.dof.gz" ] && [ $issym = true ] && [[ $tgtid > $srcid ]]; then \
+            run "$mirtk" transform-image \
+                    "$imgdir/$imgpre$srcid$imgsuf" "$outimg" \
+                    -target "$imgdir/$imgpre$tgtid$imgsuf" \
+                    -dofin "$dofdir/$srcid-$tgtid.dof.gz" -invert $labels; \
+          else \
+            run "$mirtk" transform-image \
+                    "$imgdir/$imgpre$srcid$imgsuf" "$outimg" \
+                    -target "$imgdir/$imgpre$tgtid$imgsuf" \
+                    -dofin "$dofdir/$tgtid-$srcid.dof.gz" $labels; \
+          fi; \
+        } 1> >(tee "$logdir/$srcid-$tgtid.out"); } 2> >(tee "$logdir/$srcid-$tgtid.err" >&2)
+      done; done
+    done
+  done
+
+fi

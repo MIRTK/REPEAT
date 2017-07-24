@@ -1,0 +1,75 @@
+#!/bin/bash
+
+## Generate configuration files for MIRTK 'register' command
+regid="mirtk-sym-svffd"
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+
+# constants
+allsym=false
+model='SVFFD'
+mffd='None'
+sim='NMI'
+bins=64
+window=5
+be=0.001
+tp=0
+vp=0
+logjac=0
+negjac=0
+ds=2.5
+levels=4
+divini='No'
+maxsv=0
+
+# change to top-level directory
+run cd "$topdir"
+
+# write header and text file with long header names
+makedir "$etcdir"
+
+cat > "$etcdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cfgid,
+allsym,
+mffd,Multi-level transformation
+model,Transformation model
+ds,Control point spacing
+im,Integration method
+nbch,No. of BCH terms
+uselie,Use Lie derivative
+imsteps,No. of integration steps
+maxsv,Maximum scaled velocity
+levels,No. of resolution levels
+sim,Image dissimilarity measure
+bins,No. of bins
+window,Local window size
+be,Bending energy weight
+tp,Topology preservation weight
+vp,Volume preservation weight
+logjac,LogJac penalty weight
+negjac,NegJac penalty weight
+divini,Divide data terms by initial value
+EOF_HEADER_TO_PARNAME
+
+parcsv="$etcdir/$regid.csv"
+echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,sim,bins,window,be,tp,vp,logjac,negjac,levels,divini" > "$parcsv"
+
+# write parameter values
+i=1
+for im in 'RKE1' 'SS' 'FastSS'; do
+for nbch in 0 2 3 4 5; do
+  uselie_opts=('No' 'Yes')
+  [ $nbch -gt 2 ] || uselie_opts=('No')
+  for uselie in ${uselie_opts[@]}; do
+    imsteps_opts=(16 32 64)
+    [ $im != 'RKE1' ] || imsteps_opts=(16 32)
+    for imsteps in ${imsteps_opts[@]}; do
+      cfgid=$(printf %04d $i)
+      echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
+      let i++
+    done
+  done
+done; done

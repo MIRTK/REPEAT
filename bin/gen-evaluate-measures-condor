@@ -1,0 +1,266 @@
+#!/bin/bash
+
+## Generate HTCondor job description file to evaluate quality measures
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#mods[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: mods not set"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+if [ $evlice = true -a $allsym != true ]; then
+  echo "Info: No need to evaluate inverse consistency error when allsym not 'true'."
+  evlice=false
+fi
+if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
+  echo "Info: Cannot evaluate mean transitivity error when not all srcimgs are used as tgtimgs."
+  evlmte=false
+fi
+
+# reference image used as evaluate-dof -target
+refdir="$imgdir"
+[ -n "$refid" ] || refid="${imgids[0]}"
+if [ -z "$refmod" ]; then
+  for mod in "${mods[@]}"; do
+    if [ $(is_seg "$mod") != true -a $(is_prob "$mod") != true ]; then
+      refmod="$mod"
+      break
+    fi
+  done
+fi
+refpre="$(get_prefix "$refmod")"
+refsuf="$(get_suffix "$refmod")"
+[ -n "$refsuf" ] || refsuf=".nii.gz"
+
+# evaluate-dof '-padding <bgvalue>' or empty string
+refpad=''
+refbgv=$(get_bgvalue "$refmod")
+[ -z "$refbgv" ] || refpad="-padding $refbgv"
+
+# change to top-level directory
+run cd "$topdir"
+
+# ------------------------------------------------------------------------------
+# evaluate quality measures after affine pre-alignment
+if [ "$regid" = 'affine' ]; then
+
+  # TODO
+  false
+
+# ------------------------------------------------------------------------------
+# evaluate quality measures of pairwise registration output
+else
+
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+  cfgids=("$@")
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  issym="$(is_sym $regid)"
+
+  regdir="$vardir/$dataset/$regid"
+
+  for cfgid in "${cfgids[@]}"; do
+
+    dofdir="$regdir/$cfgid/dof"
+    imgdir="$regdir/$cfgid/out"
+    jobdir="$regdir/$cfgid/bin"
+    pardir="$regdir/$cfgid/etc"
+
+    makedir "$jobdir"
+
+    # --------------------------------------------------------------------------
+    # evaluate inverse consistency error
+    if [ $evlice = true ]; then
+
+      measure="mice"
+      outdir="$regdir/$cfgid/evl/dof/$measure"
+      logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      jobdsc="$jobdir/evaluate-dof-$measure.condor"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        outimg="$outdir/$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        dofs="../dof"
+        for srcid in "${srcids[@]}"; do
+          [ $srcid != $tgtid ] || continue
+          dofs="${dofs}\n\n$tgtid-$srcid.dof.gz\n$srcid-$tgtid.dof.gz"
+        done
+        echo -e "$dofs" > "$pardir/dofs-ic-$tgtid.txt"
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+    fi
+
+    # --------------------------------------------------------------------------
+    # evaluate transitivity error
+    if [ $evlmte = true ]; then
+
+      measure="mte"
+      outdir="$regdir/$cfgid/evl/dof/$measure"
+      logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      jobdsc="$jobdir/evaluate-dof-$measure.condor"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        outimg="$outdir/$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        dofs="../dof"
+        for srcid1 in "${srcids[@]}"; do
+          [ $srcid1 != $tgtid ] || continue
+          for srcid2 in "${srcids[@]}"; do
+            [ $srcid2 != $srcid1 -a $srcid2 != $tgtid ] || continue
+            dofs="${dofs}\n\n$tgtid-$srcid1.dof.gz\n$srcid1-$srcid2.dof.gz\n$srcid2-$tgtid.dof.gz"
+          done
+        done
+        echo -e "$dofs" > "$pardir/dofs-te-$tgtid.txt"
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+    fi
+
+    # --------------------------------------------------------------------------
+    # evaluate quantitative measures for each modality/channel/contrast
+    for mod in "${mods[@]}"; do
+
+      imgpre="$mod/"
+      imgsuf=".nii.gz"
+
+      if [ $(is_seg "$mod") = true ]; then
+        kind="-labels"
+      elif [ $(is_prob "$mod") = true ]; then
+        kind="-probs"
+      else
+        kind=""
+      fi
+
+      for measure in $(get_measures "$mod"); do
+
+        outdir="$regdir/$cfgid/evl/$mod/$measure"
+        logdir="$regdir/$cfgid/log/evaluate-$mod-$measure"
+
+        makedir "$outdir"
+        makedir "$logdir"
+
+        jobdsc="$jobdir/evaluate-$mod-$measure.condor"
+        cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+
+        # ----------------------------------------------------------------------
+        # evaluate segmentation overlap
+        [ $measure != 'overlap' ] || measure='dsc'
+        if [ $(is_overlap_measure $measure) = true ]; then
+
+          if [ -z "$kind" ]; then
+            error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
+          fi
+          for tgtid in "${tgtids[@]}"; do
+            outcsv="$outdir/$tgtid.csv"
+            [ $force = true ] || [ ! -f "$outcsv" ] || continue
+            images=()
+            for srcid in "${srcids[@]}"; do
+              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+            done
+            cat >> "$jobdsc" <<EOF_JOB
+arguments = "evaluate-overlap '$imgdir/$imgpre$tgtid-$tgtid$imgsuf' ${images[@]} $kind -metric $measure -precision 5 -table '$outcsv'"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+          done
+
+        # ----------------------------------------------------------------------
+        # evaluate voxel-wise measures
+        else
+
+          padding=''
+          normalization=''
+          rescaling=''
+          isseg=$(is_seg "$mod")
+          if [ "$isseg" != true ]; then
+            normalization='-normalize zscore'
+            bgvalue=$(get_bgvalue "$mod")
+            if [ -n "$bgvalue" ]; then
+              padding="-padding $bgvalue"
+              let min="$bgvalue+1"
+              let max="$bgvalue+100"
+              rescaling="-rescale $min $max"
+            else
+              rescaling="-rescale 0 100"
+            fi
+          fi
+
+          for tgtid in "${tgtids[@]}"; do
+            outimg="$outdir/$tgtid.nii.gz"
+            [ $force = true ] || [ ! -f "$outimg" ] || continue
+            images=()
+            for srcid in "${srcids[@]}"; do
+              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+            done
+            cat >> "$jobdsc" <<EOF_JOB
+arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+          done
+        fi
+      done
+    done
+  done
+
+fi

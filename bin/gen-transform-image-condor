@@ -1,0 +1,155 @@
+#!/bin/bash
+
+## Generate HTCondor job description file to transform images using MIRTK
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$topdir/etc/dataset-$dataset.sh"
+[ ${#mods[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: mods not set"
+[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+# change to top-level directory
+run cd "$topdir"
+
+# include also images used to create ROIs for averaging of voxel-wise measures
+mods=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
+
+# affinely align images to reference
+if [ "$regid" = 'affine' ]; then
+
+  regdir="$vardir/$dataset/affine"
+  dofdir="$regdir/dof"
+  
+
+  jobdir="$regdir/bin"
+  jobdsc="$jobdir/transform.condor"
+  logdir="$regdir/log/transform"
+
+  makedir "$jobdir"
+  makedir "$logdir"
+
+  cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+  for mod in "${mods[@]}"; do
+
+    outdir="$regdir/out/$mod"
+    makedir "$outdir"
+
+    imgpre="$(get_prefix "$mod")"
+    imgsuf="$(get_suffix "$mod")"
+    [ -n "$imgsuf" ] || imgsuf=".nii.gz"
+
+    if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+      labels="-labels"
+    else
+      labels=""
+    fi
+    
+    for imgid in "${imgids[@]}"; do
+      outimg="$outdir/$imgid.nii.gz"
+      [ $force = true ] || [ ! -f "$outimg" ] || continue
+      cat >> "$jobdsc" <<EOF_JOB
+arguments = "transform-image '$imgdir/$imgpre$imgid$imgsuf' '$outimg' -target '$imgdir/$imgpre$refid$imgsuf' -dofin '$dofdir/$imgid.dof.gz' -invert $labels"
+error     = $logdir/$imgid.err
+output    = $logdir/$imgid.out
+log       = $logdir/$imgid.log
+queue
+
+EOF_JOB
+    done
+  done
+
+# deform images to each respective target image
+else
+
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+  cfgids=("$@")
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  issym="$(is_sym $regid)"
+
+  regdir="$vardir/$dataset/$regid"
+  imgdir="$vardir/$dataset/affine/out"
+  imgsuf='.nii.gz'
+
+  for cfgid in "${cfgids[@]}"; do
+    dofdir="$regdir/$cfgid/dof"
+    jobdir="$regdir/$cfgid/bin"
+  
+    makedir "$dofdir"
+    makedir "$jobdir"
+
+    for mod in "${mods[@]}"; do
+
+      imgpre="$mod/"
+      outdir="$regdir/$cfgid/out/$mod"
+      logdir="$regdir/$cfgid/log/transform-$mod"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      jobdsc="$jobdir/transform-$mod.condor"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+
+      if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+        labels="-labels"
+      else
+        labels=""
+      fi
+
+      for tgtid in "${tgtids[@]}"; do
+      for srcid in "${srcids[@]}"; do
+        outimg="$outdir/$srcid-$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        if [ ! -f "$dofdir/$tgtid-$srcid.dof.gz" ] && [ $issym = true ] && [[ $tgtid > $srcid ]]; then
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$srcid-$tgtid.dof.gz' -invert $labels"
+error     = $logdir/$srcid-$tgtid.err
+output    = $logdir/$srcid-$tgtid.out
+log       = $logdir/$srcid-$tgtid.log
+queue
+
+EOF_JOB
+        else
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$tgtid-$srcid.dof.gz' $labels"
+error     = $logdir/$srcid-$tgtid.err
+output    = $logdir/$srcid-$tgtid.out
+log       = $logdir/$srcid-$tgtid.log
+queue
+
+EOF_JOB
+        fi
+      done; done
+    done
+  done
+
+fi
+
