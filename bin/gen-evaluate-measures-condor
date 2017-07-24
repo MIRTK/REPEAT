@@ -12,6 +12,7 @@ print_help()
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
 # change to top-level directory
@@ -29,11 +30,11 @@ regid="$1"; shift
 [ -n "$regid" ] || print_help
 
 if [ $evlice = true -a $allsym != true ]; then
-  echo "Info: No need to evaluate inverse consistency error when allsym not 'true'."
+  echo "Info: Skipping evaluate inverse consistency error because allsym not 'true'."
   evlice=false
 fi
 if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
-  echo "Info: Cannot evaluate mean transitivity error when not all srcimgs are used as tgtimgs."
+  echo "Info: Skipping evaluate mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi
 
@@ -182,11 +183,8 @@ EOF_JOB
       fi
 
       for measure in $(get_measures "$mod"); do
-
-        outdir="$regdir/$cfgid/evl/$mod/$measure"
+        
         logdir="$regdir/$cfgid/log/evaluate-$mod-$measure"
-
-        makedir "$outdir"
         makedir "$logdir"
 
         jobdsc="$jobdir/evaluate-$mod-$measure.condor"
@@ -202,11 +200,14 @@ EOF_HEADER
         [ $measure != 'overlap' ] || measure='dsc'
         if [ $(is_overlap_measure $measure) = true ]; then
 
+          outdir="$csvdir/$dataset/$regid/$cfgid"
+          makedir "$outdir"
+
           if [ -z "$kind" ]; then
             error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
           fi
           for tgtid in "${tgtids[@]}"; do
-            outcsv="$outdir/$tgtid.csv"
+            outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
             images=()
             for srcid in "${srcids[@]}"; do
@@ -225,6 +226,9 @@ EOF_JOB
         # ----------------------------------------------------------------------
         # evaluate voxel-wise measures
         else
+
+          outdir="$regdir/$cfgid/evl/$mod/$measure"
+          makedir "$outdir"
 
           padding=''
           normalization=''

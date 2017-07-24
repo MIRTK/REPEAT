@@ -30,11 +30,11 @@ regid="$1"; shift
 [ -n "$regid" ] || print_help
 
 if [ $evlice = true -a $allsym != true ]; then
-  echo "Info: No need to evaluate inverse consistency error when allsym not 'true'."
+  echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
   evlice=false
 fi
 if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
-  echo "Info: Cannot evaluate mean transitivity error when not all srcimgs are used as tgtimgs."
+  echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi
 
