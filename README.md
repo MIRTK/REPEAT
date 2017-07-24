@@ -1,10 +1,12 @@
 # Evaluation of brain image registration
 
+The REgistration PErformance Assessment Tools (REPEAT) provide a common framework for evaluating and comparing implementations of non-rigid image registration algorithms with main focus on inter-subject registration of brain MR images.
+
+## Content
+
 This folder contains scripts used to evaluate the quality of the spatial mappings
 computed with different registration algorithms (and implementations thereof)
 using an available brain image dataset, best with available manual annotations.
-
-## Directory structure
 
 * `bin`
   - Executable scripts to generate CSV files listing sets of registration parameters.
@@ -35,7 +37,7 @@ using an available brain image dataset, best with available manual annotations.
     and [Matplotlib](https://matplotlib.org/).
 
 
-## Affine pre-alignment
+## Affine alignment
 
 The brain images are per-aligned to a selected reference image prior to the
 deformable registrations. The used reference image is configured in the
