@@ -1,0 +1,57 @@
+#!/bin/bash
+
+## Generate configuration files for MIRTK 'register' command
+regid="mirtk-asym-ffd"
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+
+# change to top-level directory
+run cd "$topdir"
+
+# constants
+model='FFD'
+mffd='None'
+sim='NMI'
+bins=64
+window=5
+levels=4
+
+# write header and text file with long header names
+makedir "$etcdir"
+
+cat > "$etcdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cfgid,
+mffd,Multi-level transformation
+model,Transformation model
+ds,Control point spacing
+levels,No. of resolution levels
+sim,Image dissimilarity measure
+bins,No. of bins
+window,Local window size
+be,Bending energy weight
+tp,Topology preservation weight
+vp,Volume preservation weight
+divini,Divide data terms by initial value
+EOF_HEADER_TO_PARNAME
+
+parcsv="$etcdir/$regid.csv"
+echo "cfgid,mffd,model,ds,levels,sim,bins,window,be,tp,vp,divini" > "$parcsv"
+
+# write parameter values
+i=1
+
+# initial parameter exploration
+ds=2.5
+divini='No'
+for be in 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+  for tp in 0.0 0.01 0.05 0.1 0.2 0.4 0.8 1.0; do
+    for vp in 0.0 0.00001 0.0001 0.001 0.01; do
+      cfgid=$(printf %04d $i)
+      echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$divini" >> "$parcsv"
+      let i++
+    done
+  done
+done
