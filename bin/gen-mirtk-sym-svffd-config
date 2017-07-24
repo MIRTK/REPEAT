@@ -55,7 +55,7 @@ divini,Divide data terms by initial value
 EOF_HEADER_TO_PARNAME
 
 parcsv="$etcdir/$regid.csv"
-echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,sim,bins,window,be,tp,vp,logjac,negjac,levels,divini" > "$parcsv"
+echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,levels,sim,bins,window,be,tp,vp,logjac,negjac,divini" > "$parcsv"
 
 # write parameter values
 i=1
