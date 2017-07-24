@@ -1,22 +1,19 @@
 ## Common settings sourced by executable scripts
 
+topdir="$(cd "$(dirname "$BASH_SOURCE")/.." && pwd)"
+. "$topdir/lib/utils.sh" || exit 1  # e.g., error() function
+
 # ------------------------------------------------------------------------------
-# global constants
+# global constants -- all directory paths relative to topdir
 
-etcdir="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
-topdir="$(cd "${etcdir}/.." && pwd)"
-bindir="$topdir/bin"
-libdir="$topdir/lib"
-mirtk="$bindir/mirtk"
-force=false
-
-# directories relative to topdir
+bindir="bin"
+libdir="lib"
+etcdir="etc"
 vardir="var/cache"  # root directory for computed data
 csvdir="var/table"  # summary tables of average quality measures
 
-# HTCondor job execution environment
-condor_getenv=true
-condor_environment=
+# absolute path of "mirtk" executable
+mirtk="$topdir/$bindir/mirtk"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
@@ -29,6 +26,14 @@ evlice=true
 
 # when 'true', evaluate mean transitivity error
 evlmte=true
+
+# force overwriting previously generated files, include also jobs in batch
+# description that have been run before, i.e., although output files already exist
+force=false
+
+# HTCondor job execution environment
+condor_getenv=true
+condor_environment=
 
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
@@ -52,8 +57,3 @@ get_measures()
     echo "dsc entropy"
   fi
 }
-
-# ------------------------------------------------------------------------------
-# auxiliary functions
-
-. "$libdir/utils.sh" || exit 1

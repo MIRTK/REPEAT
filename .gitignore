@@ -2,4 +2,5 @@
 /bin/mirtk-*
 /etc/*.csv
 /etc/*.par
+/tmp
 /var

@@ -15,18 +15,25 @@ print_help()
   error "usage: $(basename $BASH_SOURCE) <dataset>"
 }
 
+# load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
+# change to top-level directory
+run cd "$topdir"
+
+# evaluation dataset
 dataset="$1"
 [ -n "$dataset" ] || print_help
-. "$topdir/etc/dataset-$dataset.sh"
-[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+. "$etcdir/dataset-$dataset.sh"
+[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
 [ -n "$refid" ] || refid="${imgids[0]}"
 
-parin="etc/mirtk-affine.cfg"
+# create job description
+parin="$etcdir/mirtk-affine.cfg"
 regdir="$vardir/$dataset/affine"
 dofdir="$regdir/dof"
 

@@ -18,22 +18,23 @@ print_help()
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+
+# change to top-level directory
+run cd "$topdir"
 
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$topdir/etc/dataset-$dataset.sh"
-[ ${#rois[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: rois not set"
-[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+. "$etcdir/dataset-$dataset.sh"
+[ ${#rois[@]}   -gt 0 ] || error "$etcdir/dataset-$dataset.sh: rois not set"
+[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
 
 # registration method
 regid="$1"; shift
 [ -n "$regid" ] || print_help
-
-# change to top-level directory
-run cd "$topdir"
 
 # ------------------------------------------------------------------------------
 # create ROI masks for evaluation of affine pre-alignment

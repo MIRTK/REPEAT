@@ -13,19 +13,19 @@ print_help()
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
+# change to top-level directory
+run cd "$topdir"
+
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$topdir/etc/dataset-$dataset.sh"
-[ ${#mods[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: mods not set"
-[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+. "$etcdir/dataset-$dataset.sh"
+[ ${#mods[@]}   -gt 0 ] || error "$etcdir/dataset-$dataset.sh: mods not set"
+[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
 
 # registration method
 regid="$1"; shift
 [ -n "$regid" ] || print_help
-
-# change to top-level directory
-run cd "$topdir"
 
 # affinely align images to reference
 if [ "$regid" = 'affine' ]; then

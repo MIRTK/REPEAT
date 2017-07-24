@@ -8,6 +8,9 @@ regid="mirtk-sym-svffd"
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 
+# change to top-level directory
+run cd "$topdir"
+
 # constants
 allsym=false
 model='SVFFD'
@@ -24,9 +27,6 @@ ds=2.5
 levels=4
 divini='No'
 maxsv=0
-
-# change to top-level directory
-run cd "$topdir"
 
 # write header and text file with long header names
 makedir "$etcdir"

@@ -14,12 +14,15 @@ print_help()
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
+# change to top-level directory
+run cd "$topdir"
+
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$topdir/etc/dataset-$dataset.sh"
-[ ${#chns[@]}   -gt 0 ] || error "etc/dataset-$dataset.sh: chns not set"
-[ ${#imgids[@]} -gt 0 ] || error "etc/dataset-$dataset.sh: imgids not set"
+. "$etcdir/dataset-$dataset.sh"
+[ ${#chns[@]}   -gt 0 ] || error "$etcdir/dataset-$dataset.sh: chns not set"
+[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
@@ -31,9 +34,6 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 issym="$(is_sym $regid)"
-
-# change to top-level directory
-run cd "$topdir"
 
 # generate job description for each configuration
 regpar="$etcdir/$regid.par"
