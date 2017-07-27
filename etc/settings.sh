@@ -27,6 +27,9 @@ evlice=true
 # when 'true', evaluate mean transitivity error
 evlmte=true
 
+# when 'true', evaluate Jacobian determinants
+evljac=true
+
 # force overwriting previously generated files, include also jobs in batch
 # description that have been run before, i.e., although output files already exist
 force=false

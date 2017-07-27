@@ -97,7 +97,7 @@ else
     #
     # Example: https://github.com/ntustison/BSplineMorphisms/blob/Results/logJacobianMeasuresMALTemplate.csv
     #          (last checked commit SHA: a5591cc24fa37ecc07dc6e972d4f8c567294b498)
-    if [ $evljac = true ]; then
+    if [ "$evljac" = true ]; then
 
       measure="jac"
       outdir="$regdir/$cfgid/evl/dof/$measure"
@@ -135,7 +135,7 @@ EOF_JOB
 
     # --------------------------------------------------------------------------
     # evaluate inverse consistency error
-    if [ $evlice = true ]; then
+    if [ "$evlice" = true ]; then
 
       measure="mice"
       outdir="$regdir/$cfgid/evl/dof/$measure"
@@ -178,7 +178,7 @@ EOF_JOB
 
     # --------------------------------------------------------------------------
     # evaluate transitivity error
-    if [ $evlmte = true ]; then
+    if [ "$evlmte" = true ]; then
 
       measure="mte"
       outdir="$regdir/$cfgid/evl/dof/$measure"
