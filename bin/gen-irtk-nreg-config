@@ -43,19 +43,18 @@ i=1
 
 # initial parameter exploration
 nstep=4
-for niter in 10 20; do
-  for be in 0.00001 0.00005 0.0001 0.0005 0.001 0.005 0.01 0.05; do
-    vp=0
-    for tp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
-      cfgid=$(printf %04d $i)
-      echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
-      let i++
-    done
-    tp=0
-    for vp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
-      cfgid=$(printf %04d $i)
-      echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
-      let i++
-    done
+niter=10
+for be in 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
+  vp=0
+  for tp in 0.0 0.0001 0.001 0.005 0.01 0.05; do
+    cfgid=$(printf %04d $i)
+    echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
+    let i++
+  done
+  tp=0
+  for vp in 0.0 0.0001 0.001 0.005 0.01 0.05; do
+    cfgid=$(printf %04d $i)
+    echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
+    let i++
   done
 done
