@@ -105,6 +105,7 @@ EOF_JOB
     jobdsc="$jobdir/average-measures.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
+      imgdir="$vardir/$dataset/affine/out"
       roidir="$regdir/$cfgid/roi"
       logdir="$regdir/$cfgid/log/average-measures"
 
@@ -163,7 +164,7 @@ EOF_HEADER
               roi_paths=("${roi_paths[@]}" "'$roi_path'")
             done
           else
-            roi_path="$roidir/$roi/$tgtid.nii.gz"
+            roi_path="$imgdir/$roi/$tgtid.nii.gz"
             roi_names=("${roi_names[@]}" "'$roi'")
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
           fi

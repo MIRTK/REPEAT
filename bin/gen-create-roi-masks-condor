@@ -55,6 +55,9 @@ else
   [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
   regdir="$vardir/$dataset/$regid"
+  imgdir="$vardir/$dataset/affine/out"
+  imgpre=""
+  imgsuf=".nii.gz"
 
   for cfgid in "${cfgids[@]}"; do
 
@@ -65,55 +68,39 @@ else
     makedir "$jobdir"
 
     for roi in "${rois[@]}"; do
-      isseg=$(is_seg "$roi")
+      if [ "$(is_seg "$roi")" = true ]; then
+        jobdsc="$jobdir/create-$roi-masks.condor"
+        if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+          echo "Update: $jobdsc"
 
-      outdir="$regdir/$cfgid/roi/$roi"
-      logdir="$regdir/$cfgid/log/create-$roi-masks"
+          outdir="$regdir/$cfgid/roi/$roi"
+          logdir="$regdir/$cfgid/log/create-$roi-masks"
 
-      imgdir="$regdir/$cfgid/out/$roi"
-      imgpre=""
-      imgsuf=".nii.gz"
+          makedir "$outdir"
+          makedir "$logdir"
 
-      makedir "$outdir"
-      makedir "$logdir"
-
-      jobdsc="$jobdir/create-$roi-masks.condor"
-      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
-        echo "Update: $jobdsc"
-        cat > "$jobdsc" <<EOF_HEADER
+          cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          if [ "$isseg" = true ]; then
+          for tgtid in "${tgtids[@]}"; do
             outimg="$outdir/${tgtid}-l%02d.nii.gz"
             [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
-            labels="-labels"
-          else
-            outimg="$outdir/$tgtid.nii.gz"
-            [ $force = true ] || [ ! -f "$outimg" ] || continue
-            labels=""
-          fi
-          images="../out/$roi"  # imgdir relative to pardir
-          for srcid in "${srcids[@]}"; do
-            images="${images}\n$imgpre$srcid-$tgtid$imgsuf"
-          done
-          echo -e "$images" > "$pardir/$roi-images-$tgtid.txt"
-          cat >> "$jobdsc" <<EOF_JOB
-arguments = "average-images '$outimg' -target 'max-size' -images '$pardir/$roi-images-$tgtid.txt' $labels -v"
+            cat >> "$jobdsc" <<EOF_JOB
+arguments = "average-images '$outimg' -image '$imgdir/$imgpre$tgtid$imgsuf' -target '$imgdir/$imgpre$tgtid$imgsuf' -labels -v"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-        done
-      else
-        echo "Exists: $jobdsc"
+          done
+        else
+          echo "Exists: $jobdsc"
+        fi
       fi
-
     done
   done
 
