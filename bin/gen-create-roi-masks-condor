@@ -56,7 +56,6 @@ else
 
   regdir="$vardir/$dataset/$regid"
   imgdir="$vardir/$dataset/affine/out"
-  imgpre=""
   imgsuf=".nii.gz"
 
   for cfgid in "${cfgids[@]}"; do
@@ -73,6 +72,7 @@ else
         if [ $update = true ] || [ ! -f "$jobdsc" ]; then
           echo "Update: $jobdsc"
 
+          imgpre="$roi/"
           outdir="$regdir/$cfgid/roi/$roi"
           logdir="$regdir/$cfgid/log/create-$roi-masks"
 
