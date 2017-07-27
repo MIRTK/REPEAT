@@ -100,6 +100,7 @@ else
     if [ "$evljac" = true ]; then
 
       measure="jac"
+      dofdir="$regdir/$cfgid/dof"
       outdir="$regdir/$cfgid/evl/dof/$measure"
       logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
 
@@ -107,7 +108,7 @@ else
       makedir "$logdir"
 
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      if [ $update = true ] || [ -f "$jobdsc" ]; then
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
         echo "Update: $jobdsc"
         cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
@@ -115,18 +116,20 @@ executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          outimg="$outdir/$tgtid.nii.gz"
+        for tgtid in "${tgtids[@]}"; do  
+        for srcid in "${srcids[@]}"; do
+          [ $srcid != $tgtid ] || continue
+          outimg="$outdir/$tgtid-$srcid.nii.gz"
           [ $force = true ] || [ ! -f "$outimg" ] || continue
           cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' $refpad -float -v"
-error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
-log       = $logdir/$tgtid.log
+arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' '$dofdir/$tgtid-$srcid.dof.gz' $refpad -float -v"
+error     = $logdir/$tgtid-$srcid.err
+output    = $logdir/$tgtid-$srcid.out
+log       = $logdir/$tgtid-$srcid.log
 queue
 
 EOF_JOB
-        done
+        done; done
       else
         echo "Exists: $jobdsc"
       fi
