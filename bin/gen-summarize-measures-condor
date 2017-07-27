@@ -65,17 +65,49 @@ else
 
   for cfgid in "${cfgids[@]}"; do
 
-    roidir="$regdir/$cfgid/roi"
-    outdir="$csvdir/$dataset/$regid/$cfgid"
     jobdir="$regdir/$cfgid/bin"
-    logdir="$regdir/$cfgid/log/average-measures"
+    outdir="$csvdir/$dataset/$regid/$cfgid"
 
     makedir "$jobdir"
-    makedir "$logdir"
     makedir "$outdir"
 
+    # calculate statistics of Jacobian determinant values
+    if [ "$evljac" = true ]; then
+      jobdsc="$jobdir/summarize-dof-logjac.condor"
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+
+        logdir="$regdir/$cfgid/log/summarize-dof-logjac"
+        makedir "$logdir"
+
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
+universe    = vanilla
+executable  = $topdir/$libdir/print-logjac-table
+initialdir  = $topdir
+
+EOF_HEADER
+        for tgtid in "${tgtids[@]}"; do
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+        done
+      fi
+    fi
+
+    # average voxel-wise measures
     jobdsc="$jobdir/average-measures.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+
+      roidir="$regdir/$cfgid/roi"
+      logdir="$regdir/$cfgid/log/average-measures"
+
+      makedir "$logdir"
+
       echo "Update: $jobdsc"
       cat > "$jobdsc" <<EOF_HEADER
 universe    = vanilla
