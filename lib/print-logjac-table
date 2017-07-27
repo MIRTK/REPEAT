@@ -45,6 +45,7 @@ echo "srcid,mean,sdev,median,pct5,pct95,pct5_mean,pct95_mean,min,max,n,nexcl"
 for srcid in "${srcids[@]}"; do
   jacimg="$jacdir/$tgtid-$srcid.nii.gz"
   if [ -f "$jacimg" ]; then
+    echo -n "$srcid,"
     run $mirtk calculate-element-wise "$jacimg" \
             -threshold-le 0 -log -mean -sigma -median -pct 5 -pct 95 \
             -lpctavg 5 -upctavg 95 -min -max \
