@@ -89,7 +89,7 @@ EOF_HEADER
             outimg="$outdir/${tgtid}-l%02d.nii.gz"
             [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "average-images '$outimg' -image '$imgdir/$imgpre$tgtid$imgsuf' -target '$imgdir/$imgpre$tgtid$imgsuf' -labels -v"
+arguments = "average-images '$outimg' -image '$imgdir/$imgpre$tgtid$imgsuf' -target '$imgdir/$imgpre$tgtid$imgsuf' -labels -dtype uchar -v"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
