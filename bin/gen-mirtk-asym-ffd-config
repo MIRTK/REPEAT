@@ -34,11 +34,12 @@ window,Local window size
 be,Bending energy weight
 tp,Topology preservation weight
 vp,Volume preservation weight
+jaceps,Jacobian determinant epsilon
 divini,Divide data terms by initial value
 EOF_HEADER_TO_PARNAME
 
 parcsv="$etcdir/$regid.csv"
-echo "cfgid,mffd,model,ds,levels,sim,bins,window,be,tp,vp,divini" > "$parcsv"
+echo "cfgid,mffd,model,ds,levels,sim,bins,window,be,tp,vp,jaceps,divini" > "$parcsv"
 
 # write parameter values
 i=1
@@ -46,12 +47,18 @@ i=1
 # initial parameter exploration
 ds=2.5
 divini='No'
+jaceps=0.1
 for be in 0.0001 0.0005 0.001 0.005 0.01 0.05; do
-  for tp in 0.0 0.01 0.05 0.1 0.2 0.4 0.8 1.0; do
-    for vp in 0.0 0.00001 0.0001 0.001 0.01; do
-      cfgid=$(printf %04d $i)
-      echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$divini" >> "$parcsv"
-      let i++
-    done
+  vp=0
+  for tp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
+    cfgid=$(printf %04d $i)
+    echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$jaceps,$divini" >> "$parcsv"
+    let i++
+  done
+  tp=0
+  for vp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
+    cfgid=$(printf %04d $i)
+    echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$jaceps,$divini" >> "$parcsv"
+    let i++
   done
 done
