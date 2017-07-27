@@ -46,13 +46,12 @@ for srcid in "${srcids[@]}"; do
   [ $srcid != $tgtid ] || continue
   jacimg="$jacdir/$tgtid-$srcid.nii.gz"
   if [ -f "$jacimg" ]; then
-    echo -n "$srcid," && \
-    "$mirtk" calculate-element-wise "$jacimg" \
-            -threshold-le 0 -log -mean -sigma -median -pct 5 -pct 95 \
-            -lpctavg 5 -upctavg 95 -min -max \
-            -set 1 -sum -reset-mask \
-            -mask NaN -threshold-gt 0 -set 1 -sum \
-            -delim ,
+    echo "$srcid,$("$mirtk" calculate-element-wise "$jacimg" \
+                        -threshold-le 0 -log -mean -sigma -median -pct 5 -pct 95 \
+                        -lpctavg 5 -upctavg 95 -min -max \
+                        -set 1 -sum -reset-mask \
+                        -mask NaN -threshold-gt 0 -set 1 -sum \
+                        -delim ,)"
     [ $? -eq 0 ] || error "Failed: calculate-element-wise '$jacimg' [...]"
   else
     error "Missing: $jacimg"
