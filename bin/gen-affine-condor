@@ -36,36 +36,37 @@ dataset="$1"
 parin="$etcdir/mirtk-affine.cfg"
 regdir="$vardir/$dataset/affine"
 dofdir="$regdir/dof"
-
 jobdir="$regdir/bin"
-jobdsc="$jobdir/register.condor"
 logdir="$regdir/log/register"
 
 makedir "$topdir/$jobdir"
 makedir "$topdir/$dofdir"
 makedir "$topdir/$logdir"
 
-cat > "$jobdsc" <<EOF_HEADER
+jobdsc="$jobdir/register.condor"
+if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+  echo "Update: $jobdsc"
+  cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
 
-for imgid in "${imgids[@]}"; do
-  if [ $imgid = $refid ]; then
-    if [ ! -f "$dofdir/$imgid.dof.gz" ]; then
-      run mirtk init-dof "$dofdir/$imgid.dof.gz"
-    fi
-  else
-    images=()
-    for chn in "${chns[@]}"; do
-      imgpre="$(get_prefix "$chn")"
-      imgsuf="$(get_suffix "$chn")"
-      [ -n "$imgsuf" ] || imgsuf=".nii.gz"
-      images=("${images[@]}" -image "'$imgdir/$imgpre$imgid$imgsuf'" "'$imgdir/$imgpre$refid$imgsuf'")
-    done
-    cat >> "$jobdsc" <<EOF_CLUSTER
+  for imgid in "${imgids[@]}"; do
+    if [ $imgid = $refid ]; then
+      if [ ! -f "$dofdir/$imgid.dof.gz" ]; then
+        run mirtk init-dof "$dofdir/$imgid.dof.gz"
+      fi
+    else
+      images=()
+      for chn in "${chns[@]}"; do
+        imgpre="$(get_prefix "$chn")"
+        imgsuf="$(get_suffix "$chn")"
+        [ -n "$imgsuf" ] || imgsuf=".nii.gz"
+        images=("${images[@]}" -image "'$imgdir/$imgpre$imgid$imgsuf'" "'$imgdir/$imgpre$refid$imgsuf'")
+      done
+      cat >> "$jobdsc" <<EOF_CLUSTER
 arguments = "register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz'"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
@@ -73,5 +74,8 @@ log       = $logdir/$imgid.log
 queue
 
 EOF_CLUSTER
-  fi
-done
+    fi
+  done
+else
+  echo "Exists: $jobdsc"
+fi

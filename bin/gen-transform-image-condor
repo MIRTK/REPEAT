@@ -36,40 +36,40 @@ if [ "$regid" = 'affine' ]; then
 
   regdir="$vardir/$dataset/affine"
   dofdir="$regdir/dof"
-  
-
   jobdir="$regdir/bin"
-  jobdsc="$jobdir/transform.condor"
   logdir="$regdir/log/transform"
 
   makedir "$jobdir"
   makedir "$logdir"
 
-  cat > "$jobdsc" <<EOF_HEADER
+  jobdsc="$jobdir/transform.condor"
+  if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+    echo "Update: $jobdsc"
+    cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-  for mod in "${mods[@]}"; do
+    for mod in "${mods[@]}"; do
 
-    outdir="$regdir/out/$mod"
-    makedir "$outdir"
+      outdir="$regdir/out/$mod"
+      makedir "$outdir"
 
-    imgpre="$(get_prefix "$mod")"
-    imgsuf="$(get_suffix "$mod")"
-    [ -n "$imgsuf" ] || imgsuf=".nii.gz"
+      imgpre="$(get_prefix "$mod")"
+      imgsuf="$(get_suffix "$mod")"
+      [ -n "$imgsuf" ] || imgsuf=".nii.gz"
 
-    if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
-      labels="-labels"
-    else
-      labels=""
-    fi
-    
-    for imgid in "${imgids[@]}"; do
-      outimg="$outdir/$imgid.nii.gz"
-      [ $force = true ] || [ ! -f "$outimg" ] || continue
-      cat >> "$jobdsc" <<EOF_JOB
+      if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+        labels="-labels"
+      else
+        labels=""
+      fi
+      
+      for imgid in "${imgids[@]}"; do
+        outimg="$outdir/$imgid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "transform-image '$imgdir/$imgpre$imgid$imgsuf' '$outimg' -target '$imgdir/$imgpre$refid$imgsuf' -dofin '$dofdir/$imgid.dof.gz' -invert $labels"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
@@ -77,8 +77,11 @@ log       = $logdir/$imgid.log
 queue
 
 EOF_JOB
+      done
     done
-  done
+  else
+    echo "Exists: $jobdsc"
+  fi
 
 # deform images to each respective target image
 else
@@ -112,25 +115,27 @@ else
       makedir "$logdir"
 
       jobdsc="$jobdir/transform-$mod.condor"
-      cat > "$jobdsc" <<EOF_HEADER
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
 
-      if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
-        labels="-labels"
-      else
-        labels=""
-      fi
+        if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+          labels="-labels"
+        else
+          labels=""
+        fi
 
-      for tgtid in "${tgtids[@]}"; do
-      for srcid in "${srcids[@]}"; do
-        outimg="$outdir/$srcid-$tgtid.nii.gz"
-        [ $force = true ] || [ ! -f "$outimg" ] || continue
-        if [ ! -f "$dofdir/$tgtid-$srcid.dof.gz" ] && [ $issym = true ] && [[ $tgtid > $srcid ]]; then
-          cat >> "$jobdsc" <<EOF_JOB
+        for tgtid in "${tgtids[@]}"; do
+        for srcid in "${srcids[@]}"; do
+          outimg="$outdir/$srcid-$tgtid.nii.gz"
+          [ $force = true ] || [ ! -f "$outimg" ] || continue
+          if [ ! -f "$dofdir/$tgtid-$srcid.dof.gz" ] && [ $issym = true ] && [[ $tgtid > $srcid ]]; then
+            cat >> "$jobdsc" <<EOF_JOB
 arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$srcid-$tgtid.dof.gz' -invert $labels"
 error     = $logdir/$srcid-$tgtid.err
 output    = $logdir/$srcid-$tgtid.out
@@ -138,8 +143,8 @@ log       = $logdir/$srcid-$tgtid.log
 queue
 
 EOF_JOB
-        else
-          cat >> "$jobdsc" <<EOF_JOB
+          else
+            cat >> "$jobdsc" <<EOF_JOB
 arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$tgtid-$srcid.dof.gz' $labels"
 error     = $logdir/$srcid-$tgtid.err
 output    = $logdir/$srcid-$tgtid.out
@@ -147,8 +152,11 @@ log       = $logdir/$srcid-$tgtid.log
 queue
 
 EOF_JOB
-        fi
-      done; done
+          fi
+        done; done
+      else
+        echo "Exists: $jobdsc"
+      fi
     done
   done
 

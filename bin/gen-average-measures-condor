@@ -75,7 +75,9 @@ else
     makedir "$outdir"
 
     jobdsc="$jobdir/average-measures.condor"
-    cat > "$jobdsc" <<EOF_HEADER
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
 universe    = vanilla
 executable  = $mirtk
 environment = "$condor_environment"
@@ -84,56 +86,56 @@ getenv      = $condor_getenv
 
 EOF_HEADER
 
-    for tgtid in "${tgtids[@]}"; do
+      for tgtid in "${tgtids[@]}"; do
 
-      outcsv="$outdir/$tgtid-mean.csv"
-      stdcsv="$outdir/$tgtid-sdev.csv"
-      numcsv="$outdir/$tgtid-size.csv"
-      [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
+        outcsv="$outdir/$tgtid-mean.csv"
+        stdcsv="$outdir/$tgtid-sdev.csv"
+        numcsv="$outdir/$tgtid-size.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
 
-      val_names=()
-      val_paths=()
-      if [ $evlice = true ]; then
-        measure="mice"
-        val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
-        val_names=("${val_names[@]}" "'${measure}'")
-        val_paths=("${val_paths[@]}" "'$val_path'")
-      fi
-      if [ $evlmte = true ]; then
-        measure="mte"
-        val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
-        val_names=("${val_names[@]}" "'${measure}'")
-        val_paths=("${val_paths[@]}" "'$val_path'")
-      fi
-      for mod in "${mods[@]}"; do
-        for measure in $(get_measures "$mod"); do
-          [ $measure != 'overlap' ] || measure='dsc'
-          [ $(is_overlap_measure $measure) != true ] || continue
-          val_path="$regdir/$cfgid/evl/$mod/$measure/$tgtid.nii.gz"
-          val_names=("${val_names[@]}" "'${mod}_${measure}'")
+        val_names=()
+        val_paths=()
+        if [ $evlice = true ]; then
+          measure="mice"
+          val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${measure}'")
           val_paths=("${val_paths[@]}" "'$val_path'")
-        done
-      done
-
-      roi_names=()
-      roi_paths=()
-      for roi in "${rois[@]}"; do
-        if [ $(is_seg "$roi") = true ]; then
-          for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
-            label="$(basename "$roi_path")"
-            label=${roi_path%.nii.gz}
-            label=${label/*-l}
-            roi_names=("${roi_names[@]}" "'$roi=$label'")
-            roi_paths=("${roi_paths[@]}" "'$roi_path'")
-          done
-        else
-          roi_path="$roidir/$roi/$tgtid.nii.gz"
-          roi_names=("${roi_names[@]}" "'$roi'")
-          roi_paths=("${roi_paths[@]}" "'$roi_path'")
         fi
-      done
+        if [ $evlmte = true ]; then
+          measure="mte"
+          val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${measure}'")
+          val_paths=("${val_paths[@]}" "'$val_path'")
+        fi
+        for mod in "${mods[@]}"; do
+          for measure in $(get_measures "$mod"); do
+            [ $measure != 'overlap' ] || measure='dsc'
+            [ $(is_overlap_measure $measure) != true ] || continue
+            val_path="$regdir/$cfgid/evl/$mod/$measure/$tgtid.nii.gz"
+            val_names=("${val_names[@]}" "'${mod}_${measure}'")
+            val_paths=("${val_paths[@]}" "'$val_path'")
+          done
+        done
 
-      cat >> "$jobdsc" <<EOF_JOB
+        roi_names=()
+        roi_paths=()
+        for roi in "${rois[@]}"; do
+          if [ $(is_seg "$roi") = true ]; then
+            for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
+              label="$(basename "$roi_path")"
+              label=${roi_path%.nii.gz}
+              label=${label/*-l}
+              roi_names=("${roi_names[@]}" "'$roi=$label'")
+              roi_paths=("${roi_paths[@]}" "'$roi_path'")
+            done
+          else
+            roi_path="$roidir/$roi/$tgtid.nii.gz"
+            roi_names=("${roi_names[@]}" "'$roi'")
+            roi_paths=("${roi_paths[@]}" "'$roi_path'")
+          fi
+        done
+
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -142,7 +144,9 @@ queue
 
 EOF_JOB
 
-    done
-  done
-
-fi
+      done # for tgtid
+    else
+      echo "Exists: $jobdsc"
+    fi
+  done # for cfgid
+fi # case regid

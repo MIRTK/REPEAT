@@ -107,16 +107,18 @@ else
       makedir "$logdir"
 
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      cat > "$jobdsc" <<EOF_HEADER
+      if [ $update = true ] || [ -f "$jobdsc" ]; then
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-      for tgtid in "${tgtids[@]}"; do
-        outimg="$outdir/$tgtid.nii.gz"
-        [ $force = true ] || [ ! -f "$outimg" ] || continue
-        cat >> "$jobdsc" <<EOF_JOB
+        for tgtid in "${tgtids[@]}"; do
+          outimg="$outdir/$tgtid.nii.gz"
+          [ $force = true ] || [ ! -f "$outimg" ] || continue
+          cat >> "$jobdsc" <<EOF_JOB
 arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' $refpad -float -v"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -124,7 +126,10 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-      done
+        done
+      else
+        echo "Exists: $jobdsc"
+      fi
 
     fi
 
@@ -140,22 +145,24 @@ EOF_JOB
       makedir "$logdir"
 
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      cat > "$jobdsc" <<EOF_HEADER
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-      for tgtid in "${tgtids[@]}"; do
-        outimg="$outdir/$tgtid.nii.gz"
-        [ $force = true ] || [ ! -f "$outimg" ] || continue
-        dofs="../dof"
-        for srcid in "${srcids[@]}"; do
-          [ $srcid != $tgtid ] || continue
-          dofs="${dofs}\n\n$tgtid-$srcid.dof.gz\n$srcid-$tgtid.dof.gz"
-        done
-        echo -e "$dofs" > "$pardir/dofs-ic-$tgtid.txt"
-        cat >> "$jobdsc" <<EOF_JOB
+        for tgtid in "${tgtids[@]}"; do
+          outimg="$outdir/$tgtid.nii.gz"
+          [ $force = true ] || [ ! -f "$outimg" ] || continue
+          dofs="../dof"
+          for srcid in "${srcids[@]}"; do
+            [ $srcid != $tgtid ] || continue
+            dofs="${dofs}\n\n$tgtid-$srcid.dof.gz\n$srcid-$tgtid.dof.gz"
+          done
+          echo -e "$dofs" > "$pardir/dofs-ic-$tgtid.txt"
+          cat >> "$jobdsc" <<EOF_JOB
 arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -163,7 +170,10 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-      done
+        done
+      else
+        echo "Exists: $jobdsc"
+      fi
     fi
 
     # --------------------------------------------------------------------------
@@ -178,25 +188,27 @@ EOF_JOB
       makedir "$logdir"
 
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      cat > "$jobdsc" <<EOF_HEADER
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-      for tgtid in "${tgtids[@]}"; do
-        outimg="$outdir/$tgtid.nii.gz"
-        [ $force = true ] || [ ! -f "$outimg" ] || continue
-        dofs="../dof"
-        for srcid1 in "${srcids[@]}"; do
-          [ $srcid1 != $tgtid ] || continue
-          for srcid2 in "${srcids[@]}"; do
-            [ $srcid2 != $srcid1 -a $srcid2 != $tgtid ] || continue
-            dofs="${dofs}\n\n$tgtid-$srcid1.dof.gz\n$srcid1-$srcid2.dof.gz\n$srcid2-$tgtid.dof.gz"
+        for tgtid in "${tgtids[@]}"; do
+          outimg="$outdir/$tgtid.nii.gz"
+          [ $force = true ] || [ ! -f "$outimg" ] || continue
+          dofs="../dof"
+          for srcid1 in "${srcids[@]}"; do
+            [ $srcid1 != $tgtid ] || continue
+            for srcid2 in "${srcids[@]}"; do
+              [ $srcid2 != $srcid1 -a $srcid2 != $tgtid ] || continue
+              dofs="${dofs}\n\n$tgtid-$srcid1.dof.gz\n$srcid1-$srcid2.dof.gz\n$srcid2-$tgtid.dof.gz"
+            done
           done
-        done
-        echo -e "$dofs" > "$pardir/dofs-te-$tgtid.txt"
-        cat >> "$jobdsc" <<EOF_JOB
+          echo -e "$dofs" > "$pardir/dofs-te-$tgtid.txt"
+          cat >> "$jobdsc" <<EOF_JOB
 arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -204,7 +216,10 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-      done
+        done
+      else
+        echo "Exists: $jobdsc"
+      fi
     fi
 
     # --------------------------------------------------------------------------
@@ -228,32 +243,34 @@ EOF_JOB
         makedir "$logdir"
 
         jobdsc="$jobdir/evaluate-$mod-$measure.condor"
-        cat > "$jobdsc" <<EOF_HEADER
+        if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+          echo "Update: $jobdsc"
+          cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
 
-        # ----------------------------------------------------------------------
-        # evaluate segmentation overlap
-        [ $measure != 'overlap' ] || measure='dsc'
-        if [ $(is_overlap_measure $measure) = true ]; then
+          # ----------------------------------------------------------------------
+          # evaluate segmentation overlap
+          [ $measure != 'overlap' ] || measure='dsc'
+          if [ $(is_overlap_measure $measure) = true ]; then
 
-          outdir="$csvdir/$dataset/$regid/$cfgid"
-          makedir "$outdir"
+            outdir="$csvdir/$dataset/$regid/$cfgid"
+            makedir "$outdir"
 
-          if [ -z "$kind" ]; then
-            error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
-          fi
-          for tgtid in "${tgtids[@]}"; do
-            outcsv="$outdir/$tgtid-$measure.csv"
-            [ $force = true ] || [ ! -f "$outcsv" ] || continue
-            images=()
-            for srcid in "${srcids[@]}"; do
-              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
-            done
-            cat >> "$jobdsc" <<EOF_JOB
+            if [ -z "$kind" ]; then
+              error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
+            fi
+            for tgtid in "${tgtids[@]}"; do
+              outcsv="$outdir/$tgtid-$measure.csv"
+              [ $force = true ] || [ ! -f "$outcsv" ] || continue
+              images=()
+              for srcid in "${srcids[@]}"; do
+                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+              done
+              cat >> "$jobdsc" <<EOF_JOB
 arguments = "evaluate-overlap '$imgdir/$imgpre$tgtid-$tgtid$imgsuf' ${images[@]} $kind -metric $measure -precision 5 -table '$outcsv'"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -261,40 +278,40 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-          done
-
-        # ----------------------------------------------------------------------
-        # evaluate voxel-wise measures
-        else
-
-          outdir="$regdir/$cfgid/evl/$mod/$measure"
-          makedir "$outdir"
-
-          padding=''
-          normalization=''
-          rescaling=''
-          isseg=$(is_seg "$mod")
-          if [ "$isseg" != true ]; then
-            normalization='-normalize zscore'
-            bgvalue=$(get_bgvalue "$mod")
-            if [ -n "$bgvalue" ]; then
-              padding="-padding $bgvalue"
-              let min="$bgvalue+1"
-              let max="$bgvalue+100"
-              rescaling="-rescale $min $max"
-            else
-              rescaling="-rescale 0 100"
-            fi
-          fi
-
-          for tgtid in "${tgtids[@]}"; do
-            outimg="$outdir/$tgtid.nii.gz"
-            [ $force = true ] || [ ! -f "$outimg" ] || continue
-            images=()
-            for srcid in "${srcids[@]}"; do
-              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
             done
-            cat >> "$jobdsc" <<EOF_JOB
+
+          # ----------------------------------------------------------------------
+          # evaluate voxel-wise measures
+          else
+
+            outdir="$regdir/$cfgid/evl/$mod/$measure"
+            makedir "$outdir"
+
+            padding=''
+            normalization=''
+            rescaling=''
+            isseg=$(is_seg "$mod")
+            if [ "$isseg" != true ]; then
+              normalization='-normalize zscore'
+              bgvalue=$(get_bgvalue "$mod")
+              if [ -n "$bgvalue" ]; then
+                padding="-padding $bgvalue"
+                let min="$bgvalue+1"
+                let max="$bgvalue+100"
+                rescaling="-rescale $min $max"
+              else
+                rescaling="-rescale 0 100"
+              fi
+            fi
+
+            for tgtid in "${tgtids[@]}"; do
+              outimg="$outdir/$tgtid.nii.gz"
+              [ $force = true ] || [ ! -f "$outimg" ] || continue
+              images=()
+              for srcid in "${srcids[@]}"; do
+                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+              done
+              cat >> "$jobdsc" <<EOF_JOB
 arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -302,7 +319,10 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-          done
+            done
+          fi
+        else
+          echo "Exists: $jobdsc"
         fi
       done
     done

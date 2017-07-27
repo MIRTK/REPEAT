@@ -31,6 +31,10 @@ evlmte=true
 # description that have been run before, i.e., although output files already exist
 force=false
 
+# force re-generation of batch job description files, possibly excluding jobs
+# whose output files already exist unless force=true as well
+update=false
+
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=

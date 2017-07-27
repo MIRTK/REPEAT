@@ -155,24 +155,26 @@ for cfgid in "${cfgids[@]}"; do
 
   # write job description
   jobdsc="$jobdir/register.condor"
-  cat > "$jobdsc" <<EOF_HEADER
+  if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+    echo "Update: $jobdsc"
+    cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-  for tgtid in "${tgtids[@]}"; do
-  for srcid in "${srcids[@]}"; do
-    dofout="$dofdir/$tgtid-$srcid.dof.gz"
-    [ $force = true ] || [ ! -f "$dofout" ] || continue
-    [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
-    images=()
-    for chn in "${chns[@]}"; do
-      imgpre="$chn/"
-      imgsuf=".nii.gz"
-      images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
-    done
-    cat >> "$jobdsc" <<EOF_QUEUE
+    for tgtid in "${tgtids[@]}"; do
+    for srcid in "${srcids[@]}"; do
+      dofout="$dofdir/$tgtid-$srcid.dof.gz"
+      [ $force = true ] || [ ! -f "$dofout" ] || continue
+      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
+      images=()
+      for chn in "${chns[@]}"; do
+        imgpre="$chn/"
+        imgsuf=".nii.gz"
+        images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
+      done
+      cat >> "$jobdsc" <<EOF_QUEUE
 arguments = "register ${images[@]} -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
@@ -180,5 +182,8 @@ log       = $logdir/$tgtid-$srcid.log
 queue
 
 EOF_QUEUE
-  done; done
+    done; done
+  else
+    echo "Exists: $jobdsc"
+  fi
 done
