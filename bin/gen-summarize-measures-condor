@@ -87,10 +87,12 @@ initialdir  = $topdir
 
 EOF_HEADER
         for tgtid in "${tgtids[@]}"; do
+          outcsv="$outdir/$tgtid-logjac.csv"
+          [ $force = true ] || [ ! -f "$outcsv" ] || continue
           cat >> "$jobdsc" <<EOF_JOB
 arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
 error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
+output    = $outcsv
 log       = $logdir/$tgtid.log
 queue
 

@@ -18,7 +18,7 @@ print_help()
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 
 # change to top-level directory
-run cd "$topdir"
+cd "$topdir"
 
 # evaluation dataset
 dataset="$1"; shift
@@ -43,15 +43,17 @@ tgtid="$1"; shift
 jacdir="$vardir/$dataset/$regid/$cfgid/evl/dof/jac"
 echo "srcid,mean,sdev,median,pct5,pct95,pct5_mean,pct95_mean,min,max,n,nexcl"
 for srcid in "${srcids[@]}"; do
+  [ $srcid != $tgtid ] || continue
   jacimg="$jacdir/$tgtid-$srcid.nii.gz"
   if [ -f "$jacimg" ]; then
-    echo -n "$srcid,"
-    run $mirtk calculate-element-wise "$jacimg" \
+    echo -n "$srcid," && \
+    "$mirtk" calculate-element-wise "$jacimg" \
             -threshold-le 0 -log -mean -sigma -median -pct 5 -pct 95 \
             -lpctavg 5 -upctavg 95 -min -max \
             -set 1 -sum -reset-mask \
             -mask NaN -threshold-gt 0 -set 1 -sum \
             -delim ,
+    [ $? -eq 0 ] || error "Failed: calculate-element-wise '$jacimg' [...]"
   else
     error "Missing: $jacimg"
   fi
