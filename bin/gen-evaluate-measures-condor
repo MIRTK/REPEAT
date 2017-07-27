@@ -93,6 +93,42 @@ else
     makedir "$jobdir"
 
     # --------------------------------------------------------------------------
+    # evaluate Jacobian determinants
+    #
+    # Example: https://github.com/ntustison/BSplineMorphisms/blob/Results/logJacobianMeasuresMALTemplate.csv
+    #          (last checked commit SHA: a5591cc24fa37ecc07dc6e972d4f8c567294b498)
+    if [ $evljac = true ]; then
+
+      measure="jac"
+      outdir="$regdir/$cfgid/evl/dof/$measure"
+      logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+
+      makedir "$outdir"
+      makedir "$logdir"
+
+      jobdsc="$jobdir/evaluate-dof-$measure.condor"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        outimg="$outdir/$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' $refpad -float -v"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+
+    fi
+
+    # --------------------------------------------------------------------------
     # evaluate inverse consistency error
     if [ $evlice = true ]; then
 

@@ -28,17 +28,14 @@ dataset="$1"; shift
 regid="$1"; shift
 [ -n "$regid" ] || print_help
 
+# parameter set
 cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
+# write tables
 chn="${chns[0]}"
-bgvalue="$(get_bgvalue "$chn")"
-if [ -n "$bgvalue" ]; then
-  padding="-padding $bgvalue"
-else
-  padding=''
-fi
+[ -n "$chn" ] || error "Invalid first chns entry"
 
 for cfgid in "${cfgids[@]}"; do
   echo "Write no. of neg. Jacobians table for configuration $cfgid"
@@ -48,22 +45,10 @@ for cfgid in "${cfgids[@]}"; do
   outdir="$csvdir/$dataset/$regid/$cfgid"
 
   makedir "$outdir"
+
   for tgtid in "${tgtids[@]}"; do
     outcsv="$outdir/$tgtid-negjac.csv"
     [ $force = true ] || [ ! -f "$outcsv" ] || continue
-    echo "  Write no. of neg. Jacobians table for configuration $cfgid and tgtid=$tgtid"
-    echo "srcid,n,pct" > "$outcsv"
-    for srcid in "${srcids[@]}"; do
-      if [ -f "$dofdir/$tgtid-$srcid.dof.gz" ]; then
-        info=($("$mirtk" evaluate-jacobian "$imgdir/$srcid-$tgtid.nii.gz" "$dofdir/$tgtid-$srcid.dof.gz" $padding | grep 'Number of voxels with negative Jacobian determinant' | cut -d= -f2))
-        if [ ${#info[@]} -eq 0 ]; then
-          echo "$srcid,0,0" >> "$outcsv"
-        elif [ ${#info[@]} -eq 2 ]; then
-          echo "$srcid,${info[0]},${info[1]:1:-2}" >> "$outcsv"
-        else
-          error "Failed to determine no. of negative Jacobian determinants of '$dofdir/$tgtid-$srcid.dof.gz'"
-        fi
-      fi
-    done
+    run "$libdir/print-negjac-table" "$dataset" "$regid" "$cfgid" "$tgtid" > "$outcsv"
   done
 done
