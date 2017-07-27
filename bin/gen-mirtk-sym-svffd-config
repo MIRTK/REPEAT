@@ -18,14 +18,12 @@ mffd='None'
 sim='NMI'
 bins=64
 window=5
-be=0.001
 tp=0
 vp=0
 logjac=0
 negjac=0
 ds=2.5
 levels=4
-divini='No'
 maxsv=0
 
 # write header and text file with long header names
@@ -59,6 +57,10 @@ echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,levels,sim,bins,wi
 
 # write parameter values
 i=1
+
+# initial SVFFD parameter exploration
+be=0.001
+divini='No'
 for im in 'RKE1' 'SS' 'FastSS'; do
 for nbch in 0 2 3 4 5; do
   uselie_opts=('No' 'Yes')
@@ -73,3 +75,41 @@ for nbch in 0 2 3 4 5; do
     done
   done
 done; done
+
+# initial SVFFD parameter exploration: increase BE weight
+uselie='No'
+divini='No'
+for be in 0.05 0.01 0.005; do
+for im in 'RKE1' 'SS' 'FastSS'; do
+  nbch_opts=(0 2 4)
+  [ $im != 'RKE1' ] || nbch_opts=(0)
+  for nbch in ${nbch_opts[@]}; do
+    imsteps_opts=(8 16 32 64)
+    [ $im != 'RKE1' ] || imsteps_opts=(8 16 32)
+    for imsteps in ${imsteps_opts[@]}; do
+      cfgid=$(printf %04d $i)
+      echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
+      let i++
+    done
+  done
+done; done
+
+# initial SVFFD parameter exploration: divini=Yes
+if [ "off" = "true" ]; then
+  uselie='No'
+  divini='Yes'
+  for be in 0.05 0.01 0.005 0.001; do
+  for im in 'RKE1' 'SS' 'FastSS'; do
+    nbch_opts=(0 2 4)
+    [ $im != 'RKE1' ] || nbch_opts=(0)
+    for nbch in ${nbch_opts[@]}; do
+      imsteps_opts=(8 16 32 64)
+      [ $im != 'RKE1' ] || imsteps_opts=(8 16 32)
+      for imsteps in ${imsteps_opts[@]}; do
+        cfgid=$(printf %04d $i)
+        echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
+        let i++
+      done
+    done
+  done; done
+fi

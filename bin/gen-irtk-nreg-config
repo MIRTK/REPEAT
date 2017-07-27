@@ -1,0 +1,61 @@
+#!/bin/bash
+
+## Generate configuration files for IRTK 'nreg' command
+regid="irtk-nreg"
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+
+# change to top-level directory
+run cd "$topdir"
+
+# constants
+sim='NMI'
+bins=64
+levels=3  # for some reason, levels=4 dosn't work
+ds=10     # initial control point spacing!
+
+# write header and text file with long header names
+makedir "$etcdir"
+
+cat > "$etcdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cfgid,
+dx,Control point spacing in X
+dy,Control point spacing in Y
+dz,Control point spacing in Z
+levels,No. of resolution levels
+sim,Similarity measure
+bins,No. of bins
+be,Lambda1
+tp,Lambda3
+vp,Lambda2
+niter,No. of iterations
+nstep,No. of steps
+EOF_HEADER_TO_PARNAME
+
+parcsv="$etcdir/$regid.csv"
+echo "cfgid,dx,dy,dz,levels,sim,bins,be,tp,vp,niter,nstep" > "$parcsv"
+
+# write parameter values
+i=1
+
+# initial parameter exploration
+nstep=4
+for niter in 10 20; do
+  for be in 0.00001 0.00005 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    vp=0
+    for tp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
+      cfgid=$(printf %04d $i)
+      echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
+      let i++
+    done
+    tp=0
+    for vp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
+      cfgid=$(printf %04d $i)
+      echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
+      let i++
+    done
+  done
+done

@@ -12,7 +12,10 @@ etcdir="etc"
 vardir="var/cache"  # root directory for computed data
 csvdir="var/table"  # summary tables of average quality measures
 
-# absolute path of "mirtk" executable
+# absolute path of directory containing IRTK binaries (or symbolic link)
+irtk="$topdir/$bindir/irtk"
+
+# absolute path of "mirtk" executable (or symbolic link)
 mirtk="$topdir/$bindir/mirtk"
 
 # when 'true', always compute all pairwise transformations even when
