@@ -12,6 +12,21 @@ print_help()
   error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
 }
 
+submit()
+{
+  local i=0
+  local n=3
+  echo "> condor_submit $@"
+  while [ $i -lt $n ]; do
+    condor_submit "$@" && break
+    let i++
+  done
+  if [ $i -eq $n ]; then
+    error "Job submission failed for $ntry times, aborting"
+  fi
+  jobs_submitted=true
+}
+
 # ------------------------------------------------------------------------------
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
@@ -78,14 +93,7 @@ for cfgid in "${cfgids[@]}"; do
 
   echo -e "\nConfiguration $cfgid:"
 
-  evl_jobs_submitted=false
-  evl_jobs_generated=false
-
-  roi_jobs_submitted=false
-  roi_jobs_generated=false
-
-  avg_jobs_submitted=false
-  avg_jobs_generated=false
+  jobs_submitted=false
 
   regdir="$vardir/$dataset/$regid/$cfgid"
   resdir="$csvdir/$dataset/$regid/$cfgid"
@@ -117,21 +125,24 @@ for cfgid in "${cfgids[@]}"; do
     done; done
   fi
   if [ $ndofs -eq 0 ]; then
-    run "$bindir/gen-register-${regid/-*}-condor" "$dataset" "$regid" "$cfgid"
-    echo run condor_submit "$jobdir/register.condor"
-    all_done=false
-    continue
+    jobdsc="$jobdir/register.condor"
+    [ -f "$jobdsc" ] || run "$bindir/gen-register-${regid/-*}-condor" "$dataset" "$regid" "$cfgid"
+    submit "$jobdsc"
   elif [ $ndofs -ne $npairs ]; then
     echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
     error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
   else
-    echo "Registration jobs are done, found $ndofs output files"
+    echo "All registration jobs are done, found $ndofs output files"
+  fi
+  if [ $jobs_submitted = true ]; then
+    all_done=false
+    continue
   fi
 
   # ----------------------------------------------------------------------------
   # deform source images to target images
-  n=0
   for mod in "${mods_and_rois[@]}"; do
+    n=0
     outdir="$regdir/out/$mod"
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
@@ -139,18 +150,20 @@ for cfgid in "${cfgids[@]}"; do
         [ ! -f "$outdir/$srcid-$tgtid$imgpre" ] || let n++
       done; done
     fi
+    if [ $n -eq 0 ]; then
+      jobdsc="$jobdir/transform-$mod.condor"
+      [ -f "$jobdsc" ] || run "$bindir/gen-transform-image-condor" "$dataset" "$regid" "$cfgid"
+      submit "$jobdsc"
+    elif [ $n -ne $N ]; then
+      error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
+      error "Check log files of image deformation jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
+    else
+      echo "All $mod image deformation jobs are done, found $n output files"
+    fi
   done
-  let nexpected="${#mods_and_rois[@]} * $N"
-  if [ $n -eq 0 ]; then
-    run "$bindir/gen-register-${regid/-*}-condor" "$dataset" "$regid" "$cfgid"
-    echo run condor_submit "$jobdir/register.condor"
+  if [ $jobs_submitted = true ]; then
     all_done=false
     continue
-  elif [ $n -ne $nexpected ]; then
-    error "Seems not all image deformation jobs have finished successfully! Found only $n out of $nexpected output files."
-    error "Check log files of image deformation jobs in '$regdir/log/transform-*' for errors, and re-run failed jobs manually."
-  else
-    echo "Image deformation jobs are done, found $n output files"
   fi
 
   # ----------------------------------------------------------------------------
@@ -158,86 +171,75 @@ for cfgid in "${cfgids[@]}"; do
   if [ "$evljac" = true ]; then
 
     measure="jac"
-    outdir="$regdir/$cfgid/evl/dof/$measure"
-    logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+    outdir="$regdir/evl/dof/$measure"
+    logdir="$regdir/log/evaluate-dof-$measure"
 
     n=0
-    if [ -d "$jacdir" ]; then
+    if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
-        [ ! -f "$jacdir/$tgtid-$srcid$imgpre" ] || let n++
+        [ ! -f "$outdir/$tgtid-$srcid$imgpre" ] || let n++
       done; done
     fi
+    let nexpected="$ndofs - ${#tgtids[@]}"
     if [ $n -eq 0 ]; then
-      if [ $evl_jobs_generated != true ]; then
-        run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
-        evl_jobs_generated=true
-      fi
-      echo run condor_submit "$jobdir/evaluate-dof-$measure.condor"
-      evl_jobs_submitted=true
-    elif [ $n -ne $ndofs ]; then
-      echo "Seems not all Jacobian determinant evaluation jobs have finished successfully! Found $n out of $ndofs output files."
+      jobdsc="$jobdir/evaluate-dof-$measure.condor"
+      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      submit "$jobdsc"
+    elif [ $n -ne $nexpected ]; then
+      echo "Seems not all Jacobian determinant evaluation jobs have finished successfully! Found $n out of $nexpected output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
-      echo "Jacobian determinant evaluation jobs are done, found $n output files"
+      echo "All Jacobian determinant evaluation jobs are done, found $n output files"
     fi
   fi
 
   if [ "$evlice" = true ]; then
 
     measure="mice"
-    outdir="$regdir/$cfgid/evl/dof/$measure"
-    logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+    outdir="$regdir/evl/dof/$measure"
+    logdir="$regdir/log/evaluate-dof-$measure"
 
     n=0
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
-        if [ -f "$outdir/$tgtid$imgpre" ]; then
-          let n++
-        fi
+        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
-      if [ $evl_jobs_generated != true ]; then
+      if [ ! -f "$jobdir/evaluate-dof-$measure.condor" ]; then
         run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
-        evl_jobs_generated=true
       fi
-      echo run condor_submit "$jobdir/evaluate-dof-$measure.condor"
-      evl_jobs_submitted=true
-    elif [ $n -ne $ndofs ]; then
+      submit "$jobdir/evaluate-dof-$measure.condor"
+    elif [ $n -ne ${#tgtids[@]} ]; then
       echo "Seems not all inverse consistency evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
-      echo "Inverse consistency evaluation jobs are done, found $n output files"
+      echo "All inverse consistency evaluation jobs are done, found $n output files"
     fi
   fi
 
   if [ "$evlmte" = true ]; then
 
     measure="mte"
-    outdir="$regdir/$cfgid/evl/dof/$measure"
-    logdir="$regdir/$cfgid/log/evaluate-dof-$measure"
+    outdir="$regdir/evl/dof/$measure"
+    logdir="$regdir/log/evaluate-dof-$measure"
 
     n=0
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
-        if [ -f "$outdir/$tgtid$imgpre" ]; then
-          let n++
-        fi
+        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
-      if [ $evl_jobs_generated != true ]; then
-        run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
-        evl_jobs_generated=true
-      fi
-      echo run condor_submit "$jobdir/evaluate-dof-$measure.condor"
-      evl_jobs_submitted=true
+      jobdsc="$jobdir/evaluate-dof-$measure.condor"
+      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
       echo "Seems not all transitivity evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
-      echo "Transitivity evaluation jobs are done, found $n output files"
+      echo "All transitivity evaluation jobs are done, found $n output files"
     fi
   fi
 
@@ -248,39 +250,33 @@ for cfgid in "${cfgids[@]}"; do
     n=0
     [ $measure != 'overlap' ] || measure='dsc'
     if [ $(is_overlap_measure $measure) = true ]; then
-      outdir="$resdir"
       for tgtid in "${tgtids[@]}"; do
-        outcsv="$outdir/$tgtid-$measure.csv"
-        [ ! -f "$outcsv" ] || let n++
+        [ ! -f "$resdir/$tgtid-$measure.csv" ] || let n++
       done
     else
-      outdir="$regdir/$cfgid/evl/$mod/$measure"
+      outdir="$regdir/evl/$mod/$measure"
       for tgtid in "${tgtids[@]}"; do
-        outimg="$outdir/$tgtid$imgpre"
-        [ ! -f "$outcsv" ] || let n++
+        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
-      if [ $evl_jobs_generated != true ]; then
-        run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
-        evl_jobs_generated=true
-      fi
-      echo run condor_submit "$jobdir/evaluate-$mod-$measure.condor"
-      evl_jobs_submitted=true
+      jobdsc="$jobdir/evaluate-$mod-$measure.condor"
+      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
-      logdir="$regdir/$cfgid/log/evaluate-$mod-$measure"
+      logdir="$regdir/log/evaluate-$mod-$measure"
       echo "Seems not all $mod $measure evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
-      echo "Evaluation of $mod $measure jobs are done, found $n output files"
+      echo "All $mod $measure evaluation jobs are done, found $n output files"
     fi
   done; done
 
-  if [ $evl_jobs_submitted = true ]; then
+  if [ $jobs_submitted = true ]; then
     all_done=false
     continue
   else
-    echo "Seems all evaluation jobs are done"
+    echo "All evaluation jobs are done"
   fi
 
   # ----------------------------------------------------------------------------
@@ -288,28 +284,26 @@ for cfgid in "${cfgids[@]}"; do
   for roi in "${rois[@]}"; do
     if [ "$(is_seg "$roi")" = true ]; then
       nrois=0
-      roidir="$regdir/$cfgid/roi/$roi"
+      roidir="$regdir/roi/$roi"
       if [ -d "$roidir" ]; then
         for tgtid in "${tgtids[@]}"; do
           let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgpre" | wc -l)"
         done
       fi
       if [ $nrois -eq 0 ]; then
-        if [ $roi_jobs_generated != true ]; then
-          run "$bindir/gen-create-roi-masks-condor" "$dataset" "$regid" "$cfgid"
-        fi
-        echo run condor_submit "$jobdir/create-$roi-masks.condor"
-        roi_jobs_submitted=true
+        jobdsc="$jobdir/create-$roi-masks.condor"
+        [ -f "$jobdsc" ] || run "$bindir/gen-create-roi-masks-condor" "$dataset" "$regid" "$cfgid"
+        submit "$jobdsc"
       else
         echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
       fi
     fi
   done
-  if [ $roi_jobs_submitted = true ]; then
+  if [ $jobs_submitted = true ]; then
     all_done=false
     continue
   else
-    echo "Seems all ROI mask creation jobs are done"
+    echo "All ROI mask creation jobs are done"
   fi
 
   # ----------------------------------------------------------------------------
@@ -317,22 +311,18 @@ for cfgid in "${cfgids[@]}"; do
   if [ "$evljac" = true ]; then
     n=0
     for tgtid in "${tgtids[@]}"; do
-      outcsv="$outdir/$tgtid-logjac.csv"
-      [ ! -f "$outcsv" ] || let n++
+      [ ! -f "$resdir/$tgtid-logjac.csv" ] || let n++
     done
     if [ $n -eq 0 ]; then
-      if [ $avg_jobs_generated != true ]; then
-        run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
-        avg_jobs_generated=true
-      fi
-      echo run condor_submit "$jobdir/summarize-dof-logjac.condor"
-      avg_jobs_submitted=true
+      jobdsc="$jobdir/summarize-dof-logjac.condor"
+      [ -f "$jobdsc" ] || run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
+      submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
-      logdir="$regdir/$cfgid/log/summarize-dof-logjac"
+      logdir="$regdir/log/summarize-dof-logjac"
       echo "Seems not all log Jacobian evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
-      echo "Log Jacobians evaluation jobs are done, found $n CSV files"
+      echo "All log Jacobians evaluation jobs are done, found $n CSV files"
     fi
   fi
 
@@ -340,25 +330,20 @@ for cfgid in "${cfgids[@]}"; do
   # average/summarize quality measures
   n=0
   for tgtid in "${tgtids[@]}"; do
-    outcsv="$resdir/$tgtid-mean.csv"
-    [ ! -f "$outcsv" ] || let n++
+    [ ! -f "$resdir/$tgtid-mean.csv" ] || let n++
   done
   if [ $n -eq 0 ]; then
-    if [ $avg_jobs_generated != true ]; then
-      run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
-      avg_jobs_generated=true
-    fi
-    echo run condor_submit "$jobdir/average-measures.condor"
-    avg_jobs_submitted=true
+    jobdsc="$jobdir/average-measures.condor"
+    [ -f "$jobdsc" ] || run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
+    submit "$jobdsc"
   elif [ $n -ne ${#tgtids[@]} ]; then
-    logdir="$regdir/$cfgid/log/average-measures"
+    logdir="$regdir/log/average-measures"
     echo "Seems not all jobs for averaging the voxel-wise measure have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
     error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
   else
-    echo "Jobs for averaging the voxel-wise measures are done, found $n CSV files"
+    echo "All jobs for averaging the voxel-wise measures are done, found $n CSV files"
   fi
-
-  if [ $avg_jobs_submitted = true ]; then
+  if [ $jobs_submitted = true ]; then
     all_done=false
     continue
   else
