@@ -46,7 +46,9 @@ relpath()
 get_cfgids()
 {
   local regid="$1"
-  tail -n +2 "$topdir/etc/$regid.csv" | cut -d, -f1
+  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$regid" -a -f "$topdir/$cfgdir/$regid.csv" ]; then
+    tail -n +2 "$topdir/$cfgdir/$regid.csv" | cut -d, -f1
+  fi
 }
 
 # whether a given evaluation measure is a segmentation overlap measure

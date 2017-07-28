@@ -1,7 +1,6 @@
 ## Common settings sourced by executable scripts
 
 topdir="$(cd "$(dirname "$BASH_SOURCE")/.." && pwd)"
-. "$topdir/lib/utils.sh" || exit 1  # e.g., error() function
 
 # ------------------------------------------------------------------------------
 # global constants -- all directory paths relative to topdir
@@ -15,12 +14,12 @@ vardir="var/cache"       # root directory for computed data
 csvdir="var/table"       # summary tables of average quality measures
 
 # path of MIRTK's "mirtk" executable, either absolute or relative to topdir
-# recommended: on Linux, download MIRTK AppImage and save to "$libdir/"
-mirtk="$libdir/mirtk"
+# recommended: on Linux, download MIRTK AppImage to "$bindir/" and "chmod +x $bindir/mirtk"
+mirtk="$bindir/mirtk"
 
 # path of directory containing IRTK binaries, either absolute or relative to topdir
-# recommended: create symbolic link "$libdir/irtk" with absolute path to actual installation
-irtk="$libdir/irtk"
+# recommended: create symbolic link "$bindir/irtk" with absolute path to actual installation
+irtk="$bindir/irtk"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
@@ -81,3 +80,7 @@ get_measures()
     echo "dsc entropy"
   fi
 }
+
+# ------------------------------------------------------------------------------
+# auxiliary functions
+. "$topdir/$libdir/utils.sh" || exit 1  # e.g., error() function

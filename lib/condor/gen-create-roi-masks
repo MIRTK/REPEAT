@@ -22,6 +22,7 @@ print_help()
 [ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
 
 # change to top-level directory
 run cd "$topdir"

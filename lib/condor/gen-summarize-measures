@@ -15,6 +15,7 @@ print_help()
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
 
 # change to top-level directory
 run cd "$topdir"
@@ -83,7 +84,7 @@ else
         echo "Update: $jobdsc"
         cat > "$jobdsc" <<EOF_HEADER
 universe    = vanilla
-executable  = $topdir/$libdir/print-logjac-table
+executable  = $topdir/$libdir/tools/print-logjac-table
 initialdir  = $topdir
 
 EOF_HEADER

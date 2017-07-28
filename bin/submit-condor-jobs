@@ -37,6 +37,7 @@ submit()
 [ -n "$libdir" ] || error "etc/settings.sh: libdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
 
@@ -86,9 +87,10 @@ mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
 
 # ------------------------------------------------------------------------------
 # generate parameter sets
-regcsv="$etcdir/$regid.csv"
-if [ ! -f "$regcsv" ]; then
-  run "$libdir/gen-$regid-config"
+regcsv="$cfgdir/$regid.csv"
+regcfg="$cfgdir/$regid.cfg"
+if [ ! -f "$regcsv" ] && [ ! -f "$regcfg" ]; then
+  run "$libdir/config/$regid"
 fi
 
 # ------------------------------------------------------------------------------
@@ -157,7 +159,11 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/transform-$mod.condor"
-      [ -f "$jobdsc" ] || run "$libdir/condor/gen-transform-image" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || {
+        regpkg=${regid/-*}
+        [ $regpkg != 'irtk' ] || regpkg='mirtk'
+        run "$libdir/condor/gen-transform-$regpkg" "$dataset" "$regid" "$cfgid"
+      }
       submit "$jobdsc"
     elif [ $n -ne $N ]; then
       error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."

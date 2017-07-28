@@ -22,6 +22,7 @@ print_help()
 [ -n "$setdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
 
 # change to top-level directory
 run cd "$topdir"
@@ -49,7 +50,7 @@ if [ $update = true ] || [ ! -f "$jobdsc" ]; then
   echo "Update: $jobdsc"
   cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
-executable = $topdir/$libdir/measure-runtime
+executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
@@ -67,7 +68,7 @@ EOF_HEADER
         images=("${images[@]}" -image "'$imgdir/$imgpre$imgid$imgsuf'" "'$imgdir/$imgpre$refid$imgsuf'")
       done
       cat >> "$jobdsc" <<EOF_CLUSTER
-arguments = "'$mirtk' register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz'"
+arguments = "register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz'"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log

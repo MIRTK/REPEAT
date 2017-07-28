@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Generate configuration files for MIRTK 'register' command
-regid="mirtk-sym-svffd"
+regid="$(basename "$BASH_SOURCE")"
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1

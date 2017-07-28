@@ -161,7 +161,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
-executable = $topdir/$libdir/measure-runtime
+executable = $topdir/$libdir/tools/measure-runtime
 initialdir = $topdir
 
 EOF_HEADER
