@@ -34,6 +34,7 @@ submit()
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$libdir" ] || error "etc/settings.sh: libdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
@@ -86,7 +87,7 @@ mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
 # generate parameter sets
 regcsv="$etcdir/$regid.csv"
 if [ ! -f "$regcsv" ]; then
-  run "$bindir/gen-$regid-config"
+  run "$libdir/gen-$regid-config"
 fi
 
 # ------------------------------------------------------------------------------
@@ -129,7 +130,7 @@ for cfgid in "${cfgids[@]}"; do
   fi
   if [ $ndofs -eq 0 ]; then
     jobdsc="$jobdir/register.condor"
-    [ -f "$jobdsc" ] || run "$bindir/gen-register-${regid/-*}-condor" "$dataset" "$regid" "$cfgid"
+    [ -f "$jobdsc" ] || run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
     submit "$jobdsc"
   elif [ $ndofs -ne $npairs ]; then
     echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
@@ -155,7 +156,7 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/transform-$mod.condor"
-      [ -f "$jobdsc" ] || run "$bindir/gen-transform-image-condor" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || run "$libdir/condor/gen-transform-image" "$dataset" "$regid" "$cfgid"
       submit "$jobdsc"
     elif [ $n -ne $N ]; then
       error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
@@ -187,7 +188,7 @@ for cfgid in "${cfgids[@]}"; do
     let nexpected="$ndofs - ${#tgtids[@]}"
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
       submit "$jobdsc"
     elif [ $n -ne $nexpected ]; then
       echo "Seems not all Jacobian determinant evaluation jobs have finished successfully! Found $n out of $nexpected output files."
@@ -211,7 +212,7 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ]; then
       if [ ! -f "$jobdir/evaluate-dof-$measure.condor" ]; then
-        run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+        run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
       fi
       submit "$jobdir/evaluate-dof-$measure.condor"
     elif [ $n -ne ${#tgtids[@]} ]; then
@@ -236,7 +237,7 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
-      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
       submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
       echo "Seems not all transitivity evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} output files."
@@ -264,7 +265,7 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/evaluate-$mod-$measure.condor"
-      [ -f "$jobdsc" ] || run "$bindir/gen-evaluate-measures-condor" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
       submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
       logdir="$regdir/log/evaluate-$mod-$measure"
@@ -295,7 +296,7 @@ for cfgid in "${cfgids[@]}"; do
       fi
       if [ $nrois -eq 0 ]; then
         jobdsc="$jobdir/create-$roi-masks.condor"
-        [ -f "$jobdsc" ] || run "$bindir/gen-create-roi-masks-condor" "$dataset" "$regid" "$cfgid"
+        [ -f "$jobdsc" ] || run "$libdir/condor/gen-create-roi-masks" "$dataset" "$regid" "$cfgid"
         submit "$jobdsc"
       else
         echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
@@ -318,7 +319,7 @@ for cfgid in "${cfgids[@]}"; do
     done
     if [ $n -eq 0 ]; then
       jobdsc="$jobdir/summarize-dof-logjac.condor"
-      [ -f "$jobdsc" ] || run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
+      [ -f "$jobdsc" ] || run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
       submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
       logdir="$regdir/log/summarize-dof-logjac"
@@ -337,7 +338,7 @@ for cfgid in "${cfgids[@]}"; do
   done
   if [ $n -eq 0 ]; then
     jobdsc="$jobdir/average-measures.condor"
-    [ -f "$jobdsc" ] || run "$bindir/gen-summarize-measures-condor" "$dataset" "$regid" "$cfgid"
+    [ -f "$jobdsc" ] || run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
     submit "$jobdsc"
   elif [ $n -ne ${#tgtids[@]} ]; then
     logdir="$regdir/log/average-measures"

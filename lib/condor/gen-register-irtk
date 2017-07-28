@@ -11,6 +11,8 @@ print_help()
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$irtk"   ] || error "etc/settings.sh: irtk not set"
 
@@ -20,9 +22,9 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#chns[@]}   -eq 1 ] || error "$etcdir/dataset-$dataset.sh: chns must be array of length 1"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh"
+[ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
@@ -42,8 +44,8 @@ issym="$(is_sym $regid)"
 regcmd=${regid/*-}
 
 # generate job description for each configuration
-regpar="$etcdir/$regid.par"
-regcsv="$etcdir/$regid.csv"
+regpar="$cfgdir/$regid.par"
+regcsv="$cfgdir/$regid.csv"
 regdir="$vardir/$dataset/$regid"
 
 imgdir="$vardir/$dataset/affine/out"
@@ -143,7 +145,7 @@ for cfgid in "${cfgids[@]}"; do
     # write job description
     cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
-executable = $irtk/$regcmd
+executable = $topdir/$libdir/measure-runtime
 initialdir = $topdir
 
 EOF_HEADER
@@ -153,7 +155,7 @@ EOF_HEADER
       [ $force = true ] || [ ! -f "$dofout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$imgdir/$imgpre$tgtid$imgsuf' '$imgdir/$imgpre$srcid$imgsuf' -parin '$parin' -dofout '$dofout'"
+arguments = "'$irtk/$regcmd' '$imgdir/$imgpre$tgtid$imgsuf' '$imgdir/$imgpre$srcid$imgsuf' -parin '$parin' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

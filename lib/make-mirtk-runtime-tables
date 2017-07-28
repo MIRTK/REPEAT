@@ -9,14 +9,15 @@ print_help()
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
 
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
@@ -24,10 +25,12 @@ dataset="$1"; shift
 regid="$1"; shift
 [ -n "$regid" ] || print_help
 
+# parameter sets
 cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
+# create runtime table for each parameter set...
 for cfgid in "${cfgids[@]}"; do
   echo "Write runtime table for configuration $cfgid"
 
@@ -35,6 +38,8 @@ for cfgid in "${cfgids[@]}"; do
   outdir="$csvdir/$dataset/$regid/$cfgid"
 
   makedir "$outdir"
+
+  # ...and for each target image
   for tgtid in "${tgtids[@]}"; do
     outcsv="$outdir/$tgtid-time.csv"
     [ $force = true ] || [ ! -f "$outcsv" ] || continue

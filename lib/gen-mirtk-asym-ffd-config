@@ -6,7 +6,7 @@ regid="mirtk-asym-ffd"
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
-[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 
 # change to top-level directory
 run cd "$topdir"
@@ -20,9 +20,9 @@ window=5
 levels=4
 
 # write header and text file with long header names
-makedir "$etcdir"
+makedir "$cfgdir"
 
-cat > "$etcdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cat > "$cfgdir/$regid.par" <<EOF_HEADER_TO_PARNAME
 cfgid,
 mffd,Multi-level transformation
 model,Transformation model
@@ -38,7 +38,7 @@ jaceps,Jacobian determinant epsilon
 divini,Divide data terms by initial value
 EOF_HEADER_TO_PARNAME
 
-parcsv="$etcdir/$regid.csv"
+parcsv="$cfgdir/$regid.csv"
 echo "cfgid,mffd,model,ds,levels,sim,bins,window,be,tp,vp,jaceps,divini" > "$parcsv"
 
 # write parameter values

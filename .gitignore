@@ -2,7 +2,7 @@
 /bin/mirtk-*
 /bin/irtk
 /bin/irtk-*
-/etc/*.csv
-/etc/*.par
+/etc/params
 /tmp
 /var
+.ipynb_checkpoints

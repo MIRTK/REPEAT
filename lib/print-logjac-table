@@ -15,6 +15,7 @@ print_help()
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 
 # change to top-level directory
@@ -23,8 +24,8 @@ cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
 # registration method

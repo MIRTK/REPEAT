@@ -6,7 +6,7 @@ regid="irtk-nreg"
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
-[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 
 # change to top-level directory
 run cd "$topdir"
@@ -18,9 +18,9 @@ levels=3  # for some reason, levels=4 dosn't work
 ds=10     # initial control point spacing!
 
 # write header and text file with long header names
-makedir "$etcdir"
+makedir "$cfgdir"
 
-cat > "$etcdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cat > "$cfgdir/$regid.par" <<EOF_HEADER_TO_PARNAME
 cfgid,
 dx,Control point spacing in X
 dy,Control point spacing in Y
@@ -35,7 +35,7 @@ niter,No. of iterations
 nstep,No. of steps
 EOF_HEADER_TO_PARNAME
 
-parcsv="$etcdir/$regid.csv"
+parcsv="$cfgdir/$regid.csv"
 echo "cfgid,dx,dy,dz,levels,sim,bins,be,tp,vp,niter,nstep" > "$parcsv"
 
 # write parameter values

@@ -9,14 +9,18 @@ topdir="$(cd "$(dirname "$BASH_SOURCE")/.." && pwd)"
 bindir="bin"
 libdir="lib"
 etcdir="etc"
-vardir="var/cache"  # root directory for computed data
-csvdir="var/table"  # summary tables of average quality measures
+cfgdir="$etcdir/params"  # CSV tables with sets of registration parameters
+setdir="$etcdir/dataset" # dataset Shell configuration files
+vardir="var/cache"       # root directory for computed data
+csvdir="var/table"       # summary tables of average quality measures
 
-# absolute path of directory containing IRTK binaries (or symbolic link)
-irtk="$topdir/$bindir/irtk"
+# path of MIRTK's "mirtk" executable, either absolute or relative to topdir
+# recommended: on Linux, download MIRTK AppImage and save to "$libdir/"
+mirtk="$libdir/mirtk"
 
-# absolute path of "mirtk" executable (or symbolic link)
-mirtk="$topdir/$bindir/mirtk"
+# path of directory containing IRTK binaries, either absolute or relative to topdir
+# recommended: create symbolic link "$libdir/irtk" with absolute path to actual installation
+irtk="$libdir/irtk"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the

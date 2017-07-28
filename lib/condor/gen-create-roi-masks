@@ -5,7 +5,7 @@
 ## average of voxel-wise quality measures for each ROI
 ##
 ## Images must first be transformed to each target image using
-## the gen-transform-image-condor job description. When a given
+## the lib/condor/gen-transform-image job description. When a given
 ## ROI mask is a hard segmentation, i.e., a label image, a
 ## separate probabilistic ROI mask is created by this the job
 ## description created by this script for each positive label.
@@ -19,6 +19,7 @@ print_help()
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
@@ -28,9 +29,9 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#rois[@]}   -gt 0 ] || error "$etcdir/dataset-$dataset.sh: rois not set"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh"
+[ ${#rois[@]}   -gt 0 ] || error "$setdir/$dataset.sh: rois not set"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
 # registration method
 regid="$1"; shift

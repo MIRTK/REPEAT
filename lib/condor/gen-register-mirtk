@@ -11,6 +11,8 @@ print_help()
 . "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
 
@@ -20,9 +22,9 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#chns[@]}   -gt 0 ] || error "$etcdir/dataset-$dataset.sh: chns not set"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh"
+[ ${#chns[@]}   -gt 0 ] || error "$setdir/$dataset.sh: chns not set"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
@@ -36,8 +38,8 @@ cfgids=("$@")
 issym="$(is_sym $regid)"
 
 # generate job description for each configuration
-regpar="$etcdir/$regid.par"
-regcsv="$etcdir/$regid.csv"
+regpar="$cfgdir/$regid.par"
+regcsv="$cfgdir/$regid.csv"
 regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
 dofin='Id'
@@ -159,7 +161,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
-executable = $mirtk
+executable = $topdir/$libdir/measure-runtime
 initialdir = $topdir
 
 EOF_HEADER
@@ -175,7 +177,7 @@ EOF_HEADER
         images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
       done
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "register ${images[@]} -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
+arguments = "'$mirtk' register ${images[@]} -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
