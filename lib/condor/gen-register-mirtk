@@ -31,11 +31,12 @@ dataset="$1"; shift
 # registration method
 regid="$1"; shift
 [ -n "$regid" ] || print_help
+issym="$(is_sym $regid)"
 
+# IDs of parameter sets
 cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-issym="$(is_sym $regid)"
 
 # generate job description for each configuration
 regpar="$cfgdir/$regid.par"
