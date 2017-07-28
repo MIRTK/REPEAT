@@ -21,6 +21,10 @@ mirtk="$bindir/mirtk"
 # recommended: create symbolic link "$bindir/irtk" with absolute path to actual installation
 irtk="$bindir/irtk"
 
+# path of directory containing NiftyReg binaries, either absolute or relative to topdir
+# recommended: create symbolic link "$bindir/niftyreg" with absolute path to actual installation
+niftyreg="$bindir/niftyreg"
+
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
 # output of a given source to target registration may just be inverted
@@ -68,6 +72,8 @@ get_dofpre()
   local regpkg=${1/-*}
   if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' ]; then
     echo ".dof.gz"
+  elif [ "$regpkg" = 'niftyreg' ]; then
+    echo ".nii.gz"
   else
     error "Unknown registration software: $regpkg! Modify get_dofpre() in $BASH_SOURCE."
   fi

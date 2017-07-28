@@ -1,0 +1,38 @@
+#!/bin/bash
+
+## Generate command-line arguments for NiftyReg 'reg_f3d' command
+regid="$(basename "$BASH_SOURCE")"
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
+
+# change to top-level directory
+run cd "$topdir"
+makedir "$cfgdir"
+
+# initialize cfgid counter
+i=1
+
+# constants
+sim='NMI'
+bins=64
+levels=3
+ds=2.5
+le=0
+l2=0
+
+# write header
+parcsv="$cfgdir/$regid.csv"
+echo "cfgid,sim,bins,ln,maxit,sx,sy,sz,be,jl,le,l2" > "$parcsv"
+
+# initial parameter exploration
+maxit=300
+for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+  for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    cfgid=$(printf %04d $i)
+    echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$ds,$ds,$be,$jl,$le,$l2" >> "$parcsv"
+    let i++
+  done
+done
