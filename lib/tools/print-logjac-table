@@ -12,7 +12,7 @@ print_help()
 }
 
 # load settings and auxiliary functions
-. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
 [ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
