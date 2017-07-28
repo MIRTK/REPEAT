@@ -58,6 +58,15 @@ is_sym()
   fi
 }
 
+# get filename extension of transformation files
+get_dofpre()
+{
+  local regpkg=${1/-*}
+  if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' ]; then
+    echo ".dof.gz"
+  fi
+}
+
 # get evaluation measures for given modality/channel/contrast
 get_measures()
 {

@@ -1,5 +1,7 @@
 /bin/mirtk
 /bin/mirtk-*
+/bin/irtk
+/bin/irtk-*
 /etc/*.csv
 /etc/*.par
 /tmp

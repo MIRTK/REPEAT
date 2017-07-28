@@ -68,7 +68,7 @@ refbgv=$(get_bgvalue "$refmod")
 if [ "$regid" = 'affine' ]; then
 
   # TODO
-  false
+  exit 1
 
 # ------------------------------------------------------------------------------
 # evaluate quality measures of pairwise registration output
