@@ -20,7 +20,7 @@ sim='NMI'
 bins=64
 levels=3
 ds=2.5
-le=0
+le='0 0'
 l2=0
 
 # write header

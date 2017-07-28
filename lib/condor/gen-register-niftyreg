@@ -95,7 +95,14 @@ for cfgid in "${cfgids[@]}"; do
         fi
         ;;
       bins)
-        argv=("${argv[@]}" '--rbn' "$bins" '--fbn' "$bins")
+        argv=("${argv[@]}" '--rbn' "$arg" '--fbn' "$arg")
+        ;;
+      le)
+        vals=($arg)
+        if [ ${#vals[@]} -ne 2 ]; then
+          error "Invalid 'le' value: $arg! Must be two numbers separated by space."
+        fi
+        argv=("${argv[@]}" '-le' ${vals[0]} ${vals[1]})
         ;;
       *)
         argv=("${argv[@]}" "-$opt" "$arg")

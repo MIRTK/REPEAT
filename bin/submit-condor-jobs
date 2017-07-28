@@ -19,7 +19,7 @@ submit()
   local s=30
   echo "> condor_submit $@"
   while [ $i -lt $n ]; do
-    condor_submit "$@" && break
+    echo condor_submit "$@" && break
     let i++
     if [ $i -eq $n ]; then
       error "Job submission failed for $n times, aborting"
@@ -101,17 +101,16 @@ jobdir="$regdir/bin"
 n=0
 outdir="$regdir/dof"
 if [ -d "$outdir" ]; then
-  for tgtid in "${tgtids[@]}"; do
-  for srcid in "${srcids[@]}"; do
-    [ ! -f "$outdir/$tgtid-$srcid.dof.gz" ] || let n++
-  done; done
+  for imgid in "${imgids[@]}"; do
+    [ ! -f "$outdir/$imgid.dof.gz" ] || let n++
+  done
 fi
 if [ $n -eq 0 ]; then
   jobdsc="$jobdir/register.condor"
   [ -f "$jobdsc" ] || run "$libdir/condor/gen-register-affine" "$dataset"
   submit "$jobdsc"
-elif [ $n -ne $N ]; then
-  echo "Seems not all affine registration jobs have finished successfully! Found $n out of $N output files."
+elif [ $n -ne ${#imgids[@]} ]; then
+  echo "Seems not all affine registration jobs have finished successfully! Found $n out of ${#imgids[@]} output files."
   error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
 else
   echo "All affine registration jobs are done, found $n output files"
@@ -121,21 +120,20 @@ if [ $jobs_submitted = true ]; then
   exit 0
 fi
 
-for mod in "${mods[@]}"; do
+for mod in "${mods_and_rois[@]}"; do
   n=0
   outdir="$regdir/out/$mod"
   if [ -d "$outdir" ]; then
-    for tgtid in "${tgtids[@]}"; do
-    for srcid in "${srcids[@]}"; do
-      [ ! -f "$outdir/$srcid-$tgtid$imgpre" ] || let n++
-    done; done
+    for imgid in "${imgids[@]}"; do
+      [ ! -f "$outdir/$imgid$imgpre" ] || let n++
+    done
   fi
   if [ $n -eq 0 ]; then
     jobdsc="$jobdir/transform-$mod.condor"
     [ -f "$jobdsc" ] || run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
     submit "$jobdsc"
-  elif [ $n -ne $N ]; then
-    error "Seems not all $mod image pre-alignment jobs have finished successfully! Found only $n out of $N output files."
+  elif [ $n -ne ${#imgids[@]} ]; then
+    error "Seems not all $mod image pre-alignment jobs have finished successfully! Found only $n out of ${#imgids[@]} output files."
     error "Check log files of image pre-alignment jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
   else
     echo "All $mod image pre-alignment jobs are done, found $n output files"

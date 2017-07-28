@@ -1,8 +1,10 @@
+/etc/params
+/tmp
+/var
 /bin/mirtk
 /bin/mirtk-*
 /bin/irtk
 /bin/irtk-*
-/etc/params
-/tmp
-/var
+/bin/niftyreg
+/bin/niftyreg-*
 .ipynb_checkpoints
