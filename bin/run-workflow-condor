@@ -16,14 +16,17 @@ submit()
 {
   local i=0
   local n=3
+  local s=30
   echo "> condor_submit $@"
   while [ $i -lt $n ]; do
     condor_submit "$@" && break
     let i++
+    if [ $i -eq $n ]; then
+      error "Job submission failed for $n times, aborting"
+    fi
+    echo "Job submission failed, trying again in $s sec..."
+    sleep $s
   done
-  if [ $i -eq $n ]; then
-    error "Job submission failed for $ntry times, aborting"
-  fi
   jobs_submitted=true
 }
 
