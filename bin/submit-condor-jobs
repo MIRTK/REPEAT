@@ -73,8 +73,8 @@ issym="$(is_sym $regid)"
 
 # registration tool specific settings
 mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
-dofpre=$(get_dofpre "$regid")
-imgpre=".nii.gz"
+dofsuf=$(get_dofsuf "$regid")
+imgsuf=".nii.gz"
 
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
@@ -125,7 +125,7 @@ for mod in "${mods_and_rois[@]}"; do
   outdir="$regdir/out/$mod"
   if [ -d "$outdir" ]; then
     for imgid in "${imgids[@]}"; do
-      [ ! -f "$outdir/$imgid$imgpre" ] || let n++
+      [ ! -f "$outdir/$imgid$imgsuf" ] || let n++
     done
   fi
   if [ $n -eq 0 ]; then
@@ -178,7 +178,7 @@ for cfgid in "${cfgids[@]}"; do
   if [ -d "$outdir" ]; then
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
-      [ ! -f "$outdir/$tgtid-$srcid$dofpre" ] || let ndofs++
+      [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
     done; done
   fi
   if [ $ndofs -eq 0 ]; then
@@ -204,7 +204,7 @@ for cfgid in "${cfgids[@]}"; do
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
-        [ ! -f "$outdir/$srcid-$tgtid$imgpre" ] || let n++
+        [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
       done; done
     fi
     if [ $n -eq 0 ]; then
@@ -239,7 +239,7 @@ for cfgid in "${cfgids[@]}"; do
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
-        [ ! -f "$outdir/$tgtid-$srcid$imgpre" ] || let n++
+        [ ! -f "$outdir/$tgtid-$srcid$imgsuf" ] || let n++
       done; done
     fi
     let nexpected="$ndofs - ${#tgtids[@]}"
@@ -264,7 +264,7 @@ for cfgid in "${cfgids[@]}"; do
     n=0
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
-        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
+        [ ! -f "$outdir/$tgtid$imgsuf" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
@@ -289,7 +289,7 @@ for cfgid in "${cfgids[@]}"; do
     n=0
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
-        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
+        [ ! -f "$outdir/$tgtid$imgsuf" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
@@ -317,7 +317,7 @@ for cfgid in "${cfgids[@]}"; do
     else
       outdir="$regdir/evl/$mod/$measure"
       for tgtid in "${tgtids[@]}"; do
-        [ ! -f "$outdir/$tgtid$imgpre" ] || let n++
+        [ ! -f "$outdir/$tgtid$imgsuf" ] || let n++
       done
     fi
     if [ $n -eq 0 ]; then
@@ -348,7 +348,7 @@ for cfgid in "${cfgids[@]}"; do
       roidir="$regdir/roi/$roi"
       if [ -d "$roidir" ]; then
         for tgtid in "${tgtids[@]}"; do
-          let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgpre" | wc -l)"
+          let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
         done
       fi
       if [ $nrois -eq 0 ]; then

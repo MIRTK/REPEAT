@@ -67,7 +67,7 @@ is_sym()
 }
 
 # get filename extension of transformation files
-get_dofpre()
+get_dofsuf()
 {
   local regpkg=${1/-*}
   if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' ]; then
@@ -75,7 +75,7 @@ get_dofpre()
   elif [ "$regpkg" = 'niftyreg' ]; then
     echo ".nii.gz"
   else
-    error "Unknown registration software: $regpkg! Modify get_dofpre() in $BASH_SOURCE."
+    error "Unknown registration software: $regpkg! Modify get_dofsuf() in $BASH_SOURCE."
   fi
 }
 
