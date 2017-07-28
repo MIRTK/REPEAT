@@ -11,50 +11,45 @@ regid="$(basename "$BASH_SOURCE")"
 # change to top-level directory
 run cd "$topdir"
 
-# constants
-sim='NMI'
-bins=64
-levels=3  # for some reason, levels=4 dosn't work
-ds=10     # initial control point spacing!
-
-# write header and text file with long header names
+# create output directory
 makedir "$cfgdir"
 
-cat > "$cfgdir/$regid.par" <<EOF_HEADER_TO_PARNAME
-cfgid,
-dx,Control point spacing in X
-dy,Control point spacing in Y
-dz,Control point spacing in Z
-levels,No. of resolution levels
-sim,Similarity measure
-bins,No. of bins
-be,Lambda1
-tp,Lambda3
-vp,Lambda2
-niter,No. of iterations
-nstep,No. of steps
-EOF_HEADER_TO_PARNAME
+# constants
+interp='Linear'
+optim='GradientDescent'
+levels=4
+iters=10
+steps=4
+step=1
+epsilon=0.0001
+sim='NMI'
+bins=64
+ds=20     # initial control point spacing!
 
+# auxiliary function to append row with parameter values
+# Attention: Always ensure that header and order of values is consistent!
+i=0
 parcsv="$cfgdir/$regid.csv"
-echo "cfgid,dx,dy,dz,levels,sim,bins,be,tp,vp,niter,nstep" > "$parcsv"
+echo "cfgid,interp,optim,levels,iters,steps,step,epsilon,sim,bins,ds,be,tp,vp" > "$parcsv"
 
-# write parameter values
-i=1
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  echo "$cfgid,$interp,$optim,$levels,$iters,$steps,$step,$epsilon,$sim,$bins,$ds,$be,$tp,$vp" >> "$parcsv"
+}
 
 # initial parameter exploration
-nstep=4
-niter=10
-for be in 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
+for be in 0 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
   vp=0
-  for tp in 0.0 0.0001 0.001 0.005 0.01 0.05; do
-    cfgid=$(printf %04d $i)
-    echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
-    let i++
+  for tp in 0 0.0001 0.001 0.005 0.01 0.05; do
+    append_row
   done
   tp=0
-  for vp in 0.0 0.0001 0.001 0.005 0.01 0.05; do
-    cfgid=$(printf %04d $i)
-    echo "$cfgid,$ds,$ds,$ds,$levels,$sim,$bins,$be,$tp,$vp,$niter,$nstep" >> "$parcsv"
-    let i++
+  for vp in 0 0.0001 0.001 0.005 0.01 0.05; do
+    append_row
   done
 done
+
+# use different optimization method
+# (ConjugateGradientDescent should be better than GradientDescent)

@@ -31,6 +31,7 @@ dataset="$1"; shift
 # images that drive the registration
 chn="${chns[0]}"
 bgvalue="$(get_bgvalue "$chn")"
+[ -n "$bgvalue" ] || bgvalue=-32767
 
 # registration method
 regid="$1"; shift
@@ -44,49 +45,15 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # generate job description for each configuration
-regpar="$cfgdir/$regid.par"
 regcsv="$cfgdir/$regid.csv"
 regdir="$vardir/$dataset/$regid"
+paropt=($(head -n1 "$regcsv" | tr , '\n'))
 
 imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
-if [ ${BASH_VERSION/.*} -lt 4 ]; then
-  header=()
-  while IFS='\n' read line; do
-    header=("${header[@]}" "$line")
-  done < <(cut -d, -f1 "$regpar")
-else
-  readarray -t header < <(cut -d, -f1 "$regpar")
-fi
-[ ${#header[@]} -ge 1 ] || {
-  error "$regpar: Expected at least one row"
-}
-
-if [ ${BASH_VERSION/.*} -lt 4 ]; then
-  parkey=()
-  while IFS='\n' read line; do
-    parkey=("${parkey[@]}" "$line")
-  done < <(cut -d, -f2 "$regpar")
-else
-  readarray -t parkey < <(cut -d, -f2 "$regpar")
-fi
-[ ${#header[@]} -eq ${#parkey[@]} ] || {
-  error "$regpar: Expected two columns in each row, second column entry may be empty"
-}
-
-c=0
-allsym_col=-1
-bgvalue_col=-1
-while [ $c -lt ${#header[@]} ]; do
-  if [ ${header[c]} = allsym ]; then
-    allsym_col=$c
-  elif [ ${header[c]} = 'bg' ]; then
-    bgvalue_col=$c
-  fi
-  let c++
-done
+config="$(cat "$etcdir/configs/irtk-nreg.template")"
 
 for cfgid in "${cfgids[@]}"; do
   jobdir="$regdir/$cfgid/bin"
@@ -109,28 +76,18 @@ for cfgid in "${cfgids[@]}"; do
       readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
     fi
     [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
-    [ ${#parval[@]} -eq ${#parkey[@]} ] || error "$regcsv: Expected ${#parkey[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+    [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
 
-    # get 'allsym' value from CSV if present, otherwise use global value of settings.sh
-    [ $allsym_col -lt 0 ] || allsym=${parval[allsym_col]}
-
-    # get 'bgvalue' value from CSV if present, otherwise use global bgvalue
-    [ $bgvalue_col -lt 0 ] || bgvalue=${parval[bgvalue_col]}
-
-    # assemble configuration
-    if [ -n "$bgvalue" ]; then
-      pars="Padding value = $bgvalue"
-    else
-      pars=""
-    fi
-
+    # substitute values in template configuration
     c=0
-    while [ $c -lt ${#parkey[@]} ]; do
-      if [ -n "${parkey[c]}" ]; then
-        pars="${pars}\n${parkey[c]} = ${parval[c]}"
+    parcfg="${config}"
+    while [ $c -lt ${#paropt[@]} ]; do
+      if [ -n "${paropt[c]}" ]; then
+        parcfg="${parcfg/<${paropt[c]}>/${parval[c]}}"
       fi
       let c++
     done
+    parcfg="${parcfg/<bg>/$bgvalue}"
 
     # make directories
     makedir "$pardir"
@@ -139,8 +96,8 @@ for cfgid in "${cfgids[@]}"; do
     makedir "$jobdir"
 
     # write configuration to file
-    parin="$pardir/register.cfg"
-    echo -e "$pars" > "$parin"
+    regcfg="$pardir/register.cfg"
+    echo -e "$parcfg" > "$regcfg"
 
     # write job description
     cat > "$jobdsc" <<EOF_HEADER
@@ -158,7 +115,7 @@ EOF_HEADER
       [ $force = true ] || [ ! -f "$dofout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$irtk/$regcmd' '$imgdir/$imgpre$tgtid$imgsuf' '$imgdir/$imgpre$srcid$imgsuf' -parin '$parin' -dofout '$dofout'"
+arguments = "'$irtk/$regcmd' '$imgdir/$imgpre$tgtid$imgsuf' '$imgdir/$imgpre$srcid$imgsuf' -parin '$regcfg' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
