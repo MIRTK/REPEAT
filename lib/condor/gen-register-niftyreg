@@ -140,7 +140,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe     = vanilla
-executable   = $topdir/$libdir/tools/measure-runtime
+executable   = $topdir/$libdir/tools/run-niftyreg-f3d
 requirements = $condor_requirements
 environment  = "$condor_environment"
 getenv       = $condor_getenv
@@ -150,7 +150,6 @@ EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
       cppout="$cppdir/$tgtid-$srcid.nii.gz"
-      resout="$resdir/$tgtid-$srcid.nii.gz"
       [ $force = true ] || [ ! -f "$cppout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       masks=()
@@ -161,7 +160,7 @@ EOF_HEADER
         fi
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$niftyreg/reg_f3d' -ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' -res '$resout' ${masks[@]} ${argv[@]}"
+arguments = "-ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' ${masks[@]} ${argv[@]}"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

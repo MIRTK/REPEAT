@@ -21,7 +21,7 @@ mirtk="$bindir/mirtk"
 # recommended: create symbolic link "$bindir/irtk" with absolute path to actual installation
 irtk="$bindir/irtk"
 
-# path of directory containing NiftyReg binaries, either absolute or relative to topdir
+# path of directory containing NiftyReg installation, either absolute or relative to topdir
 # recommended: create symbolic link "$bindir/niftyreg" with absolute path to actual installation
 niftyreg="$bindir/niftyreg"
 

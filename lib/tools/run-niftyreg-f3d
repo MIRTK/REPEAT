@@ -1,0 +1,34 @@
+#!/bin/bash
+
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir"   ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"    ] || error "etc/settings.sh: mirtk not set"
+[ -n "$niftyreg" ] || error "etc/settings.sh: niftyreg not set"
+
+[ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
+[ ${niftyreg:0:1} = / ] || mirtk="$topdir/$niftyreg"
+
+i=0
+args=("$@")
+while [ $i -lt $# ]; do
+  if [ ${args[i]} = '-cpp' ]; then
+    let i++
+    cpp="${args[i]}"
+    break
+  fi
+  let i++
+done
+[ -n "$cpp" ] || error "Could not determine -cpp output file path"
+dof="${cpp/.nii/.dof}"
+[ "$dof" != "$cpp" ] || error "-cpp file name must have extension .nii or .nii.gz"
+[ "${dof:${#dof}-3}" = '.gz' ] || dof="$dof.gz"
+tmpdir="$(mktemp -d)"  # need specific file name extension, but --suffix option not available on macOS
+[ $? -eq 0 ] || error "Failed to create temporary directory for -res output file"
+resimg="$tmpdir/res.nii.gz"
+
+export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
+time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg" || exit 1
+
+run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
+rm -f "$res" && rmdir "$tmpdir"
