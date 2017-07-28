@@ -11,7 +11,7 @@
 i=0
 args=("$@")
 while [ $i -lt $# ]; do
-  if [ ${args[i]} = '-cpp' ]; then
+  if [ "${args[i]}" = '-cpp' ]; then
     let i++
     cpp="${args[i]}"
     break
@@ -23,12 +23,15 @@ dof="${cpp/.nii/.dof}"
 [ "$dof" != "$cpp" ] || error "-cpp file name must have extension .nii or .nii.gz"
 [ "${dof:${#dof}-3}" = '.gz' ] || dof="$dof.gz"
 tmpdir="$(mktemp -d)"  # need specific file name extension, but --suffix option not available on macOS
-[ $? -eq 0 ] || error "Failed to create temporary directory for -res output file"
+[ $? -eq 0 -a -n "$tmpdir" ] || error "Failed to create temporary directory for -res output file"
 resimg="$tmpdir/res.nii.gz"
 
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg" || exit 1
+time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg" || {
+  rmdir "$tmpdir"
+  exit 1
+}
 
 run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
 rm -f "$res" && rmdir "$tmpdir"
