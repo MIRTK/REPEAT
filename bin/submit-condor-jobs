@@ -211,7 +211,9 @@ for cfgid in "${cfgids[@]}"; do
       jobdsc="$jobdir/transform-$mod.condor"
       [ -f "$jobdsc" ] || {
         regpkg=${regid/-*}
-        [ $regpkg != 'irtk' ] || regpkg='mirtk'
+        if [ $regpkg = 'irtk' -o $regpkg = 'niftyreg' ]; then
+          regpkg='mirtk'
+        fi
         run "$libdir/condor/gen-transform-$regpkg" "$dataset" "$regid" "$cfgid"
       }
       submit "$jobdsc"
