@@ -19,7 +19,7 @@ submit()
   local s=30
   echo "> condor_submit $@"
   while [ $i -lt $n ]; do
-    echo condor_submit "$@" && break
+    condor_submit "$@" && break
     let i++
     if [ $i -eq $n ]; then
       error "Job submission failed for $n times, aborting"
