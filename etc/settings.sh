@@ -51,7 +51,7 @@ update=false
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=
-condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\""
+condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Cpus==8"
 
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
