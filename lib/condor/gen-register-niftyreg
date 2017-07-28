@@ -75,11 +75,6 @@ for cfgid in "${cfgids[@]}"; do
   logdir="$regdir/$cfgid/log/register"
   pardir="$regdir/$cfgid/etc"
 
-  # reg_f3d always uses cubic interpolation, but we use linear for other tools
-  # thus, write -res to different directory and use reg_resample with -LIN option
-  # to apply the -cpp deformation to the images using gen-transform-niftyreg jobs
-  resdir="$regdir/$cfgid/res"
-
   # extract parameter values from CSV file
   if [ ${BASH_VERSION/.*} -lt 4 ]; then
     parval=()
@@ -130,7 +125,6 @@ for cfgid in "${cfgids[@]}"; do
 
   # make directories
   makedir "$cppdir"
-  makedir "$resdir"
   makedir "$logdir"
   makedir "$jobdir"
 
