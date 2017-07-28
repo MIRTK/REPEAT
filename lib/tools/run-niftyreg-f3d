@@ -28,10 +28,14 @@ resimg="$tmpdir/res.nii.gz"
 
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg" || {
+time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg"
+if [ $? -ne 0 ]; then
   rmdir "$tmpdir"
   exit 1
-}
+fi
 
-run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
+"$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
+ec=$?
+
 rm -f "$res" && rmdir "$tmpdir"
+exit $ec
