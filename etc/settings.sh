@@ -68,6 +68,8 @@ get_dofpre()
   local regpkg=${1/-*}
   if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' ]; then
     echo ".dof.gz"
+  else
+    error "Unknown registration software: $regpkg! Modify get_dofpre() in $BASH_SOURCE."
   fi
 }
 
