@@ -6,7 +6,7 @@
 [ -n "$niftyreg" ] || error "etc/settings.sh: niftyreg not set"
 
 [ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
-[ ${niftyreg:0:1} = / ] || mirtk="$topdir/$niftyreg"
+[ ${niftyreg:0:1} = / ] || niftyreg="$topdir/$niftyreg"
 
 i=0
 args=("$@")
@@ -24,11 +24,11 @@ dof="${cpp/.nii/.dof}"
 [ "${dof:${#dof}-3}" = '.gz' ] || dof="$dof.gz"
 tmpdir="$(mktemp -d)"  # need specific file name extension, but --suffix option not available on macOS
 [ $? -eq 0 -a -n "$tmpdir" ] || error "Failed to create temporary directory for -res output file"
-resimg="$tmpdir/res.nii.gz"
+res="$tmpdir/res.nii.gz"
 
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time "$niftyreg/bin/reg_f3d" "$@" -res "$resimg"
+time "$niftyreg/bin/reg_f3d" "$@" -res "$res"
 if [ $? -ne 0 ]; then
   rmdir "$tmpdir"
   exit 1
