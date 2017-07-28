@@ -350,13 +350,14 @@ for cfgid in "${cfgids[@]}"; do
     all_done=false
     continue
   else
-    echo "All jobs for configuration $cfgid finished! You find the results in '$resdir'."
+    echo "All jobs for configuration $cfgid finished!"
+    echo "You find the results in '$topdir/$resdir'."
   fi
 
 done
 echo
 if [ $all_done = true ]; then
-  echo "All jobs finished! You find the results in '$csvdir/$dataset/$regid'."
+  echo "All jobs finished! You find the results in '$topdir/$csvdir/$dataset/$regid'."
 else
   echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
 fi
