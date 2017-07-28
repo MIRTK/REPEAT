@@ -144,9 +144,12 @@ for cfgid in "${cfgids[@]}"; do
 
     # write job description
     cat > "$jobdsc" <<EOF_HEADER
-universe   = vanilla
-executable = $topdir/$libdir/tools/measure-runtime
-initialdir = $topdir
+universe     = vanilla
+executable   = $topdir/$libdir/tools/measure-runtime
+requirements = $condor_requirements
+environment  = "$condor_environment"
+getenv       = $condor_getenv
+initialdir   = $topdir
 
 EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
