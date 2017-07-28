@@ -83,7 +83,7 @@ for cfgid in "${cfgids[@]}"; do
     parcfg="${config}"
     while [ $c -lt ${#paropt[@]} ]; do
       if [ -n "${paropt[c]}" ]; then
-        parcfg="${parcfg/<${paropt[c]}>/${parval[c]}}"
+        parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
       fi
       let c++
     done
