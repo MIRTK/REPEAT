@@ -29,7 +29,7 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$setdir/$dataset.sh"
+. "$setdir/$dataset.sh" || exit 1
 [ ${#rois[@]}   -gt 0 ] || error "$setdir/$dataset.sh: rois not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 

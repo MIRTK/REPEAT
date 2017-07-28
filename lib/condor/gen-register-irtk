@@ -22,7 +22,7 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$setdir/$dataset.sh"
+. "$setdir/$dataset.sh" || exit 1
 [ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")

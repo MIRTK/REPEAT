@@ -36,6 +36,7 @@ submit()
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$libdir" ] || error "etc/settings.sh: libdir not set"
 [ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
 
@@ -45,9 +46,9 @@ run cd "$topdir"
 # evaluation dataset
 dataset="$1"; shift
 [ -n "$dataset" ] || print_help
-. "$etcdir/dataset-$dataset.sh"
-[ ${#chns[@]}   -eq 1 ] || error "$etcdir/dataset-$dataset.sh: chns must be array of length 1"
-[ ${#imgids[@]} -gt 0 ] || error "$etcdir/dataset-$dataset.sh: imgids not set"
+. "$setdir/$dataset.sh" || exit 1
+[ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
