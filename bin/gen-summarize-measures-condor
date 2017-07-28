@@ -113,11 +113,12 @@ EOF_JOB
 
       echo "Update: $jobdsc"
       cat > "$jobdsc" <<EOF_HEADER
-universe    = vanilla
-executable  = $mirtk
-environment = "$condor_environment"
-initialdir  = $topdir
-getenv      = $condor_getenv
+universe     = vanilla
+executable   = $mirtk
+requirements = $condor_requirements
+environment  = "$condor_environment"
+getenv       = $condor_getenv
+initialdir   = $topdir
 
 EOF_HEADER
 
