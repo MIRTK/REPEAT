@@ -52,16 +52,29 @@ dataset="$1"; shift
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+let N="${#tgtids[@]} * ${#srcids[@]}"
 
 # registration method
 regid="$1"; shift
 [ -n "$regid" ] || print_help
+
+# generate parameter sets
+regcsv="$cfgdir/$regid.csv"
+regcfg="$cfgdir/$regid.cfg"
+if [ ! -f "$regcsv" ] && [ ! -f "$regcfg" ]; then
+  run "$libdir/config/$regid"
+fi
 
 # IDs of parameter sets
 cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 issym="$(is_sym $regid)"
+
+# registration tool specific settings
+mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
+dofpre=$(get_dofpre "$regid")
+imgpre=".nii.gz"
 
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
@@ -79,18 +92,58 @@ if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# registration tool specific settings
-dofpre=$(get_dofpre "$regid")
-imgpre=".nii.gz"
+# perform affine registration if not done before
+jobs_submitted=false
 
-mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
+regdir="$vardir/$dataset/affine"
+jobdir="$regdir/bin"
 
-# ------------------------------------------------------------------------------
-# generate parameter sets
-regcsv="$cfgdir/$regid.csv"
-regcfg="$cfgdir/$regid.cfg"
-if [ ! -f "$regcsv" ] && [ ! -f "$regcfg" ]; then
-  run "$libdir/config/$regid"
+n=0
+outdir="$regdir/dof"
+if [ -d "$outdir" ]; then
+  for tgtid in "${tgtids[@]}"; do
+  for srcid in "${srcids[@]}"; do
+    [ ! -f "$outdir/$tgtid-$srcid.dof.gz" ] || let n++
+  done; done
+fi
+if [ $n -eq 0 ]; then
+  jobdsc="$jobdir/register.condor"
+  [ -f "$jobdsc" ] || run "$libdir/condor/gen-register-affine" "$dataset"
+  submit "$jobdsc"
+elif [ $n -ne $N ]; then
+  echo "Seems not all affine registration jobs have finished successfully! Found $n out of $N output files."
+  error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
+else
+  echo "All affine registration jobs are done, found $n output files"
+fi
+if [ $jobs_submitted = true ]; then
+  echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  exit 0
+fi
+
+for mod in "${mods[@]}"; do
+  n=0
+  outdir="$regdir/out/$mod"
+  if [ -d "$outdir" ]; then
+    for tgtid in "${tgtids[@]}"; do
+    for srcid in "${srcids[@]}"; do
+      [ ! -f "$outdir/$srcid-$tgtid$imgpre" ] || let n++
+    done; done
+  fi
+  if [ $n -eq 0 ]; then
+    jobdsc="$jobdir/transform-$mod.condor"
+    [ -f "$jobdsc" ] || run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
+    submit "$jobdsc"
+  elif [ $n -ne $N ]; then
+    error "Seems not all $mod image pre-alignment jobs have finished successfully! Found only $n out of $N output files."
+    error "Check log files of image pre-alignment jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
+  else
+    echo "All $mod image pre-alignment jobs are done, found $n output files"
+  fi
+done
+if [ $jobs_submitted = true ]; then
+  echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  exit 0
 fi
 
 # ------------------------------------------------------------------------------
@@ -108,7 +161,6 @@ for cfgid in "${cfgids[@]}"; do
 
   # ----------------------------------------------------------------------------
   # expected no. of pairwise registrations
-  let N="${#tgtids[@]} * ${#srcids[@]}"
   if [ "$issym" = true ] && [ $allsym != true ]; then
     npairs=0
     for tgtid in "${tgtids[@]}"; do
