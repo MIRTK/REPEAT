@@ -14,6 +14,7 @@ print_help()
 [ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
 [ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk" ] || error "etc/settings.sh: mirtk not set"
 [ -n "$niftyreg" ] || error "etc/settings.sh: niftyreg not set"
 
 # change to top-level directory
@@ -43,13 +44,25 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
-# generate job description for each configuration
-regcsv="$cfgdir/$regid.csv"
-regdir="$vardir/$dataset/$regid"
+# affinely pre-aligned images
+mskdir="$vardir/$dataset/affine/msk"
 imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
+# create foreground masks
+if [ -n "$bgvalue" ]; then
+  makedir "$mskdir"
+  for imgid in "${imgids[@]}"; do
+    mskimg="$mskdir/$imgid$imgsuf"
+    [ ! -f "$mskimg" ] || continue
+    run "$mirtk" calculate-element-wise "$imgdir/$imgpre$imgid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
+  done
+fi
+
+# generate job description for each configuration
+regdir="$vardir/$dataset/$regid"
+regcsv="$cfgdir/$regid.csv"
 paropt=($(head -n1 "$regcsv" | tr , '\n'))
 
 for cfgid in "${cfgids[@]}"; do
@@ -140,8 +153,15 @@ EOF_HEADER
       resout="$resdir/$tgtid-$srcid.nii.gz"
       [ $force = true ] || [ ! -f "$cppout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
+      masks=()
+      if [ -n "$bgvalue" ]; then
+        masks=('-rmask' "$mskdir/$tgtid$imgsuf")
+        if [ $issym = true ]; then
+          masks=('-fmask' "$mskdir/$srcid$imgsuf")
+        fi
+      fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$niftyreg/reg_f3d' -ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' -res '$resout' ${argv[@]}"
+arguments = "'$niftyreg/reg_f3d' -ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' -res '$resout' ${masks[@]} ${argv[@]}"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
