@@ -14,7 +14,7 @@ run cd "$topdir"
 # create output directory
 makedir "$cfgdir"
 
-# constants
+# initial/constant parameter values
 interp='Linear'
 optim='GradientDescent'
 levels=4
@@ -52,4 +52,4 @@ for be in 0 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
 done
 
 # use different optimization method
-# (ConjugateGradientDescent should be better than GradientDescent)
+# (ConjugateGradientDescent should be better than GradientDescent, but slower)

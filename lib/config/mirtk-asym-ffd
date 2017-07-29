@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ## Generate configuration files for MIRTK 'register' command
+## using asymmetric energy formulation and classic FFD model
 regid="$(basename "$BASH_SOURCE")"
 
 # load settings and auxiliary functions
@@ -11,54 +12,66 @@ regid="$(basename "$BASH_SOURCE")"
 # change to top-level directory
 run cd "$topdir"
 
-# constants
-model='FFD'
-mffd='None'
+# create output directory
+makedir "$cfgdir"
+
+# initial/constant parameter values
+interp='Linear with padding'
+roi='Union'
+optim='ConjugateGradientDescent'
+linesearch='Adaptive'
+divini='No'
+srcgrd='Yes'
+levels=4
+iters=300
+steps=20
+rejects=2
+lastn=10
+epsilon=0.0001
 sim='NMI'
 bins=64
 window=5
-levels=4
+ds=2.5
+be=0
+tp=0
+vp=0
+jaceps=0.1
 
-# write header and text file with long header names
-makedir "$cfgdir"
-
-cat > "$cfgdir/$regid.par" <<EOF_HEADER_TO_PARNAME
-cfgid,
-mffd,Multi-level transformation
-model,Transformation model
-ds,Control point spacing
-levels,No. of resolution levels
-sim,Image dissimilarity measure
-bins,No. of bins
-window,Local window size
-be,Bending energy weight
-tp,Topology preservation weight
-vp,Volume preservation weight
-jaceps,Jacobian determinant epsilon
-divini,Divide data terms by initial value
-EOF_HEADER_TO_PARNAME
-
+# auxiliary function to append row with parameter values
+# Attention: Always ensure that header and order of values is consistent!
+i=0
 parcsv="$cfgdir/$regid.csv"
-echo "cfgid,mffd,model,ds,levels,sim,bins,window,be,tp,vp,jaceps,divini" > "$parcsv"
+echo "cfgid,interp,roi,optim,linesearch,divini,srcgrd,levels,iters,steps,rejects,lastn,epsilon,sim,bins,window,ds,be,tp,vp,jaceps" > "$parcsv"
 
-# write parameter values
-i=1
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  echo "$cfgid,$interp,$roi,$optim,$linesearch,$divini,$srcgrd,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$window,$ds,$be,$tp,$vp,$jaceps" >> "$parcsv"
+}
 
 # initial parameter exploration
-ds=2.5
-divini='No'
-jaceps=0.1
 for be in 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   vp=0
   for tp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
-    cfgid=$(printf %04d $i)
-    echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$jaceps,$divini" >> "$parcsv"
-    let i++
+    append_row
   done
   tp=0
   for vp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
-    cfgid=$(printf %04d $i)
-    echo "$cfgid,$mffd,$model,$ds,$levels,$sim,$bins,$window,$be,$tp,$vp,$jaceps,$divini" >> "$parcsv"
-    let i++
+    append_row
+  done
+done
+
+# different Jacobian determinant threshold
+for jaceps in .01 .001 .0001; do
+  for be in 0.001 0.005; do
+    vp=0
+    for tp in 0.0001 0.001 0.005; do
+      append_row
+    done
+    tp=0
+    for vp in 0.0001 0.001 0.005; do
+      append_row
+    done
   done
 done

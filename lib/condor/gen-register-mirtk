@@ -32,6 +32,7 @@ dataset="$1"; shift
 regid="$1"; shift
 [ -n "$regid" ] || print_help
 issym="$(is_sym $regid)"
+isic="$(is_ic $regid)"
 
 # IDs of parameter sets
 cfgids=("$@")
@@ -39,44 +40,13 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # generate job description for each configuration
-regpar="$cfgdir/$regid.par"
-regcsv="$cfgdir/$regid.csv"
-regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
+regdir="$vardir/$dataset/$regid"
+regcsv="$cfgdir/$regid.csv"
+paropt=($(head -n1 "$regcsv" | tr , '\n'))
+config="$(cat "$etcdir/configs/$regid.template")"
 dofin='Id'
 
-if [ ${BASH_VERSION/.*} -lt 4 ]; then
-  header=()
-  while IFS='\n' read line; do
-    header=("${header[@]}" "$line")
-  done < <(cut -d, -f1 "$regpar")
-else
-  readarray -t header < <(cut -d, -f1 "$regpar")
-fi
-[ ${#header[@]} -ge 1 ] || {
-  error "$regpar: Expected at least one row"
-}
-
-if [ ${BASH_VERSION/.*} -lt 4 ]; then
-  parkey=()
-  while IFS='\n' read line; do
-    parkey=("${parkey[@]}" "$line")
-  done < <(cut -d, -f2 "$regpar")
-else
-  readarray -t parkey < <(cut -d, -f2 "$regpar")
-fi
-[ ${#header[@]} -eq ${#parkey[@]} ] || {
-  error "$regpar: Expected two columns in each row, second column entry may be empty"
-}
-
-c=0
-allsym_col=-1
-while [ $c -lt ${#header[@]} ]; do
-  if [ ${header[c]} = allsym ]; then
-    allsym_col=$c
-  fi
-  let c++
-done
 
 #                   Energy function =
 energy_indentation="                "
@@ -101,14 +71,14 @@ for cfgid in "${cfgids[@]}"; do
     readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
   fi
   [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
-  [ ${#parval[@]} -eq ${#parkey[@]} ] || error "$regcsv: Expected ${#parkey[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+  [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
 
   # get 'allsym' value from CSV if present, otherwise use global value of settings.sh
   [ $allsym_col -lt 0 ] || allsym=${parval[allsym_col]}
 
-  # assemble data terms of energy function and concatenate 'parkey = parval' lines
+  # assemble data terms of energy function
   n=0
-  pars=""
+  bgpars=""
   energy=""
   for chn in "${chns[@]}"; do
     [ -z "$energy" ] || energy="${energy}...\n${energy_indentation}+ "
@@ -121,13 +91,16 @@ for cfgid in "${cfgids[@]}"; do
     let s=$n+2
     if [ "$issym" = true ]; then
       energy="${energy}${term}[Dissimilarity {i}](I($t) o T^-0.5, I($s) o T^0.5)"
+    elif [ "$isic" = true ]; then
+      energy="${energy}${term}[Dissimilarity {i}](I($t) o T^-1, I($s))"
+      energy="${energy}${term}[Dissimilarity {i}](I($t), I($s) o T)"
     else
       energy="${energy}${term}[Dissimilarity {i}](I($t), I($s) o T)"
     fi
     bgvalue="$(get_bgvalue "$chn")"
     if [ -n "$bgvalue" ]; then
-      pars="${pars}\nBackground value of image $t = $bgvalue"
-      pars="${pars}\nBackground value of image $s = $bgvalue"
+      bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
+      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
     fi
     n=$s
   done
@@ -137,12 +110,21 @@ for cfgid in "${cfgids[@]}"; do
   energy="${energy}...\n${energy_indentation}+ 0 LogJac[LogJac penalty](T)"
   energy="${energy}...\n${energy_indentation}+ 0 NegJac[NegJac penalty](T)"
 
+  # substitute values in template configuration
   c=0
-  [ -z "$pars" ] || pars="${pars}\n"
-  while [ $c -lt ${#parkey[@]} ]; do
-    if [ -n "${parkey[c]}" ]; then
-      pars="${pars}\n${parkey[c]} = ${parval[c]}"
-    fi
+  parcfg="${config}"
+  while [ $c -lt ${#paropt[@]} ]; do
+    case "${paropt[c]}" in
+      allsym)
+        allsym="${parval[c]}"
+        ;;
+      inclbg)
+        [ "${parval[c]}" != true ] || bgpars=''
+        ;;
+      *)
+        parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
+        ;;
+    esac
     let c++
   done
 
@@ -154,7 +136,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # write configuration to file
   parin="$pardir/register.cfg"
-  echo -e "Energy function = $energy\n$pars" > "$parin"
+  echo -e "Energy function = $energy\n$bgpars\n$parcfg" > "$parin"
 
   # write job description
   jobdsc="$jobdir/register.condor"

@@ -69,6 +69,16 @@ is_sym()
   fi
 }
 
+# whether registration method uses inverse consistent energy function
+is_ic()
+{
+  if [ "${regid/-ic-/}" != "$regid" ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
 # get filename extension of transformation files
 get_dofsuf()
 {
