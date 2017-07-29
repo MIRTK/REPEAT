@@ -1,0 +1,66 @@
+#!/bin/bash
+
+## Print table with runtime measurements collected by measure-runtime wrapper
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> <cfgid> <tgtid>"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+
+# change to top-level directory
+cd "$topdir" || exit 1
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$setdir/$dataset.sh" || exit 1
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
+[ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+
+# parameter set
+cfgid="$1"; shift
+[ -n "$cfgid" ] || print_help
+
+# target image
+tgtid="$1"; shift
+[ -n "$tgtid" ] || print_help
+
+# directory with log files
+logdir="$vardir/$dataset/$regid/$cfgid/log/register"
+
+# collect runtime measurements in table format [min]
+reformat_runtime()
+{
+  sed -r -e "s/$1[ \\t]+([[:digit:]]+)m([[:digit:]]+(\\.[[:digit:]]+)?)s/\\1 \\2/"
+}
+
+print_runtime()
+{
+  printf '%.5f' $(/usr/bin/bc -l <<< "$1 + $2/60.0")
+}
+
+echo "srcid,real,user,sys"
+for srcid in "${srcids[@]}"; do
+  log="$logdir/$tgtid-$srcid.err"
+  [ -f "$log" ] || continue
+  vals=($(tail -n3 "$log" | reformat_runtime 'real' | reformat_runtime 'user' | reformat_runtime 'sys'))
+  [ $? -eq 0 -a ${#vals[@]} -eq 6 ] || continue
+  echo -n "$srcid,"
+  print_runtime ${vals[0]} ${vals[1]}
+  echo -n ','
+  print_runtime ${vals[2]} ${vals[3]}
+  echo -n ','
+  print_runtime ${vals[4]} ${vals[5]}
+  echo
+done

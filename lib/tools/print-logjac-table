@@ -19,7 +19,7 @@ print_help()
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 
 # change to top-level directory
-cd "$topdir"
+cd "$topdir" || exit 1
 
 # evaluation dataset
 dataset="$1"; shift
