@@ -136,7 +136,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # write configuration to file
   parin="$pardir/register.cfg"
-  echo -e "Energy function = $energy\n$bgpars\n$parcfg" > "$parin"
+  echo -e "Energy function = $energy\n$bgpars\n\n$parcfg" > "$parin"
 
   # write job description
   jobdsc="$jobdir/register.condor"
