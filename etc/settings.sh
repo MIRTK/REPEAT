@@ -40,6 +40,9 @@ evlmte=true
 # when 'true', evaluate Jacobian determinants
 evljac=true
 
+# when 'true', create table with runtime measurements
+evltime=true
+
 # force overwriting previously generated files, include also jobs in batch
 # description that have been run before, i.e., although output files already exist
 force=false

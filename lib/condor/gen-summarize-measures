@@ -73,6 +73,36 @@ else
     makedir "$jobdir"
     makedir "$outdir"
 
+    # create table with runtime measurements
+    if [ "$evltime" = true ]; then
+      jobdsc="$jobdir/summarize-runtime.condor"
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+
+        logdir="$regdir/$cfgid/log/summarize-runtime"
+        makedir "$logdir"
+
+        echo "Update: $jobdsc"
+        cat > "$jobdsc" <<EOF_HEADER
+universe    = vanilla
+executable  = $topdir/$libdir/tools/print-runtime-table
+initialdir  = $topdir
+
+EOF_HEADER
+        for tgtid in "${tgtids[@]}"; do
+          outcsv="$outdir/$tgtid-time.csv"
+          [ $force = true ] || [ ! -f "$outcsv" ] || continue
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
+error     = $logdir/$tgtid.err
+output    = $outcsv
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+        done
+      fi
+    fi
+
     # calculate statistics of Jacobian determinant values
     if [ "$evljac" = true ]; then
       jobdsc="$jobdir/summarize-dof-logjac.condor"
