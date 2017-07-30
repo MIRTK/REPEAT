@@ -88,10 +88,12 @@ is_ic()
 get_dofsuf()
 {
   local regpkg=${1/-*}
-  if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' ]; then
-    echo ".dof.gz"
+  if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' -o "$regpkg" = 'niftyreg' -o "$regpkg" = 'elastix' ]; then
+    echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format by custom scripts
   elif [ "$regpkg" = 'niftyreg' ]; then
-    echo ".nii.gz"
+    echo ".nii.gz"  # unused, but saved anyway
+  elif [ "$regpkg" = 'elastix' ]; then
+    echo ".txt"     # unused, but saved anyway
   else
     error "Unknown registration software: $regpkg! Modify get_dofsuf() in $BASH_SOURCE."
   fi
