@@ -7,6 +7,9 @@
 // For [M]IRTK and NiftyReg, NMI with cubic B-spline Parzen window estimator
 // is commonly used for this type of registration task.
 //
+// Uses StandardGradientDescent optimizer with random samples instead of the
+// full samples and a conjugate gradient descent as MIRTK and NiftyReg F3D.
+//
 // Version: elastix 4.8
 
 (ShowExactMetricValue "false")
@@ -60,7 +63,7 @@
 
 (Optimizer "StandardGradientDescent")
 (SP_alpha 0.6)
-(SP_A 50)
+(SP_A 10)
 (SP_a 1000)
 (MaximumNumberOfIterations 500)
 

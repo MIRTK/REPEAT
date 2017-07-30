@@ -22,7 +22,7 @@ epsilon=1e-05  # i.e., ValueTolerance
 
 # StandardGradientDescent specific paramaters
 alpha=0.6
-A=50
+A=20
 a=1000
 
 # transformation model parameters
@@ -44,10 +44,10 @@ append_row()
 
 # initial model parameter exploration using conjugate gradient descent with line search
 optim='ConjugateGradient'
+iters=100
 for usemsk in false true; do
   for ds in 2.5 5.0; do
     for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
-      iters=100
       append_row
     done
   done

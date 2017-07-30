@@ -1,0 +1,65 @@
+#!/bin/bash
+
+## Generate command-line arguments for elastix using 'Full' ImageSampler
+regid="$(basename "$BASH_SOURCE")"
+regid="${regid/.gen}"
+
+# initial/constant parameter values
+usemsk=false                       # whether to use foreground masks
+interp='Linear'                    # Linear, BSpline
+pyramid='Recursive'                # Recursive, Smoothing, Shrinking
+sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
+bins=64                            # 16, 32, 64
+levels=4                           # 3, 4
+
+# optimization paramaters
+iters=500
+step='4.0 2.0 1.0 0.5'
+adaptive=true
+auto=false
+alpha=1.0
+A=20
+a=1000
+
+# transformation model parameters
+ds=2.5
+be=0.005
+
+# auxiliary function to append row with parameter values
+# Attention: Always ensure that header and order of values is consistent!
+i=0
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+echo "cfgid,usemsk,interp,pyramid,sim,bins,levels,iters,step,adaptive,auto,alpha,A,a,ds,be" > "$parcsv"
+
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  echo "$cfgid,$usemsk,$interp,$pyramid,$sim,$bins,$levels,$iters,$step,$adaptive,$auto,$alpha,$A,$a,$ds,$be" >> "$parcsv"
+}
+
+# try automatic parameter selection
+auto=true
+for ds in 2.5 5.0; do
+  for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
+    for iters in 100 300 500; do
+      append_row
+    done
+  done
+done
+
+# manual exploration of parameters with more informed ds and be values given results with auto=true above
+if [ 1 -ne 1 ]; then
+  auto=false
+  for ds in 2.5 5.0; do
+    for be in 0 0.001 0.01 0.05 0.1 0.2; do
+      for A in 20 50; do
+        for a in 1000 5000 10000 50000 100000 500000; do
+          for iters in 100 300 500; do
+            append_row
+          done
+        done
+      done
+    done
+  done
+fi

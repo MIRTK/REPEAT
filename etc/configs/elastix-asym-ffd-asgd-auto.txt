@@ -1,10 +1,10 @@
-// Same as elastix-classic-cgd, except for the use of the
+// Same as elastix-asym-ffd-cgd, except for the use of the
 // AdaptiveStochasticGradientDescent optimizer with random sample selection
 // instead of a conjugate gradient descent with full samples.
 //
 // Option AutomaticParameterEstimation is enabled ("true").
 // This prolonges runtime, however. For runtime comparison, consider setting
-// parameters reported in the log file in elastix-classic-asgd-tune instead.
+// parameters reported in the log file in elastix-asym-ffd-asgd-tune instead.
 //
 // Version: elastix 4.8
 
@@ -69,12 +69,16 @@
 (NoiseCompensation "true")
 (MaximumNumberOfIterations 300)
 (MaximumStepLength 0.5)
-(SP_A 20)
+(SigmoidInitialTime 0)
+(SigmoidScaleFactor 0.1)
+(MaxBandCovSize 192)
+(NumberOfBandStructureSamples 10)
 (UseAdaptiveStepSizes "true")  // unused when ImageSampler is RandomCoordinate
+(SP_A 20)
 
 (ImageSampler "Random")
 (NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 2000 3000 4000 8000)
+(NumberOfSpatialSamples 1000 2000 4000 8000)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)

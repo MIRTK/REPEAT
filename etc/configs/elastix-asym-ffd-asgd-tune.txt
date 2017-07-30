@@ -1,8 +1,6 @@
-// Same as elastix-classic-cgd, except for the use of the
-// AdaptiveStochasticGradientDescent optimizer with random sample selection
-// instead of a conjugate gradient descent with full samples.
+// Same as elastix-asym-ffd-asgd-auto, except for
+//   (AutomaticParameterEstimation "false")
 //
-// Option AutomaticParameterEstimation is disabled ("false").
 // See elastix manual at http://elastix.isi.uu.nl/download/elastix_manual_v4.8.pdf
 // page 29 for advise on setting SP_alpha, SP_A, and SP_a.
 //
@@ -62,7 +60,7 @@
 (Optimizer "AdaptiveStochasticGradientDescent")
 (AutomaticParameterEstimation "false")
 (SP_alpha 0.6)
-(SP_A 20.0)
+(SP_A 20)
 (SP_a 1000 5000 8000 10000)
 (MaximumNumberOfIterations 300)
 (MaximumStepLength 0.5)
@@ -71,7 +69,7 @@
 
 (ImageSampler "Random")
 (NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 2000 3000 4000 8000)
+(NumberOfSpatialSamples 1000 2000 4000 8000)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)
