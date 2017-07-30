@@ -19,13 +19,13 @@ l2=0
 # Attention: Always ensure that header and order of values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,sim,bins,ln,maxit,sx,sy,sz,be,jl,le,l2" > "$parcsv"
+echo "cfgid,sim,bins,ln,maxit,ds,be,jl,le,l2" > "$parcsv"
 
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$ds,$ds,$be,$jl,$le,$l2" >> "$parcsv"
+  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2" >> "$parcsv"
 }
 
 # initial parameter exploration
