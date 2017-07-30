@@ -15,19 +15,27 @@ run cd "$topdir"
 makedir "$cfgdir"
 
 # initial/constant parameter values
+usemsk=false                       # whether to use foreground masks
 interp='Linear'                    # Linear, BSpline
 pyramid='Recursive'                # Recursive, Smoothing, Shrinking
 optim='ConjugateGradient'          # StandardGradientDescent, ConjugateGradient, ConjugateGradientFRPR
-cgtype='PolakRibiere'              # used by ConjugateGradient only
 sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
 bins=64                            # 16, 32, 64
 levels=4                           # 3, 4
 iters=100                          # StandardGradientDescent: 100-500; ConjugateGradient: ~100
-steps=20                           # not used by StandardGradientDescent
-step=0.5
+
+# ConjugateGradient specific parameters
+cgtype='PolakRibiere'
+steps=20
+step='4.0 2.0 1.0 0.5'
+epsilon=1e-05  # i.e., ValueTolerance
+
+# StandardGradientDescent specific paramaters
 alpha=0.6
 A=50
 a=1000
+
+# transformation model parameters
 ds=2.5
 be=0.005
 
@@ -35,21 +43,37 @@ be=0.005
 # Attention: Always ensure that header and order of values is consistent!
 i=0
 parcsv="$cfgdir/$regid.csv"
-echo "cfgid,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,step,alpha,A,a,ds,be" > "$parcsv"
+echo "cfgid,usemsk,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,step,epsilon,alpha,A,a,ds,be" > "$parcsv"
 
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$alpha,$A,$a,$ds,$be" >> "$parcsv"
+  echo "$cfgid,$usemsk,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$epsilon,$alpha,$A,$a,$ds,$be" >> "$parcsv"
 }
 
-# initial parameter exploration
-for step in 0.5 1.0; do
-for bins in 32 64; do
-for ds in 2.5 5.0; do
-for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
-  for a in 100 1000 10000 100000; do
-    append_row
+# initial model parameter exploration using conjugate gradient descent with line search
+optim='ConjugateGradient'
+for usemsk in false true; do
+  for ds in 2.5 5.0; do
+    for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
+      iters=100
+      append_row
+    done
   done
-done; done; done; done
+done
+
+# once initial parameter exploration done, try standard gradient descent
+# with (more) informed control point spacing and bending energy weight choices
+if [ 1 -ne 1 ]; then
+  optim='StandardGradientDescent'
+  ds=5.0
+  be=0.05
+  for A in 20 50; do
+    for a in 1000 5000 10000 50000 100000 500000; do
+      for iters in 100 300 500; do
+        append_row
+      done
+    done
+  done
+fi

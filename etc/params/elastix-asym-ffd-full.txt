@@ -71,7 +71,7 @@
 (LineSearchGradientTolerance 0.9)
 (LineSearchValueTolerance 0.0001)
 (GradientMagnitudeTolerance 1e-06)
-(ValueTolerance 1e-05)
+(ValueTolerance <epsilon>)
 (StopIfWolfeNotSatisfied "true")
 (StepLength <step>)
 
