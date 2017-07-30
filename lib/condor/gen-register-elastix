@@ -89,9 +89,16 @@ for cfgid in "${cfgids[@]}"; do
 
     # substitute values in template configuration
     c=0
+    if [ -n "$bgvalue" ]; then
+      usemsk=true
+    else
+      usemsk=false
+    fi
     parcfg="${config}"
     while [ $c -lt ${#paropt[@]} ]; do
-      if [ -n "${paropt[c]}" ]; then
+      if [ "${paropt[c]}" = 'usemsk' ]; then
+        usemsk=${parval[c]}
+      elif [ -n "${paropt[c]}" ]; then
         parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
       fi
       let c++
@@ -128,7 +135,7 @@ EOF_HEADER
       [ $force = true ] || [ ! -f "$dofout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       args=()
-      if [ -n "$bgvalue" ]; then
+      if [ "$usemsk" = true ]; then
         args=("${args[@]}" -fMask "'$mskdir/$tgtid$imgsuf'" -mMask "'$mskdir/$srcid$imgsuf'")
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
