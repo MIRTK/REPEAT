@@ -54,8 +54,14 @@ for usemsk in false true; do
 done
 
 # surprisingly, results with ALBERTs dataset were best with highest bending energy weight...
+usemsk=true
 for ds in 2.5 5.0; do
   for be in 0.8 1.0 1.2 1.4; do
+    append_row
+  done
+done
+for ds in 2.5 5.0; do
+  for be in 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0; do
     append_row
   done
 done
