@@ -330,9 +330,9 @@ EOF_JOB
             done
             cat >> "$jobdsc" <<EOF_JOB
 arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
-error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
-log       = $logdir/$tgtid.log
+error     = $logdir/$measure.err
+output    = $logdir/$measure.out
+log       = $logdir/$measure.log
 queue
 
 EOF_JOB
