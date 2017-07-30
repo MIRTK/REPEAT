@@ -63,7 +63,7 @@
 (AutomaticParameterEstimation "false")
 (SP_alpha 0.6)
 (SP_A 20.0)
-(SP_a 100000.0)
+(SP_a 1000 5000 8000 10000)
 (MaximumNumberOfIterations 300)
 (MaximumStepLength 0.5)
 (NoiseCompensation "true")
@@ -75,13 +75,3 @@
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)
-
-
-// Other parameters set to the default values mentioned in the warning messages
-(SigmoidMax 1.0)
-(SigmoidMin -0.8)
-(SigmoidScale 1e-8)
-(NumberOfBandStructureSamples 10)
-(MaxBandCovSize 192)
-(SigmoidInitialTime 0)
-
