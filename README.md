@@ -26,7 +26,7 @@ using an available brain image dataset, best with available manual annotations.
   - On Linux, save (or link) downloaded MIRTK AppImage in this directory, e.g.,
     ```
     appimage=MIRTK-latest-x86_64-glibc2.14.AppImage
-    wget -O bin/mirtk https://bintray.com/schuhschuh/AppImages/download_file?file_path=$appimage
+    mkdir -p opt && wget -O opt/mirtk https://bintray.com/schuhschuh/AppImages/download_file?file_path=$appimage
     ```
 * `var/cache`
   - Output directory for (temporary) data files.
