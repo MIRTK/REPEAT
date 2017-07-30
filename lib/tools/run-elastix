@@ -79,6 +79,7 @@ args=(-out "$tmpdir" -p "$partxt" -f "$tgtimg" -m "$srcimg")
 [ -z "$srcmsk"  ] || args=("${args[@]}" -mMask "$srcmsk")
 [ -z "$threads" ] || args=("${args[@]}" -threads "$threads")
 
+echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$elastix/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$elastix/lib:$DYLD_LIBRARY_PATH"
 time run "$elastix/bin/elastix" "${args[@]}"

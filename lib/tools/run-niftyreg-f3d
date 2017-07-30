@@ -38,6 +38,7 @@ run()
   }
 }
 
+echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
 time run "$niftyreg/bin/reg_f3d" "$@" -res "$res"
