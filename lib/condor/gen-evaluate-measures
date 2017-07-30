@@ -70,8 +70,8 @@ refbgv=$(get_bgvalue "$refmod")
 if [ "$regid" = 'affine' ]; then
 
   cfgids=('')
-  tgtids=("${imgids[0]}")
-  srcids=("${imgids[@]:1}")
+  tgtids=("${imgids[@]}")
+  srcids=("${imgids[@]}")
   evljac=false
   evlice=false
   evlmte=false
@@ -269,7 +269,8 @@ EOF_HEADER
         [ $measure != 'overlap' ] || measure='dsc'
         if [ $(is_overlap_measure $measure) = true ]; then
 
-          outdir="$csvdir/$dataset/$regid/$cfgid"
+          outdir="$csvdir/$dataset/$regid"
+          [ -z "$cfgid" ] || outdir="$outdir/$cfgid"
           makedir "$outdir"
 
           if [ -z "$kind" ]; then
@@ -279,11 +280,17 @@ EOF_HEADER
             outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
             images=()
-            for srcid in "${srcids[@]}"; do
-              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
-            done
+            if [ $regid = 'affine' ]; then
+              for srcid in "${srcids[@]}"; do
+                images=("${images[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
+              done
+            else
+              for srcid in "${srcids[@]}"; do
+                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+              done
+            fi
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-overlap '$imgdir/$imgpre$tgtid-$tgtid$imgsuf' ${images[@]} $kind -metric $measure -precision 5 -table '$outcsv'"
+arguments = "evaluate-overlap '$imgdir/$imgpre$tgtid$imgsuf' ${images[@]} $kind -metric $measure -precision 5 -table '$outcsv'"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
@@ -296,7 +303,7 @@ EOF_JOB
         # evaluate voxel-wise measures
         else
 
-          outdir="$regdir/evl/$mod/$measure"
+          outdir="$regdir/evl/$mod"
           makedir "$outdir"
 
           padding=''
@@ -316,12 +323,10 @@ EOF_JOB
             fi
           fi
 
-          for tgtid in "${tgtids[@]}"; do
-            outimg="$outdir/$tgtid.nii.gz"
-            [ $force = true ] || [ ! -f "$outimg" ] || continue
-            images=()
-            for srcid in "${srcids[@]}"; do
-              images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+          if [ $regid = 'affine' ]; then
+            outimg="$outdir/$measure.nii.gz"
+            for imgid in "${imgids[@]}"; do
+              images=("${images[@]}" "'$imgdir/$imgpre$imgid$imgsuf'")
             done
             cat >> "$jobdsc" <<EOF_JOB
 arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
@@ -331,7 +336,24 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-          done
+          else
+            for tgtid in "${tgtids[@]}"; do
+              outimg="$outdir/$tgtid.nii.gz"
+              [ $force = true ] || [ ! -f "$outimg" ] || continue
+              images=()
+              for srcid in "${srcids[@]}"; do
+                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+              done
+              cat >> "$jobdsc" <<EOF_JOB
+arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+            done
+          fi
         fi
       else
         echo "Exists: $jobdsc"
