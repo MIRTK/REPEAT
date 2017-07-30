@@ -1,12 +1,5 @@
 /etc/params/*.csv
+/opt
 /tmp
 /var
-/bin/mirtk
-/bin/mirtk-*
-/bin/irtk
-/bin/irtk-*
-/bin/niftyreg
-/bin/niftyreg-*
-/bin/elastix
-/bin/elastix-*
 .ipynb_checkpoints

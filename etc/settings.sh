@@ -8,26 +8,27 @@ topdir="$(cd "$(dirname "$BASH_SOURCE")/.." && pwd)"
 bindir="bin"
 libdir="lib"
 etcdir="etc"
+optdir="opt"             # directory of registration commands / symbolic links to installations
 cfgdir="$etcdir/params"  # CSV tables with sets of registration parameters
 setdir="$etcdir/dataset" # dataset Shell configuration files
 vardir="var/cache"       # root directory for computed data
 csvdir="var/table"       # summary tables of average quality measures
 
 # path of MIRTK's "mirtk" executable, either absolute or relative to topdir
-# recommended: on Linux, download MIRTK AppImage to "$bindir/" and "chmod +x $bindir/mirtk"
-mirtk="$bindir/mirtk"
+# recommended: on Linux, download MIRTK AppImage to "$optdir/" and "chmod +x $optdir/mirtk"
+mirtk="$optdir/mirtk"
 
 # path of directory containing IRTK binaries, either absolute or relative to topdir
-# recommended: create symbolic link "$bindir/irtk" with absolute path to actual installation
-irtk="$bindir/irtk"
+# recommended: create symbolic link "$optdir/irtk" with absolute path to actual installation
+irtk="$optdir/irtk"
 
 # path of directory containing NiftyReg installation, either absolute or relative to topdir
-# recommended: create symbolic link "$bindir/niftyreg" with absolute path to actual installation
-niftyreg="$bindir/niftyreg"
+# recommended: create symbolic link "$optdir/niftyreg" with absolute path to actual installation
+niftyreg="$optdir/niftyreg"
 
 # path of directory containing elastix installation, either absolute or relative to topdir
-# recommended: create symbolic link "$bindir/elastix" with absolute path to actual installation
-elastix="$bindir/elastix"
+# recommended: create symbolic link "$optdir/elastix" with absolute path to actual installation
+elastix="$optdir/elastix"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
