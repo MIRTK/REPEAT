@@ -2,6 +2,7 @@
 
 ## Generate configuration files for IRTK 'nreg' command
 regid="$(basename "$BASH_SOURCE")"
+regid="${regid/.gen}"
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1

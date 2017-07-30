@@ -3,6 +3,7 @@
 ## Generate configuration files for MIRTK 'register' command
 ## using asymmetric energy formulation and classic FFD model
 regid="$(basename "$BASH_SOURCE")"
+regid="${regid/.gen}"
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
