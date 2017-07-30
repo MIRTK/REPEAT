@@ -70,8 +70,8 @@ refbgv=$(get_bgvalue "$refmod")
 if [ "$regid" = 'affine' ]; then
 
   cfgids=('')
-  tgtids=("${imgids[@]}")
-  srcids=("${imgids[@]}")
+  tgtids=("${imgids[0]}")
+  srcids=("${imgids[@]:1}")
   evljac=false
   evlice=false
   evlmte=false
