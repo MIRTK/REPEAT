@@ -1,11 +1,11 @@
 #!/bin/bash
 
-## Convenience script to generate and execute HTCondor batch jobs
+## Main script to generate and execute HTCondor batch jobs
 ##
 ## This script checks which step was last completed, and then
 ## generates the job description files for the next step in the
 ## workflow. It has to be run multiple times until all steps
-## are done, as indicated by a message to STDOUT.
+## are done, as indicated by the last message to STDOUT.
 
 print_help()
 {
@@ -58,25 +58,33 @@ let N="${#tgtids[@]} * ${#srcids[@]}"
 regid="$1"; shift
 [ -n "$regid" ] || print_help
 
-# generate parameter sets
-regcsv="$cfgdir/$regid.csv"
-regcfg="$cfgdir/$regid.cfg"
-if [ ! -f "$regcsv" ] && [ ! -f "$regcfg" ]; then
-  if [ ! -f "$cfgdir/$regid.gen" ]; then
-    error "Require either one of '$cfgdir/$regid.{csv,cfg,gen}'"
+# generate parameters CSV or check existence of it or preset .cfg file
+regcfg_found=false
+for cfgpre in "$dataset/" ''; do
+  if [ -f "$cfgdir/$cfgpre$regid.csv" ] || [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
+    regcfg_found=true
+    break
   fi
-  run "$cfgdir/$regid.gen"
+  if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
+    run "$cfgdir/$cfgpre$regid.gen"
+    regcfg_found=true
+    break
+  fi
+done
+if [ $regcfg_found = false ]; then
+  error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,cfg,gen}'"
 fi
 
 # IDs of parameter sets
 cfgids=("$@")
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 issym="$(is_sym $regid)"
 
 # registration tool specific settings
 mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
 dofsuf=$(get_dofsuf "$regid")
+[ -n "$dofsuf" ] || error "get_dofsuf() not defined for $regid"
 imgsuf=".nii.gz"
 
 # ------------------------------------------------------------------------------

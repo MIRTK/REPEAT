@@ -41,7 +41,7 @@ bgvalue="$(get_bgvalue "$chn")"
 
 # IDs of parameter sets
 cfgids=("$@")
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # affinely pre-aligned images
@@ -60,10 +60,18 @@ if [ -n "$bgvalue" ]; then
   done
 fi
 
+# dataset and registration specific parameters
+if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
+  regcsv="$cfgdir/$dataset/$regid.csv"
+elif [ -f "$cfgdir/$regid.csv" ]; then
+  regcsv="$cfgdir/$regid.csv"
+else
+  error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
+fi
+paropt=($(head -n1 "$regcsv" | tr , '\n'))
+
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
-regcsv="$cfgdir/$regid.csv"
-paropt=($(head -n1 "$regcsv" | tr , '\n'))
 
 for cfgid in "${cfgids[@]}"; do
 

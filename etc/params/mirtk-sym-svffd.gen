@@ -4,14 +4,6 @@
 regid="$(basename "$BASH_SOURCE")"
 regid="${regid/.gen}"
 
-# load settings and auxiliary functions
-. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
-[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
-[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
-
-# change to top-level directory
-run cd "$topdir"
-
 # constants
 allsym=false
 model='SVFFD'
@@ -28,9 +20,9 @@ levels=4
 maxsv=0
 
 # write header and text file with long header names
-makedir "$cfgdir"
+outdir="$(dirname "$BASH_SOURCE")"
 
-cat > "$cfgdir/$regid.par" <<EOF_HEADER_TO_PARNAME
+cat > "$outdir/$regid.par" <<EOF_HEADER_TO_PARNAME
 cfgid,
 allsym,
 mffd,Multi-level transformation
@@ -53,7 +45,7 @@ negjac,NegJac penalty weight
 divini,Divide data terms by initial value
 EOF_HEADER_TO_PARNAME
 
-parcsv="$cfgdir/$regid.csv"
+parcsv="$outdir/$regid.csv"
 echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,levels,sim,bins,window,be,tp,vp,logjac,negjac,divini" > "$parcsv"
 
 # write parameter values

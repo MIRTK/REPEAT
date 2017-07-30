@@ -41,19 +41,28 @@ regcmd=${regid/*-}
 
 # IDs of parameter sets
 cfgids=("$@")
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
-# generate job description for each configuration
-regcsv="$cfgdir/$regid.csv"
-regdir="$vardir/$dataset/$regid"
+# dataset and registration specific parameters
+if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
+  regcsv="$cfgdir/$dataset/$regid.csv"
+  config="$(cat "$cfgdir/$dataset/$regid.txt")"
+  [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$dataset/$regid.txt"
+elif [ -f "$cfgdir/$regid.csv" ]; then
+  regcsv="$cfgdir/$regid.csv"
+  config="$(cat "$cfgdir/$regid.txt")"
+  [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$regid.txt"
+else
+  error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
+fi
 paropt=($(head -n1 "$regcsv" | tr , '\n'))
 
+# generate job description for each configuration
+regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
-
-config="$(cat "$cfgdir/$regid.txt")"
 
 for cfgid in "${cfgids[@]}"; do
   jobdir="$regdir/$cfgid/bin"

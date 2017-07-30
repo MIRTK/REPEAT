@@ -4,17 +4,6 @@
 regid="$(basename "$BASH_SOURCE")"
 regid="${regid/.gen}"
 
-# load settings and auxiliary functions
-. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
-[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
-[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
-
-# change to top-level directory
-run cd "$topdir"
-
-# create output directory
-makedir "$cfgdir"
-
 # initial/constant parameter values
 interp='Linear'
 optim='GradientDescent'
@@ -30,7 +19,7 @@ ds=20     # initial control point spacing!
 # auxiliary function to append row with parameter values
 # Attention: Always ensure that header and order of values is consistent!
 i=0
-parcsv="$cfgdir/$regid.csv"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 echo "cfgid,interp,optim,levels,iters,steps,step,epsilon,sim,bins,ds,be,tp,vp" > "$parcsv"
 
 append_row()

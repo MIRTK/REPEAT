@@ -53,7 +53,7 @@ else
   [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
   cfgids=("$@")
-  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$regid"))
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
   [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
   regdir="$vardir/$dataset/$regid"

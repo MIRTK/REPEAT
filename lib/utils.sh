@@ -45,18 +45,32 @@ relpath()
 # for a given registration tool that are being evaluated
 get_cfgids()
 {
-  local regid="$1"
-  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$regid" ]; then
-    regcsv="$topdir/$cfgdir/$regid.csv"
-    if [ ! -f "$regcsv" ]; then
-      reggen="$topdir/$cfgdir/$regid.gen"
-      if [ -f "$reggen" ]; then
-        run "$reggen"
-      else
-        error "get_cfgids: Neither $regcsv nor $reggen script found"
+  local dataset="$1"
+  local regid="$2"
+  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$dataset" -a -n "$regid" ]; then
+    local regcsv cfgpre
+    for cfgpre in "$dataset/" ''; do
+      if [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
+        echo "$cfgpre$regid.cfg"
+        break
       fi
+      if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
+        regcsv="$cfgdir/$cfgpre$regid.csv"
+        break
+      fi
+      if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
+        run "$cfgdir/$cfgpre$regid.gen"
+        if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
+          regcsv="$cfgdir/$cfgpre$regid.csv"
+        else
+          error "Script '$cfgdir/$cfgpre$regid.gen' expected to create file: $cfgdir/$cfgpre$regid.csv"
+        fi
+        break
+      fi
+    done
+    if [ -n "$regcsv" ]; then
+      tail -n +2 "$regcsv" | cut -d, -f1
     fi
-    tail -n +2 "$regcsv" | cut -d, -f1
   fi
 }
 

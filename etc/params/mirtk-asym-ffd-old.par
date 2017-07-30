@@ -1,0 +1,13 @@
+cfgid,
+mffd,Multi-level transformation
+model,Transformation model
+ds,Control point spacing
+levels,No. of resolution levels
+sim,Image dissimilarity measure
+bins,No. of bins
+window,Local window size
+be,Bending energy weight
+tp,Topology preservation weight
+vp,Volume preservation weight
+jaceps,Jacobian determinant epsilon
+divini,Divide data terms by initial value
