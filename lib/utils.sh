@@ -46,8 +46,17 @@ relpath()
 get_cfgids()
 {
   local regid="$1"
-  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$regid" -a -f "$topdir/$cfgdir/$regid.csv" ]; then
-    tail -n +2 "$topdir/$cfgdir/$regid.csv" | cut -d, -f1
+  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$regid" ]; then
+    regcsv="$topdir/$cfgdir/$regid.csv"
+    if [ ! -f "$regcsv" ]; then
+      reggen="$topdir/$cfgdir/$regid.gen"
+      if [ -f "$reggen" ]; then
+        run "$reggen"
+      else
+        error "get_cfgids: Neither $regcsv nor $reggen script found"
+      fi
+    fi
+    tail -n +2 "$regcsv" | cut -d, -f1
   fi
 }
 
