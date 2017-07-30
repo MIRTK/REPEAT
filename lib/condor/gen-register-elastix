@@ -109,7 +109,7 @@ for cfgid in "${cfgids[@]}"; do
     makedir "$jobdir"
 
     # write configuration to file
-    regcfg="$pardir/register.cfg"
+    regcfg="$pardir/register.txt"
     echo -e "$parcfg" > "$regcfg"
 
     # write job description
