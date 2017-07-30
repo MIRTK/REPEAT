@@ -50,11 +50,12 @@ fi
 if [ "$regid" = 'affine' ]; then
 
   cfgids=('')
-  tgtids=("${imgids[0]}")
-  srcids=("${imgids[@]:1}")
+  tgtids=("${imgids[@]}")
+  srcids=("${imgids[@]}")
   evljac=false
   evlice=false
   evlmte=false
+  evltime=false
 
 # ------------------------------------------------------------------------------
 # average quality measures of pairwise deformations
@@ -164,42 +165,31 @@ initialdir   = $topdir
 
 EOF_HEADER
 
-    for tgtid in "${tgtids[@]}"; do
+    if [ $regid = 'affine' ]; then
 
-      outcsv="$outdir/$tgtid-mean.csv"
-      stdcsv="$outdir/$tgtid-sdev.csv"
-      numcsv="$outdir/$tgtid-size.csv"
+      outcsv="$outdir/mean.csv"
+      stdcsv="$outdir/sdev.csv"
+      numcsv="$outdir/size.csv"
       [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
 
       val_names=()
       val_paths=()
-      if [ $evlice = true ]; then
-        measure="mice"
-        val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
-        val_names=("${val_names[@]}" "'${measure}'")
-        val_paths=("${val_paths[@]}" "'$val_path'")
-      fi
-      if [ $evlmte = true ]; then
-        measure="mte"
-        val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
-        val_names=("${val_names[@]}" "'${measure}'")
-        val_paths=("${val_paths[@]}" "'$val_path'")
-      fi
       for mod in "${mods[@]}"; do
         for measure in $(get_measures "$mod"); do
           [ $measure != 'overlap' ] || measure='dsc'
           [ $(is_overlap_measure $measure) != true ] || continue
-          val_path="$regdir/evl/$mod/$measure/$tgtid.nii.gz"
+          val_path="$regdir/evl/$mod/$measure.nii.gz"
           val_names=("${val_names[@]}" "'${mod}_${measure}'")
           val_paths=("${val_paths[@]}" "'$val_path'")
         done
       done
 
+      # FIXME: Use average of all labels instead of refid, requires change of gen-create-roi-masks...
       roi_names=()
       roi_paths=()
       for roi in "${rois[@]}"; do
         if [ $(is_seg "$roi") = true ]; then
-          for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
+          for roi_path in $(find "$roidir/$roi" -name "$refid-l*.nii.gz" | sort); do
             label="$(basename "$roi_path")"
             label=${roi_path%.nii.gz}
             label=${label/*-l}
@@ -207,7 +197,7 @@ EOF_HEADER
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
           done
         else
-          roi_path="$imgdir/$roi/$tgtid.nii.gz"
+          roi_path="$imgdir/$roi/$refid.nii.gz"
           roi_names=("${roi_names[@]}" "'$roi'")
           roi_paths=("${roi_paths[@]}" "'$roi_path'")
         fi
@@ -222,7 +212,69 @@ queue
 
 EOF_JOB
 
-    done # for tgtid
+
+    else
+
+      for tgtid in "${tgtids[@]}"; do
+
+        outcsv="$outdir/$tgtid-mean.csv"
+        stdcsv="$outdir/$tgtid-sdev.csv"
+        numcsv="$outdir/$tgtid-size.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
+
+        val_names=()
+        val_paths=()
+        if [ $evlice = true ]; then
+          measure="mice"
+          val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${measure}'")
+          val_paths=("${val_paths[@]}" "'$val_path'")
+        fi
+        if [ $evlmte = true ]; then
+          measure="mte"
+          val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${measure}'")
+          val_paths=("${val_paths[@]}" "'$val_path'")
+        fi
+        for mod in "${mods[@]}"; do
+          for measure in $(get_measures "$mod"); do
+            [ $measure != 'overlap' ] || measure='dsc'
+            [ $(is_overlap_measure $measure) != true ] || continue
+            val_path="$regdir/evl/$mod/$measure/$tgtid.nii.gz"
+            val_names=("${val_names[@]}" "'${mod}_${measure}'")
+            val_paths=("${val_paths[@]}" "'$val_path'")
+          done
+        done
+
+        roi_names=()
+        roi_paths=()
+        for roi in "${rois[@]}"; do
+          if [ $(is_seg "$roi") = true ]; then
+            for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
+              label="$(basename "$roi_path")"
+              label=${roi_path%.nii.gz}
+              label=${label/*-l}
+              roi_names=("${roi_names[@]}" "'$roi=$label'")
+              roi_paths=("${roi_paths[@]}" "'$roi_path'")
+            done
+          else
+            roi_path="$imgdir/$roi/$tgtid.nii.gz"
+            roi_names=("${roi_names[@]}" "'$roi'")
+            roi_paths=("${roi_paths[@]}" "'$roi_path'")
+          fi
+        done
+
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+
+      done # for tgtid
+    fi # regid = affine
   else
     echo "Exists: $jobdsc"
   fi
