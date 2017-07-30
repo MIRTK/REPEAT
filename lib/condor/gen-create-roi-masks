@@ -42,13 +42,36 @@ regid="$1"; shift
 # create ROI masks for evaluation of affine pre-alignment
 if [ "$regid" = 'affine' ]; then
 
+  cfgids=('')
+  tgtids=("${imgids[@]}")
+  srcids=("${imgids[@]}")
+
+# ------------------------------------------------------------------------------
+# create ROI masks for evaluation of pairwise deformations
+else
+
+  cfgids=("$@")
+  [ ${#cfgids}    -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+  [ ${#cfgids}    -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+fi
+
+# ------------------------------------------------------------------------------
+# for each configuration... (single iteration for regid='affine')
+for cfgid in "${cfgids[@]}"; do
+
   regdir="$vardir/$dataset/$regid"
+  [ -z "$cfgid" ] || regdir="$regdir/$cfgid"
+
   jobdir="$regdir/bin"
   imgdir="$regdir/out"
   imgsuf=".nii.gz"
 
   for roi in "${rois[@]}"; do
     if [ "$(is_seg "$roi")" = true ]; then
+      
       jobdsc="$jobdir/create-$roi-masks.condor"
       if [ $update = true ] || [ ! -f "$jobdsc" ]; then
         echo "Update: $jobdsc"
@@ -84,63 +107,4 @@ EOF_JOB
       fi
     fi
   done
-
-# ------------------------------------------------------------------------------
-# create ROI masks for evaluation of pairwise deformations
-else
-
-  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
-  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
-
-  cfgids=("$@")
-  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-
-  for cfgid in "${cfgids[@]}"; do
-
-    regdir="$vardir/$dataset/$regid/$cfgid"
-    jobdir="$regdir/bin"
-    imgdir="$regdir/out"
-    imgsuf=".nii.gz"
-
-    for roi in "${rois[@]}"; do
-      if [ "$(is_seg "$roi")" = true ]; then
-        
-        jobdsc="$jobdir/create-$roi-masks.condor"
-        if [ $update = true ] || [ ! -f "$jobdsc" ]; then
-          echo "Update: $jobdsc"
-
-          imgpre="$roi/"
-          outdir="$regdir/roi/$roi"
-          logdir="$regdir/log/create-$roi-masks"
-
-          makedir "$jobdir"
-          makedir "$outdir"
-          makedir "$logdir"
-
-          cat > "$jobdsc" <<EOF_HEADER
-universe   = vanilla
-executable = $mirtk
-initialdir = $topdir
-
-EOF_HEADER
-          for tgtid in "${tgtids[@]}"; do
-            outimg="$outdir/${tgtid}-l%02d.nii.gz"
-            [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
-            cat >> "$jobdsc" <<EOF_JOB
-arguments = "average-images '$outimg' -image '$imgdir/$imgpre$tgtid$imgsuf' -target '$imgdir/$imgpre$tgtid$imgsuf' -labels -dtype uchar -v"
-error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
-log       = $logdir/$tgtid.log
-queue
-
-EOF_JOB
-          done
-        else
-          echo "Exists: $jobdsc"
-        fi
-      fi
-    done
-  done
-
-fi
+done

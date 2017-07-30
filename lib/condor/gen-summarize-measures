@@ -49,49 +49,59 @@ fi
 # average quality measures of affine pre-alignment
 if [ "$regid" = 'affine' ]; then
 
-  # TODO
-  false
+  cfgids=('')
+  tgtids=("${imgids[@]}")
+  srcids=("${imgids[@]}")
+  evljac=false
+  evlice=false
+  evlmte=false
 
 # ------------------------------------------------------------------------------
 # average quality measures of pairwise deformations
 else
 
+  cfgids=("$@")
+  [ ${#cfgids}    -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+  [ ${#cfgids}    -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
   [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
   [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
-  cfgids=("$@")
-  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+fi
+
+# ------------------------------------------------------------------------------
+# for each configuration... (single iteration for regid='affine')
+for cfgid in "${cfgids[@]}"; do
 
   regdir="$vardir/$dataset/$regid"
+  outdir="$csvdir/$dataset/$regid"
+  if [ -n "$cfgid" ]; then
+    regdir="$regdir/$cfgid"
+    outdir="$outdir/$cfgid"
+  fi
+  jobdir="$regdir/bin"
 
-  for cfgid in "${cfgids[@]}"; do
+  makedir "$jobdir"
+  makedir "$outdir"
 
-    jobdir="$regdir/$cfgid/bin"
-    outdir="$csvdir/$dataset/$regid/$cfgid"
+  # create table with runtime measurements
+  if [ "$evltime" = true ]; then
+    jobdsc="$jobdir/summarize-runtime.condor"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-    makedir "$jobdir"
-    makedir "$outdir"
+      logdir="$regdir/log/summarize-runtime"
+      makedir "$logdir"
 
-    # create table with runtime measurements
-    if [ "$evltime" = true ]; then
-      jobdsc="$jobdir/summarize-runtime.condor"
-      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
-
-        logdir="$regdir/$cfgid/log/summarize-runtime"
-        makedir "$logdir"
-
-        echo "Update: $jobdsc"
-        cat > "$jobdsc" <<EOF_HEADER
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
 universe    = vanilla
 executable  = $topdir/$libdir/tools/print-runtime-table
 initialdir  = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          outcsv="$outdir/$tgtid-time.csv"
-          [ $force = true ] || [ ! -f "$outcsv" ] || continue
-          cat >> "$jobdsc" <<EOF_JOB
+      for tgtid in "${tgtids[@]}"; do
+        outcsv="$outdir/$tgtid-time.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
 error     = $logdir/$tgtid.err
 output    = $outcsv
@@ -99,29 +109,29 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-        done
-      fi
+      done
     fi
+  fi
 
-    # calculate statistics of Jacobian determinant values
-    if [ "$evljac" = true ]; then
-      jobdsc="$jobdir/summarize-dof-logjac.condor"
-      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+  # calculate statistics of Jacobian determinant values
+  if [ "$evljac" = true ]; then
+    jobdsc="$jobdir/summarize-dof-logjac.condor"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-        logdir="$regdir/$cfgid/log/summarize-dof-logjac"
-        makedir "$logdir"
+      logdir="$regdir/log/summarize-dof-logjac"
+      makedir "$logdir"
 
-        echo "Update: $jobdsc"
-        cat > "$jobdsc" <<EOF_HEADER
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
 universe    = vanilla
 executable  = $topdir/$libdir/tools/print-logjac-table
 initialdir  = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          outcsv="$outdir/$tgtid-logjac.csv"
-          [ $force = true ] || [ ! -f "$outcsv" ] || continue
-          cat >> "$jobdsc" <<EOF_JOB
+      for tgtid in "${tgtids[@]}"; do
+        outcsv="$outdir/$tgtid-logjac.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
 error     = $logdir/$tgtid.err
 output    = $outcsv
@@ -129,22 +139,22 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-        done
-      fi
+      done
     fi
+  fi
 
-    # average voxel-wise measures
-    jobdsc="$jobdir/average-measures.condor"
-    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+  # average voxel-wise measures
+  jobdsc="$jobdir/average-measures.condor"
+  if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-      imgdir="$vardir/$dataset/affine/out"
-      roidir="$regdir/$cfgid/roi"
-      logdir="$regdir/$cfgid/log/average-measures"
+    imgdir="$vardir/$dataset/affine/out"
+    roidir="$regdir/roi"
+    logdir="$regdir/log/average-measures"
 
-      makedir "$logdir"
+    makedir "$logdir"
 
-      echo "Update: $jobdsc"
-      cat > "$jobdsc" <<EOF_HEADER
+    echo "Update: $jobdsc"
+    cat > "$jobdsc" <<EOF_HEADER
 universe     = vanilla
 executable   = $mirtk
 requirements = $condor_requirements
@@ -154,56 +164,56 @@ initialdir   = $topdir
 
 EOF_HEADER
 
-      for tgtid in "${tgtids[@]}"; do
+    for tgtid in "${tgtids[@]}"; do
 
-        outcsv="$outdir/$tgtid-mean.csv"
-        stdcsv="$outdir/$tgtid-sdev.csv"
-        numcsv="$outdir/$tgtid-size.csv"
-        [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
+      outcsv="$outdir/$tgtid-mean.csv"
+      stdcsv="$outdir/$tgtid-sdev.csv"
+      numcsv="$outdir/$tgtid-size.csv"
+      [ $force = true ] || [ ! -f "$outcsv" ] || [ ! -f "$stdcsv" ] || [ ! -f "$numcsv" ] || continue
 
-        val_names=()
-        val_paths=()
-        if [ $evlice = true ]; then
-          measure="mice"
-          val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
-          val_names=("${val_names[@]}" "'${measure}'")
+      val_names=()
+      val_paths=()
+      if [ $evlice = true ]; then
+        measure="mice"
+        val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
+        val_names=("${val_names[@]}" "'${measure}'")
+        val_paths=("${val_paths[@]}" "'$val_path'")
+      fi
+      if [ $evlmte = true ]; then
+        measure="mte"
+        val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
+        val_names=("${val_names[@]}" "'${measure}'")
+        val_paths=("${val_paths[@]}" "'$val_path'")
+      fi
+      for mod in "${mods[@]}"; do
+        for measure in $(get_measures "$mod"); do
+          [ $measure != 'overlap' ] || measure='dsc'
+          [ $(is_overlap_measure $measure) != true ] || continue
+          val_path="$regdir/evl/$mod/$measure/$tgtid.nii.gz"
+          val_names=("${val_names[@]}" "'${mod}_${measure}'")
           val_paths=("${val_paths[@]}" "'$val_path'")
-        fi
-        if [ $evlmte = true ]; then
-          measure="mte"
-          val_path="$regdir/$cfgid/evl/dof/$measure/$tgtid.nii.gz"
-          val_names=("${val_names[@]}" "'${measure}'")
-          val_paths=("${val_paths[@]}" "'$val_path'")
-        fi
-        for mod in "${mods[@]}"; do
-          for measure in $(get_measures "$mod"); do
-            [ $measure != 'overlap' ] || measure='dsc'
-            [ $(is_overlap_measure $measure) != true ] || continue
-            val_path="$regdir/$cfgid/evl/$mod/$measure/$tgtid.nii.gz"
-            val_names=("${val_names[@]}" "'${mod}_${measure}'")
-            val_paths=("${val_paths[@]}" "'$val_path'")
-          done
         done
+      done
 
-        roi_names=()
-        roi_paths=()
-        for roi in "${rois[@]}"; do
-          if [ $(is_seg "$roi") = true ]; then
-            for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
-              label="$(basename "$roi_path")"
-              label=${roi_path%.nii.gz}
-              label=${label/*-l}
-              roi_names=("${roi_names[@]}" "'$roi=$label'")
-              roi_paths=("${roi_paths[@]}" "'$roi_path'")
-            done
-          else
-            roi_path="$imgdir/$roi/$tgtid.nii.gz"
-            roi_names=("${roi_names[@]}" "'$roi'")
+      roi_names=()
+      roi_paths=()
+      for roi in "${rois[@]}"; do
+        if [ $(is_seg "$roi") = true ]; then
+          for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
+            label="$(basename "$roi_path")"
+            label=${roi_path%.nii.gz}
+            label=${label/*-l}
+            roi_names=("${roi_names[@]}" "'$roi=$label'")
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
-          fi
-        done
+          done
+        else
+          roi_path="$imgdir/$roi/$tgtid.nii.gz"
+          roi_names=("${roi_names[@]}" "'$roi'")
+          roi_paths=("${roi_paths[@]}" "'$roi_path'")
+        fi
+      done
 
-        cat >> "$jobdsc" <<EOF_JOB
+      cat >> "$jobdsc" <<EOF_JOB
 arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -212,9 +222,8 @@ queue
 
 EOF_JOB
 
-      done # for tgtid
-    else
-      echo "Exists: $jobdsc"
-    fi
-  done # for cfgid
-fi # case regid
+    done # for tgtid
+  else
+    echo "Exists: $jobdsc"
+  fi
+done # for cfgid
