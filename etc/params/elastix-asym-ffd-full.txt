@@ -47,35 +47,38 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "<sim>" "TransformBendingEnergyPenalty")
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins <bins>)
 (NumberOfFixedHistogramBins <bins>)
 (NumberOfMovingHistogramBins <bins>)
+(FixedLimitRangeRatio 0.01)
+(MovingLimitRangeRatio 0.01)
 (UseRelativeWeights "false")
 (Metric0Weight 1)
 (Metric1Weight <be>)
 
-//(Optimizer "ConjugateGradientFRPR")
 (Optimizer "<optim>")
-(ConjugateGradientType "<cgtype>")
 (MaximumNumberOfIterations <iters>)
+
+// parameters specific to ConjugateGradient
+(ConjugateGradientType "<cgtype>")
 (MaximumNumberOfLineSearchIterations <steps>)
 (GenerateLineSearchIterations "false")
-(StopIfWolfeNotSatisfied "true")
-(UseAdaptiveStepSizes "true")
-(StepLength <step>)
-
-(ImageSampler "Full")
-(NewSamplesEveryIteration "false")
-(CheckNumberOfSamples "false")
-
-
-// Other parameters set to the default values mentioned in the warning messages
 (LineSearchGradientTolerance 0.9)
 (LineSearchValueTolerance 0.0001)
 (GradientMagnitudeTolerance 1e-06)
 (ValueTolerance 1e-05)
-(FixedLimitRangeRatio 0.01)
-(MovingLimitRangeRatio 0.01)
-(NumberOfSamplesForSelfHessian 100000)
+(StopIfWolfeNotSatisfied "true")
+(StepLength <step>)
+
+// parameters specific to StandardGradientDescent
+(SP_alpha <alpha>)
+(SP_A <A>)
+(SP_a <a>)
+
+// use full image information at all times
+(ImageSampler "Full")
+(NewSamplesEveryIteration "false")
+(CheckNumberOfSamples "false")
