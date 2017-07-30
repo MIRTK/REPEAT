@@ -1,9 +1,11 @@
 #!/bin/bash
 
+## Auxiliary script to run NiftyReg F3D and convert output to MIRTK .dof
+
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
 [ -n "$topdir"   ] || error "etc/settings.sh: topdir not set"
-[ -n "$mirtk"    ] || error "etc/settings.sh: mirtk not set"
-[ -n "$niftyreg" ] || error "etc/settings.sh: niftyreg not set"
+[ -n "$mirtk"    ] || error "etc/settings.sh: mirtk executable path not set"
+[ -n "$niftyreg" ] || error "etc/settings.sh: niftyreg installation prefix not set"
 
 [ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
 [ ${niftyreg:0:1} = / ] || niftyreg="$topdir/$niftyreg"
@@ -18,6 +20,7 @@ while [ $i -lt $# ]; do
   fi
   let i++
 done
+
 [ -n "$cpp" ] || error "Could not determine -cpp output file path"
 dof="${cpp/.nii/.dof}"
 [ "$dof" != "$cpp" ] || error "-cpp file name must have extension .nii or .nii.gz"
@@ -26,16 +29,16 @@ tmpdir="$(mktemp -d)"  # need specific file name extension, but --suffix option 
 [ $? -eq 0 -a -n "$tmpdir" ] || error "Failed to create temporary directory for -res output file"
 res="$tmpdir/res.nii.gz"
 
+run()
+{
+  echo "> $@"
+  "$@" || {
+    [ -n "$tmpdir" -a "$tmpdir" != '/' ] || rm -rf "$tmpdir"
+    exit 1
+  }
+}
+
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time "$niftyreg/bin/reg_f3d" "$@" -res "$res"
-if [ $? -ne 0 ]; then
-  rmdir "$tmpdir"
-  exit 1
-fi
-
-"$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
-ec=$?
-
-rm -f "$res" && rmdir "$tmpdir"
-exit $ec
+time run "$niftyreg/bin/reg_f3d" "$@" -res "$res"
+run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d

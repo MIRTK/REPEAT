@@ -10,29 +10,37 @@ regid="$(basename "$BASH_SOURCE")"
 
 # change to top-level directory
 run cd "$topdir"
+
+# create output directory
 makedir "$cfgdir"
 
-# initialize cfgid counter
-i=1
-
-# constants
+# initial/constant parameter values
 sim='NMI'
 bins=64
 levels=3
+maxit=300
 ds=2.5
+be=0.005
+jl=0
 le='0 0'
 l2=0
 
-# write header
+# auxiliary function to append row with parameter values
+# Attention: Always ensure that header and order of values is consistent!
+i=0
 parcsv="$cfgdir/$regid.csv"
 echo "cfgid,sim,bins,ln,maxit,sx,sy,sz,be,jl,le,l2" > "$parcsv"
 
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$ds,$ds,$be,$jl,$le,$l2" >> "$parcsv"
+}
+
 # initial parameter exploration
-maxit=300
 for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
-    cfgid=$(printf %04d $i)
-    echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$ds,$ds,$be,$jl,$le,$l2" >> "$parcsv"
-    let i++
+    append_row
   done
 done

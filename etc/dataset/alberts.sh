@@ -1,11 +1,5 @@
 ## ALBERTs dataset information
 ##
-## This file is sourced by the rename-images and link-images
-## executable scripts. Use only one of these scripts to set
-## up this dataset after making sure that the information
-## given below reflects the file hierarchy and names of the
-## respecively downloaded dataset.
-##
 ## The original ALBERTs images and manual annotations are available at:
 ## http://brain-development.org/brain-atlases/neonatal-brain-atlas-albert/
 ##

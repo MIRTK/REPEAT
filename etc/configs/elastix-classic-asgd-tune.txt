@@ -1,0 +1,85 @@
+// Same as elastix-classic-cgd, except for the use of the
+// AdaptiveStochasticGradientDescent optimizer with random sample selection
+// instead of a conjugate gradient descent with full samples.
+//
+// Option AutomaticParameterEstimation is disabled ("false").
+// See elastix manual at http://elastix.isi.uu.nl/download/elastix_manual_v4.8.pdf
+// page 29 for advise on setting SP_alpha, SP_A, and SP_a.
+//
+// Version: elastix 4.8
+
+(ShowExactMetricValue "false")
+(UseFastAndLowMemoryVersion "true")
+(UseDirectionCosines "true")
+
+(WriteResultImage "true")
+(ResultImagePixelType "short")
+(ResultImageFormat "nii.gz")
+(CompressResultImage "true")
+
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
+(FixedImageDimension 3)
+(MovingImageDimension 3)
+(DefaultPixelValue 0)
+
+(ErodeFixedMask "true")
+(ErodeMovingMask "true")
+
+(NumberOfResolutions 4)
+(ImagePyramidSchedule 8 8 8 4 4 4 2 2 2 1 1 1)
+(Registration "MultiMetricMultiResolutionRegistration")
+(FixedImagePyramid "FixedRecursiveImagePyramid")
+(MovingImagePyramid "MovingRecursiveImagePyramid")
+(Interpolator "BSplineInterpolator")
+(ResampleInterpolator "FinalBSplineInterpolator")
+(BSplineInterpolationOrder 1)
+(FixedImageBSplineInterpolationOrder 1)
+(MovingImageBSplineInterpolationOrder 1)
+(FinalBSplineInterpolationOrder 1)
+(Resampler "DefaultResampler")
+
+(FinalGridSpacingInPhysicalUnits 2.5)
+(GridSpacingSchedule 8.0 4.0 2.0 1.0)
+(Transform "BSplineTransform")
+(BSplineTransformSplineOrder 3)
+(UseCyclicTransform "false")
+(HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
+
+(Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(FixedKernelBSplineOrder 3)
+(MovingKernelBSplineOrder 3)
+(NumberOfHistogramBins 64)
+(NumberOfFixedHistogramBins 64)
+(NumberOfMovingHistogramBins 64)
+(UseRelativeWeights "false")
+(Metric0Weight 1)
+(Metric1Weight 0.001)
+
+(Optimizer "AdaptiveStochasticGradientDescent")
+(AutomaticParameterEstimation "false")
+(UseAdaptiveStepSizes "true")
+(MaximumNumberOfIterations 300)
+(MaximumStepLength 8.0 4.0 2.0 1.0)
+(SP_alpha 0.6)
+(SP_A 50.0)
+(SP_a 1000.0)
+
+(ImageSampler "RandomCoordinate")
+(NewSamplesEveryIteration "true")
+(NumberOfSpatialSamples 2000 3000 4000 8000)
+(CheckNumberOfSamples "true")
+(UseRandomSampleRegion "false")
+(MaximumNumberOfSamplingAttempts 3)
+
+
+// Other parameters set to the default values mentioned in the warning messages
+(SigmoidMax 1.0)
+(SigmoidMin -0.8)
+(SigmoidScale 1e-8)
+(NumberOfBandStructureSamples 10)
+(MaxBandCovSize 192)
+(SigmoidInitialTime 0)
+(FixedLimitRangeRatio 0.01)
+(MovingLimitRangeRatio 0.01)
+(NumberOfSamplesForSelfHessian 100000)

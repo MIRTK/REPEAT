@@ -25,6 +25,10 @@ irtk="$bindir/irtk"
 # recommended: create symbolic link "$bindir/niftyreg" with absolute path to actual installation
 niftyreg="$bindir/niftyreg"
 
+# path of directory containing elastix installation, either absolute or relative to topdir
+# recommended: create symbolic link "$bindir/elastix" with absolute path to actual installation
+elastix="$bindir/elastix"
+
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
 # output of a given source to target registration may just be inverted

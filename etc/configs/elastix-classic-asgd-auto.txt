@@ -1,0 +1,71 @@
+// Same as elastix-classic-cgd, except for the use of the
+// AdaptiveStochasticGradientDescent optimizer with random sample selection
+// instead of a conjugate gradient descent with full samples.
+//
+// Option AutomaticParameterEstimation is enabled ("true").
+// This prolonges runtime, however. For runtime comparison, consider setting
+// parameters reported in the log file in elastix-classic-asgd-tune instead.
+//
+// Version: elastix 4.8
+
+(ShowExactMetricValue "false")
+(UseFastAndLowMemoryVersion "true")
+(UseDirectionCosines "true")
+
+(WriteResultImage "true")
+(ResultImagePixelType "short")
+(ResultImageFormat "nii.gz")
+(CompressResultImage "true")
+
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
+(FixedImageDimension 3)
+(MovingImageDimension 3)
+(DefaultPixelValue 0)
+
+(ErodeFixedMask "true")
+(ErodeMovingMask "true")
+
+(NumberOfResolutions 4)
+(ImagePyramidSchedule 8 8 8 4 4 4 2 2 2 1 1 1)
+(Registration "MultiMetricMultiResolutionRegistration")
+(FixedImagePyramid "FixedRecursiveImagePyramid")
+(MovingImagePyramid "MovingRecursiveImagePyramid")
+(Interpolator "BSplineInterpolator")
+(ResampleInterpolator "FinalBSplineInterpolator")
+(BSplineInterpolationOrder 1)
+(FixedImageBSplineInterpolationOrder 1)
+(MovingImageBSplineInterpolationOrder 1)
+(FinalBSplineInterpolationOrder 1)
+(Resampler "DefaultResampler")
+
+(FinalGridSpacingInPhysicalUnits 2.5)
+(GridSpacingSchedule 8.0 4.0 2.0 1.0)
+(Transform "BSplineTransform")
+(BSplineTransformSplineOrder 3)
+(UseCyclicTransform "false")
+(HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
+
+(Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(FixedKernelBSplineOrder 3)
+(MovingKernelBSplineOrder 3)
+(NumberOfHistogramBins 64)
+(NumberOfFixedHistogramBins 64)
+(NumberOfMovingHistogramBins 64)
+(UseRelativeWeights "false")
+(Metric0Weight 1)
+(Metric1Weight 0.001)
+
+(Optimizer "AdaptiveStochasticGradientDescent")
+(ASGDParameterEstimationMethod "Original")
+(AutomaticParameterEstimation "true")
+(UseAdaptiveStepSizes "true")
+(MaximumNumberOfIterations 300)
+(MaximumStepLength 8.0 4.0 2.0 1.0)
+
+(ImageSampler "RandomCoordinate")
+(NewSamplesEveryIteration "true")
+(NumberOfSpatialSamples 2000 3000 4000 8000)
+(CheckNumberOfSamples "true")
+(UseRandomSampleRegion "false")
+(MaximumNumberOfSamplingAttempts 3)

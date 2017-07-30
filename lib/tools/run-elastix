@@ -1,0 +1,87 @@
+#!/bin/bash
+
+## Auxiliary script to run elastix and convert BSplineTransform to MIRTK .dof
+
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir"  ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"   ] || error "etc/settings.sh: mirtk executable path not set"
+[ -n "$elastix" ] || error "etc/settings.sh: elastix installation prefix not set"
+
+[ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
+[ ${elastix:0:1} = / ] || elastix="$topdir/$elastix"
+
+tgtimg=
+tgtmsk=
+srcimg=
+srcmsk=
+partxt=
+outdof=
+outtxt=
+threads=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p) partxt="$2"; shift; ;;
+    -o) outdof="$2"; shift; ;;
+    -f) tgtimg="$2"; shift; ;;
+    -m) srcimg="$2"; shift; ;;
+    -fMask) tgtmsk="$2"; shift; ;;
+    -mMask) srcmsk="$2"; shift; ;;
+    -threads) threads="$2"; shift; ;;
+    *) error "Invalid argument: $1"
+  esac
+  shift
+done
+
+[ -n "$tgtimg" ] || error "Option -f not specified"
+[ -n "$srcimg" ] || error "Option -m not specified"
+[ -n "$outdof" ] || error "Option -o not specified"
+[ -n "$partxt" ] || error "Option -p not specified"
+[ "${partxt: -4}" = '.txt' ] || error "Parameter file must have file name extension .txt"
+
+if [ "${outdof: -4}" = '.dof' ]; then
+  outtxt="${outdof:0:${#outdof}-4}.txt"
+elif [ "${outdof: -7}" = '.dof.gz' ]; then
+  outtxt="${outdof:0:${#outdof}-7}.txt"
+elif [ "${outdof: -4}" = '.txt' ]; then
+  outtxt="$outdof"
+  outdof="${outtxt:0:${#outtxt}-4}.dof.gz"
+else
+  error "-o file name must have extension .txt, .dof, or .dof.gz"
+fi
+
+mkdir -p "$(dirname "$outdof")" || error "Failed to create output directory"
+
+tmpdir="$(mktemp -d)"
+[ $? -eq 0 -a -n "$tmpdir" ] || error "Failed to create temporary directory for output files"
+
+run()
+{
+  echo "> $@"
+  "$@" || {
+    [ -n "$tmpdir" -a "$tmpdir" != '/' ] || rm -rf "$tmpdir"
+    exit 1
+  }
+}
+
+grep -e 'WriteResultImage' "$partxt" > /dev/null 2> /dev/null
+if [ $? -eq 0 ]; then
+  sed -e 's/( *WriteResultImage  *"true" *)/(WriteResultImage "false")/' "$partxt" > "$tmpdir/par.txt"
+  partxt="$tmpdir/par.txt"
+else
+  run cp "$partxt" "$tmpdir/par.txt"
+  echo -e '\n(WriteResultImage "false")' >> "$tmpdir/par.txt"
+  partxt="$tmpdir/par.txt"
+fi
+
+args=(-out "$tmpdir" -p "$partxt" -f "$tgtimg" -m "$srcimg")
+[ -z "$tgtmsk"  ] || args=("${args[@]}" -fMask "$tgtmsk")
+[ -z "$srcmsk"  ] || args=("${args[@]}" -mMask "$srcmsk")
+[ -z "$threads" ] || args=("${args[@]}" -threads "$threads")
+
+export LD_LIBRARY_PATH="$elastix/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$elastix/lib:$DYLD_LIBRARY_PATH"
+time run "$elastix/bin/elastix" "${args[@]}"
+
+run cp -f "$tmpdir/TransformParameters.0.txt" "$outtxt"
+run "$mirtk" convert-dof "$outtxt" "$outdof" -input-format elastix

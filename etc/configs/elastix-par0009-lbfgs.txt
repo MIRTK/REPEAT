@@ -1,9 +1,9 @@
-// http://elastix.bigr.nl/wiki/index.php/Par0009
-//
 // Parameter file for B-Spline registration
 // as used in: Artaechevarria X, Munoz-Barrutia A, Ortiz-de-Solorzano C., 
 // "Combination strategies in multi-atlas image segmentation: application to brain MR data,"
 // IEEE Trans Med Imaging. 2009 Aug;28(8):1266-77.
+
+(ResultImageFormat "nii.gz")
 
 // The internal pixel type, used for computations
 // Leave to float in general
@@ -116,31 +116,3 @@
 //In general it is wise to do so.
 (StopIfWolfeNotSatisfied "true")
 //Default value: "true".
-
-
-//Result image format
-(ResultImageFormat "nii.gz")
-
-
-// ----------------------------------------------------------------------------------
-//Additional settings elastix 4.8 warned about and not part of original configuration
-(ShowExactMetricValue "true")
-(UseFastAndLowMemoryVersion "true")
-(UseDirectionCosines "true")
-(BSplineTransformSplineOrder 3)
-(UseCyclicTransform "false")
-(GenerateLineSearchIterations "false")
-(UseJacobianPreconditioning "false")
-(FiniteDifferenceDerivative "false")
-(MaximumNumberOfLineSearchIterations 20)
-(FixedKernelBSplineOrder 0)
-(MovingKernelBSplineOrder 3)
-(NumberOfFixedHistogramBins 64)
-(NumberOfMovingHistogramBins 64)
-(CheckNumberOfSamples "true")
-(ErodeFixedMask "false")
-(ErodeMovingMask "false")
-(FixedLimitRangeRatio 0.01)
-(MovingLimitRangeRatio 0.01)
-(WriteResultImage "true")
-(ExactMetricSampleGridSpacing 1 1 1 1 1 1 1 1 1)

@@ -44,7 +44,7 @@ imgdir="$vardir/$dataset/affine/out"
 regdir="$vardir/$dataset/$regid"
 regcsv="$cfgdir/$regid.csv"
 paropt=($(head -n1 "$regcsv" | tr , '\n'))
-config="$(cat "$etcdir/configs/$regid.template")"
+config="$(cat "$cfgdir/$regid.txt")"
 dofin='Id'
 
 

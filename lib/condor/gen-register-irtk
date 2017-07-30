@@ -53,7 +53,7 @@ imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
-config="$(cat "$etcdir/configs/irtk-nreg.template")"
+config="$(cat "$cfgdir/$regid.txt")"
 
 for cfgid in "${cfgids[@]}"; do
   jobdir="$regdir/$cfgid/bin"
