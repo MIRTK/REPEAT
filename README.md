@@ -1,6 +1,11 @@
-# Evaluation of brain image registration
+# REgistration PErformance Assessment Tools
 
-The REgistration PErformance Assessment Tools (REPEAT) provide a common framework for evaluating and comparing implementations of non-rigid image registration algorithms with main focus on inter-subject registration of brain MR images.
+The REgistration PErformance Assessment Tools (REPEAT) provide a common framework for
+evaluating and comparing implementations of non-rigid image registration algorithms
+with main focus on inter-subject registration of brain MR images.
+
+The REPEAT scripts depend on the [Medical Image Registration ToolKit (MIRTK)](https://mirtk.github.io).
+
 
 ## Content
 
@@ -9,19 +14,20 @@ computed with different registration algorithms (and implementations thereof)
 using an available brain image dataset, best with available manual annotations.
 
 * `bin`
-  - Executable scripts to generate CSV files listing sets of registration parameters.
+  - Main script(s) to perform evaluation.
+* `etc`
+  - Configuration shell files sourced by executable scripts.
+  - Executable scripts to generate CSV files with registration parameters.
+* `lib`
+  - Shell modules defining auxiliary functions sourced by executable scripts.
   - Executable scripts to generate files for batch job submission.
-  - On Linux, save or link downloaded MIRTK AppImage in this directory, e.g.,
-
+* `opt`
+  - Directory containing or linking to installations of registration tools.
+  - On Linux, save (or link) downloaded MIRTK AppImage in this directory, e.g.,
     ```
     appimage=MIRTK-latest-x86_64-glibc2.14.AppImage
     wget -O bin/mirtk https://bintray.com/schuhschuh/AppImages/download_file?file_path=$appimage
     ```
-
-* `etc`
-  - Configuration shell files sourced by executable scripts.
-* `lib`
-  - Shell modules defining auxiliary functions sourced by executable scripts.
 * `var/cache`
   - Output directory for (temporary) data files.
   - A subdirectory is created for each evaluation dataset, registration method,
@@ -41,11 +47,8 @@ using an available brain image dataset, best with available manual annotations.
 
 The brain images are per-aligned to a selected reference image prior to the
 deformable registrations. The used reference image is configured in the
-`scripts/settings.sh` file (`refid`). Images are then resampled on the
-lattice of this reference image using the computed affine transformations.
-
-* `bin/gen-affine-condor`
-* `bin/gen-transform-image-condor`
+`etc/settings.sh` file (`refid`). Images are then resampled on the lattice
+of this reference image using the computed affine transformations.
 
 
 ## Deformable registration
@@ -56,16 +59,13 @@ image pairs, only a subset may be used as target images, however. This is especi
 useful in an initial parameter exploration to determine suitable ranges of parameters
 which are then expected to perform similarly well for other target images.
 
-In summary, for each registration method (`regid`):
+In summary, for each dataset and registration method, the following steps are performed:
 
 1. Generate CSV files with different sets of parameter values.
-   - MIRTK: `bin/gen-mirtk-*-config`
 2. Perform pairwise registrations with each set of parameters,
    using each one of the specified images as target.
-   - MIRTK: `bin/gen-mirtk-register-condor`
 3. Resample affinely aligned images, including manual annotations,
    on the lattice of each target image.
-   - MIRTK: `bin/gen-transform-image-condor`
 
 
 ## Qualitative measures
@@ -74,7 +74,7 @@ The qualitative measures that are evaluated for each input image (e.g., T2w inte
 tissue segmentation, structural segmentation, and different probability maps) are
 defined by the `get_measures()` function in `etc/settings.sh`. The set of measures
 may be different for each dataset by (re-)defining this function in the dataset
-specific configuration script (e.g., `etc/dataset-alberts.sh`).
+specific configuration script (e.g., `etc/dataset/alberts.sh`).
 
 
 ### Runtime
