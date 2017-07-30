@@ -54,12 +54,12 @@ force=false
 
 # force re-generation of batch job description files, possibly excluding jobs
 # whose output files already exist unless force=true as well
-update=false
+update=true
 
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=
-condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Cpus==8"
+condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.ic.ac.uk\" && Cpus==8"
 
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
