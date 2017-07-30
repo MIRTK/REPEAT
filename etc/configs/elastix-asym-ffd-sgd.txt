@@ -1,10 +1,11 @@
-// Same as elastix-classic-cgd, except for the use of the
-// AdaptiveStochasticGradientDescent optimizer with random sample selection
-// instead of a conjugate gradient descent with full samples.
+// For direct comparison of elastix implementation of cubic B-spline FFD algorithm
+// of Rueckert et al. (1999) to IRTK 'nreg', MIRTK 'register', and NiftyReg F3D.
+// Options chosen to reflect as close as possible these other implementations.
 //
-// Option AutomaticParameterEstimation is disabled ("false").
-// See elastix manual at http://elastix.isi.uu.nl/download/elastix_manual_v4.8.pdf
-// page 29 for advise on setting SP_alpha, SP_A, and SP_a.
+// Main application of interest: Inter-subject brain MR image registration
+// using T1-weighted images for adults and T2-weighted images for neonates.
+// For [M]IRTK and NiftyReg, NMI with cubic B-spline Parzen window estimator
+// is commonly used for this type of registration task.
 //
 // Version: elastix 4.8
 
@@ -34,8 +35,6 @@
 (Interpolator "BSplineInterpolator")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (BSplineInterpolationOrder 1)
-(FixedImageBSplineInterpolationOrder 1)
-(MovingImageBSplineInterpolationOrder 1)
 (FinalBSplineInterpolationOrder 1)
 (Resampler "DefaultResampler")
 
@@ -47,39 +46,27 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins 64)
 (NumberOfFixedHistogramBins 64)
 (NumberOfMovingHistogramBins 64)
+(FixedLimitRangeRatio 0.01)
+(MovingLimitRangeRatio 0.01)
 (UseRelativeWeights "false")
 (Metric0Weight 1)
 (Metric1Weight 0.001)
 
-(Optimizer "AdaptiveStochasticGradientDescent")
-(AutomaticParameterEstimation "false")
-(UseAdaptiveStepSizes "true")
-(MaximumNumberOfIterations 300)
-(MaximumStepLength 8.0 4.0 2.0 1.0)
+(Optimizer "StandardGradientDescent")
 (SP_alpha 0.6)
-(SP_A 50.0)
-(SP_a 1000.0)
+(SP_A 50)
+(SP_a 1000)
+(MaximumNumberOfIterations 500)
 
-(ImageSampler "RandomCoordinate")
+(ImageSampler "Random")
 (NewSamplesEveryIteration "true")
 (NumberOfSpatialSamples 2000 3000 4000 8000)
+(MaximumNumberOfSamplingAttempts 3)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
-(MaximumNumberOfSamplingAttempts 3)
-
-
-// Other parameters set to the default values mentioned in the warning messages
-(SigmoidMax 1.0)
-(SigmoidMin -0.8)
-(SigmoidScale 1e-8)
-(NumberOfBandStructureSamples 10)
-(MaxBandCovSize 192)
-(SigmoidInitialTime 0)
-(FixedLimitRangeRatio 0.01)
-(MovingLimitRangeRatio 0.01)
-(NumberOfSamplesForSelfHessian 100000)

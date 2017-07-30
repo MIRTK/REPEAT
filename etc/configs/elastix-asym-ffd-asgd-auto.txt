@@ -1,11 +1,10 @@
-// For direct comparison of elastix implementation of cubic B-spline FFD algorithm
-// of Rueckert et al. (1999) to IRTK 'nreg', MIRTK 'register', and NiftyReg F3D.
-// Options chosen to reflect as close as possible these other implementations.
+// Same as elastix-classic-cgd, except for the use of the
+// AdaptiveStochasticGradientDescent optimizer with random sample selection
+// instead of a conjugate gradient descent with full samples.
 //
-// Main application of interest: Inter-subject brain MR image registration
-// using T1-weighted images for adults and T2-weighted images for neonates.
-// For [M]IRTK and NiftyReg, NMI with cubic B-spline Parzen window estimator
-// is commonly used for this type of registration task.
+// Option AutomaticParameterEstimation is enabled ("true").
+// This prolonges runtime, however. For runtime comparison, consider setting
+// parameters reported in the log file in elastix-classic-asgd-tune instead.
 //
 // Version: elastix 4.8
 
@@ -35,6 +34,8 @@
 (Interpolator "BSplineInterpolator")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (BSplineInterpolationOrder 1)
+(FixedImageBSplineInterpolationOrder 1)
+(MovingImageBSplineInterpolationOrder 1)
 (FinalBSplineInterpolationOrder 1)
 (Resampler "DefaultResampler")
 
@@ -46,35 +47,34 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins 64)
 (NumberOfFixedHistogramBins 64)
 (NumberOfMovingHistogramBins 64)
-(UseRelativeWeights "false")
-(Metric0Weight 1)
-(Metric1Weight 0.00001)
-
-//(Optimizer "ConjugateGradientFRPR")
-(Optimizer "ConjugateGradient")
-(ConjugateGradientType "PolakRibiere")
-(MaximumNumberOfIterations 100)
-(MaximumNumberOfLineSearchIterations 20)
-(GenerateLineSearchIterations "false")
-(StepLength 8 4 2 1)
-(UseAdaptiveStepSizes "true")
-(StopIfWolfeNotSatisfied "true")
-
-(ImageSampler "Full")
-(NewSamplesEveryIteration "false")
-(CheckNumberOfSamples "false")
-
-
-// Other parameters set to the default values mentioned in the warning messages
-(LineSearchGradientTolerance 0.9)
-(LineSearchValueTolerance 0.0001)
-(GradientMagnitudeTolerance 1e-06)
-(ValueTolerance 1e-05)
 (FixedLimitRangeRatio 0.01)
 (MovingLimitRangeRatio 0.01)
-(NumberOfSamplesForSelfHessian 100000)
+(UseRelativeWeights "false")
+(Metric0Weight 1)
+(Metric1Weight 0.001)
+
+(Optimizer "AdaptiveStochasticGradientDescent")
+(AutomaticParameterEstimation "true")
+(ASGDParameterEstimationMethod "Original")
+(MaximumDisplacementEstimationMethod "2sigma")
+(NumberOfGradientMeasurements 0)
+//(NumberOfJacobianMeasurements 2000 5000 10000 20000)
+(NumberOfSamplesForExactGradient 100000)
+(NoiseCompensation "true")
+(MaximumNumberOfIterations 300)
+(MaximumStepLength 0.5)
+(SP_A 20)
+(UseAdaptiveStepSizes "true")  // unused when ImageSampler is RandomCoordinate
+
+(ImageSampler "Random")
+(NewSamplesEveryIteration "true")
+(NumberOfSpatialSamples 2000 3000 4000 8000)
+(CheckNumberOfSamples "true")
+(UseRandomSampleRegion "false")
+(MaximumNumberOfSamplingAttempts 3)

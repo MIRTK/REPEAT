@@ -1,10 +1,11 @@
-// Same as elastix-classic-cgd, except for the use of the
-// AdaptiveStochasticGradientDescent optimizer with random sample selection
-// instead of a conjugate gradient descent with full samples.
+// For direct comparison of elastix implementation of cubic B-spline FFD algorithm
+// of Rueckert et al. (1999) to IRTK 'nreg', MIRTK 'register', and NiftyReg F3D.
+// Options chosen to reflect as close as possible these other implementations.
 //
-// Option AutomaticParameterEstimation is enabled ("true").
-// This prolonges runtime, however. For runtime comparison, consider setting
-// parameters reported in the log file in elastix-classic-asgd-tune instead.
+// Main application of interest: Inter-subject brain MR image registration
+// using T1-weighted images for adults and T2-weighted images for neonates.
+// For [M]IRTK and NiftyReg, NMI with cubic B-spline Parzen window estimator
+// is commonly used for this type of registration task.
 //
 // Version: elastix 4.8
 
@@ -34,8 +35,6 @@
 (Interpolator "BSplineInterpolator")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (BSplineInterpolationOrder 1)
-(FixedImageBSplineInterpolationOrder 1)
-(MovingImageBSplineInterpolationOrder 1)
 (FinalBSplineInterpolationOrder 1)
 (Resampler "DefaultResampler")
 
@@ -47,25 +46,31 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins 64)
 (NumberOfFixedHistogramBins 64)
 (NumberOfMovingHistogramBins 64)
+(FixedLimitRangeRatio 0.01)
+(MovingLimitRangeRatio 0.01)
 (UseRelativeWeights "false")
 (Metric0Weight 1)
-(Metric1Weight 0.001)
+(Metric1Weight 0.01)
 
-(Optimizer "AdaptiveStochasticGradientDescent")
-(ASGDParameterEstimationMethod "Original")
-(AutomaticParameterEstimation "true")
-(UseAdaptiveStepSizes "true")
-(MaximumNumberOfIterations 300)
-(MaximumStepLength 8.0 4.0 2.0 1.0)
+//(Optimizer "ConjugateGradientFRPR")
+(Optimizer "ConjugateGradient")
+(ConjugateGradientType "PolakRibiere")
+(MaximumNumberOfIterations 100)
+(MaximumNumberOfLineSearchIterations 20)
+(GenerateLineSearchIterations "false")
+(LineSearchGradientTolerance 0.9)
+(LineSearchValueTolerance 0.0001)
+(GradientMagnitudeTolerance 1e-06)
+(ValueTolerance 1e-05)
+(StopIfWolfeNotSatisfied "true")
+(StepLength 4.0 2.0 1.0 0.5)
 
-(ImageSampler "RandomCoordinate")
-(NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 2000 3000 4000 8000)
-(CheckNumberOfSamples "true")
-(UseRandomSampleRegion "false")
-(MaximumNumberOfSamplingAttempts 3)
+(ImageSampler "Full")
+(NewSamplesEveryIteration "false")
+(CheckNumberOfSamples "false")

@@ -1,0 +1,83 @@
+// Same as elastix-classic-cgd, except for the use of the
+// AdaptiveStochasticGradientDescent optimizer with random sample selection
+// instead of a conjugate gradient descent with full samples.
+//
+// Option AutomaticParameterEstimation is enabled ("true"), using
+//   (ASGDParameterEstimationMethod "DisplacementDistribution")
+// instead of the "Original" estimation method.
+//
+// Version: elastix 4.8
+
+(ShowExactMetricValue "false")
+(UseFastAndLowMemoryVersion "true")
+(UseDirectionCosines "true")
+
+(WriteResultImage "true")
+(ResultImagePixelType "short")
+(ResultImageFormat "nii.gz")
+(CompressResultImage "true")
+
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
+(FixedImageDimension 3)
+(MovingImageDimension 3)
+(DefaultPixelValue 0)
+
+(ErodeFixedMask "true")
+(ErodeMovingMask "true")
+
+(NumberOfResolutions 4)
+(ImagePyramidSchedule 8 8 8 4 4 4 2 2 2 1 1 1)
+(Registration "MultiMetricMultiResolutionRegistration")
+(FixedImagePyramid "FixedRecursiveImagePyramid")
+(MovingImagePyramid "MovingRecursiveImagePyramid")
+(Interpolator "BSplineInterpolator")
+(ResampleInterpolator "FinalBSplineInterpolator")
+(BSplineInterpolationOrder 1)
+(FixedImageBSplineInterpolationOrder 1)
+(MovingImageBSplineInterpolationOrder 1)
+(FinalBSplineInterpolationOrder 1)
+(Resampler "DefaultResampler")
+
+(FinalGridSpacingInPhysicalUnits 2.5)
+(GridSpacingSchedule 8.0 4.0 2.0 1.0)
+(Transform "BSplineTransform")
+(BSplineTransformSplineOrder 3)
+(UseCyclicTransform "false")
+(HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
+
+(Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
+(FixedKernelBSplineOrder 3)
+(MovingKernelBSplineOrder 3)
+(NumberOfHistogramBins 64)
+(NumberOfFixedHistogramBins 64)
+(NumberOfMovingHistogramBins 64)
+(FixedLimitRangeRatio 0.01)
+(MovingLimitRangeRatio 0.01)
+(UseRelativeWeights "false")
+(Metric0Weight 1)
+(Metric1Weight 0.001)
+
+(Optimizer "AdaptiveStochasticGradientDescent")
+(AutomaticParameterEstimation "true")
+(ASGDParameterEstimationMethod "DisplacementDistribution")
+(MaximumDisplacementEstimationMethod "2sigma")
+(NumberOfGradientMeasurements 0)
+//(NumberOfJacobianMeasurements 2000 5000 10000 20000)
+(NumberOfSamplesForExactGradient 100000)
+(NoiseCompensation "true")
+(MaximumNumberOfIterations 300)
+(MaximumStepLength 0.5)
+(SigmoidInitialTime 0)
+(SigmoidScaleFactor 0.1)
+(MaxBandCovSize 192)
+(NumberOfBandStructureSamples 10)
+(UseAdaptiveStepSizes "true")  // unused when ImageSampler is RandomCoordinate
+
+(ImageSampler "Random")
+(NewSamplesEveryIteration "true")
+(NumberOfSpatialSamples 2000 3000 4000 8000)
+(CheckNumberOfSamples "true")
+(UseRandomSampleRegion "false")
+(MaximumNumberOfSamplingAttempts 3)
