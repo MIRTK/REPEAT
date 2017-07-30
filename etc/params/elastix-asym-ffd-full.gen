@@ -68,14 +68,15 @@ done
 
 # once initial parameter exploration done, try standard gradient descent
 # with (more) informed control point spacing and bending energy weight choices
-if [ 1 -ne 1 ]; then
+if [ 1 -eq 1 ]; then
   optim='StandardGradientDescent'
   ds=5.0
-  be=0.05
-  for A in 20 50; do
-    for a in 1000 5000 10000 50000 100000 500000; do
-      for iters in 100 300 500; do
-        append_row
+  for be in 0.5 1 1.5; do
+    for A in 20 50; do
+      for a in 1000 5000 10000 50000 100000 500000; do
+        for iters in 100 300 500; do
+          append_row
+        done
       done
     done
   done
