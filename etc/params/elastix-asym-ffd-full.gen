@@ -53,6 +53,13 @@ for usemsk in false true; do
   done
 done
 
+# surprisingly, results with ALBERTs dataset were best with highest bending energy weight...
+for ds in 2.5 5.0; do
+  for be in 0.8 1.0 1.2 1.4; do
+    append_row
+  done
+done
+
 # once initial parameter exploration done, try standard gradient descent
 # with (more) informed control point spacing and bending energy weight choices
 if [ 1 -ne 1 ]; then
