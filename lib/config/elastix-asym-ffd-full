@@ -24,6 +24,7 @@ bins=64
 levels=4
 iters=500
 steps=20
+step=0.5
 ds=2.5
 be=0.005
 
@@ -31,20 +32,19 @@ be=0.005
 # Attention: Always ensure that header and order of values is consistent!
 i=0
 parcsv="$cfgdir/$regid.csv"
-echo "cfgid,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,ds,be" > "$parcsv"
+echo "cfgid,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,step,ds,be" > "$parcsv"
 
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$ds,$be" >> "$parcsv"
+  echo "$cfgid,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$ds,$be" >> "$parcsv"
 }
 
 # initial parameter exploration
-for sim in 'NormalizedMutualInformation' 'AdvancedMattesMutualInformation'; do
+for step in 0.5 1.0; do
 for bins in 32 64; do
 for ds in 2.5 5.0; do
-for iters in 100 300 500; do
 for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   append_row
-done; done; done; done; done
+done; done; done; done

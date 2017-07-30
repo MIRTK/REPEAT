@@ -62,8 +62,9 @@
 (MaximumNumberOfIterations <iters>)
 (MaximumNumberOfLineSearchIterations <steps>)
 (GenerateLineSearchIterations "false")
-(UseAdaptiveStepSizes "true")
 (StopIfWolfeNotSatisfied "true")
+(UseAdaptiveStepSizes "true")
+(StepLength <step>)
 
 (ImageSampler "Full")
 (NewSamplesEveryIteration "false")
