@@ -23,9 +23,15 @@ chns=('t2w')
 mods=('t2w' 'seg')
 
 # list of ROI masks used to average voxel-wise measures
-# in case of a hard segmentation, a probabilistic segmentation is created for
-# for each target image, resulting in one average value for each label
-rois=('seg' 'cgm')
+#
+# - in case of a hard segmentation, an average value is computed for
+#   each positive label using the binary mask of the segmentation
+#   of the affinely pre-aligned target images
+# - in case of an intensity image, a binary mask is created from the
+#   affinely pre-aligned target image using the configured background
+#   value (see get_bgvalue). If image has no background, an average is
+#   computed for the entire image domain, i.e., a sum over all voxels.
+rois=('t2w' 'seg' 'cgm')
 
 # ID of image used as reference for affine pre-alignment of all images
 # when not set, use first image ID
@@ -62,31 +68,31 @@ get_suffix()
 # get background value
 get_bgvalue()
 {
-  if [ $1 = 't1w' ] || [ $1 = 't2w' ]; then
+  if [ "$1" = 't1w' ] || [ "$1" = 't2w' ]; then
     echo "0"
   fi
 }
 
-# whether modality/channel is a binary mask
+# whether type of image is a binary mask
 is_mask()
 {
   echo false
 }
 
-# whether modality/channel is a hard segmentation (label image)
+# whether type of image is a hard segmentation (label image)
 is_seg()
 {
-  if [ $1 = 'seg' ]; then
+  if [ "$1" = 'seg' ]; then
     echo true
   else
     echo false
   fi
 }
 
-# whether modality/channel is a probabilistic segmentation
+# whether type of image is a probabilistic segmentation
 is_prob()
 {
-  if [ $1 = 'cgm' ]; then
+  if [ "$1" = 'cgm' ]; then
     echo true
   else
     echo false
