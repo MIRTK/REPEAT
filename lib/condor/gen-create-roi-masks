@@ -1,18 +1,18 @@
 #!/bin/bash
 
-## Generate HTCondor job description file to transform/create
-## binary or probabilistic ROI masks used to computed weighted
-## average of voxel-wise quality measures for each ROI
+## Generate HTCondor job description file to create binary or
+## probabilistic ROI masks used to computed weighted average
+## of voxel-wise quality measures for each ROI
 ##
 ## Images must first be transformed to each target image using
-## the lib/condor/gen-transform-image job description. When a given
+## the lib/condor/gen-transform-mirtk job description. When a given
 ## ROI mask is a hard segmentation, i.e., a label image, a
-## separate probabilistic ROI mask is created by this the job
-## description created by this script for each positive label.
+## separate binary ROI mask is created by the job description
+## created by this script for each positive label.
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  error "usage: $(basename $BASH_SOURCE) <dataset>"
 }
 
 # load settings and auxiliary functions
@@ -33,75 +33,51 @@ dataset="$1"; shift
 . "$setdir/$dataset.sh" || exit 1
 [ ${#rois[@]}   -gt 0 ] || error "$setdir/$dataset.sh: rois not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
+[ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 
-# registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
+# registration ID of affine pre-alignment
+regid='affine'
+regdir="$vardir/$dataset/$regid"
 
-# ------------------------------------------------------------------------------
-# create ROI masks for evaluation of affine pre-alignment
-if [ "$regid" = 'affine' ]; then
+jobdir="$regdir/bin"
+imgdir="$regdir/out"
+imgsuf=".nii.gz"
 
-  cfgids=('')
-  tgtids=("${imgids[@]}")
-  srcids=("${imgids[@]}")
+for roi in "${rois[@]}"; do
 
-# ------------------------------------------------------------------------------
-# create ROI masks for evaluation of pairwise deformations
-else
+  imgpre="$roi/"
+  jobdsc="$jobdir/create-$roi-masks.condor"
+  logdir="$regdir/log/create-$roi-masks"
+  outdir="$regdir/roi/$roi"
 
-  cfgids=("$@")
-  [ ${#cfgids}    -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids}    -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-  [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
-  [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+  # mask/probability map resampled already by gen-transform-* jobs
+  if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
 
-fi
+    if [ ! -L "$outdir" ]; then
+      makedir "$(dirname "$outdir")"
+      run ln -s "../out/$roi" "$outdir"
+    fi
 
-# ------------------------------------------------------------------------------
-# for each configuration... (single iteration for regid='affine')
-for cfgid in "${cfgids[@]}"; do
+  # create separate binary mask for each (positive) label
+  elif [ "$(is_seg "$roi")" = true ]; then
 
-  regdir="$vardir/$dataset/$regid"
-  [ -z "$cfgid" ] || regdir="$regdir/$cfgid"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+      echo "Update: $jobdsc"
 
-  jobdir="$regdir/bin"
-  imgdir="$regdir/out"
-  imgsuf=".nii.gz"
+      makedir "$outdir"
+      makedir "$jobdir"
+      makedir "$logdir"
 
-  for roi in "${rois[@]}"; do
-
-    imgpre="$roi/"
-    jobdsc="$jobdir/create-$roi-masks.condor"
-    logdir="$regdir/log/create-$roi-masks"
-    outdir="$regdir/roi/$roi"
-
-    makedir "$outdir"
-
-    # mask/probability map resampled already by gen-transform-* jobs
-    if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
-
-      ln -s "../out/$roi" "$outdir"
-
-    # create separate binary mask for each (positive) label
-    elif [ "$(is_seg "$roi")" = true ]; then
-
-      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
-        echo "Update: $jobdsc"
-
-        makedir "$jobdir"
-        makedir "$logdir"
-
-        cat > "$jobdsc" <<EOF_HEADER
+      cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          outimg="$outdir/${tgtid}-l%02d.nii.gz"
-          [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
-          cat >> "$jobdsc" <<EOF_JOB
+      for tgtid in "${tgtids[@]}"; do
+        outimg="$outdir/${tgtid}-l%02d.nii.gz"
+        [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "average-images '$outimg' -image '$imgdir/$imgpre$tgtid$imgsuf' -target '$imgdir/$imgpre$tgtid$imgsuf' -labels -dtype uchar -v"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -109,36 +85,40 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-        done
-      else
-        echo "Exists: $jobdsc"
-      fi
-
-    # create binary mask from intensity image foreground region
+      done
     else
+      echo "Exists: $jobdsc"
+    fi
 
-      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
-        echo "Update: $jobdsc"
+  # create binary mask from intensity image foreground region
+  else
 
-        makedir "$jobdir"
-        makedir "$logdir"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+      echo "Update: $jobdsc"
 
-        cat > "$jobdsc" <<EOF_HEADER
+      makedir "$jobdir"
+      makedir "$logdir"
+
+      cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
 executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
-        for tgtid in "${tgtids[@]}"; do
-          outimg="$outdir/$tgtid.nii.gz"
-          [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
-          bgvalue=$(get_bgvalue "$roi")
-          if [ -n "$bgvalue" ]; then
-            mask="-mask $bgvalue"
+      for tgtid in "${tgtids[@]}"; do
+        outimg="$outdir/$tgtid.nii.gz"
+        [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
+        bgvalue=$(get_bgvalue "$roi")
+        if [ -n "$bgvalue" ]; then
+          if [ "$(is_mask "$bgvalue")" = true ]; then
+            mask="-mask $imgdir/$bgvalue/$tgtid$imgsuf"
           else
-            mask=''
+            mask="-mask $bgvalue"
           fi
-          cat >> "$jobdsc" <<EOF_JOB
+        else
+          mask=''
+        fi
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "calculate-element-wise '$imgdir/$imgpre$tgtid$imgsuf' $mask -set 1 -pad 0 -o '$outimg' binary"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
@@ -146,11 +126,10 @@ log       = $logdir/$tgtid.log
 queue
 
 EOF_JOB
-        done
-      else
-        echo "Exists: $jobdsc"
-      fi
-
+      done
+    else
+      echo "Exists: $jobdsc"
     fi
-  done
+
+  fi
 done

@@ -59,6 +59,7 @@ energy_indentation="                "
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
+paddir="$vardir/$dataset/affine/pad"
 dofin='Id'
 
 for cfgid in "${cfgids[@]}"; do
@@ -109,6 +110,10 @@ for cfgid in "${cfgids[@]}"; do
     fi
     bgvalue="$(get_bgvalue "$chn")"
     if [ -n "$bgvalue" ]; then
+      if [ "$(is_mask "$bgvalue")" = true ]; then
+        bgvalue="$(get_padvalue "$bgvalue")"
+        [ -n "$bgvalue" ] || bgvalue=-1
+      fi
       bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
       bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
     fi
@@ -170,7 +175,12 @@ EOF_HEADER
       for chn in "${chns[@]}"; do
         imgpre="$chn/"
         imgsuf=".nii.gz"
-        images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
+        bgvalue="$(get_bgvalue "$chn")"
+        if [ -n "$bgvalue" -a "$(is_mask "$bgvalue")" = true ]; then
+          images=("${images[@]}" -image "'$paddir/$imgpre$tgtid$imgsuf'" "'$paddir/$imgpre$srcid$imgsuf'")      
+        else
+          images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
+        fi
       done
       cat >> "$jobdsc" <<EOF_QUEUE
 arguments = "'$mirtk' register ${images[@]} -parin '$parin' -dofin '$dofin' -dofout '$dofout'"

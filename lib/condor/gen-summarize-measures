@@ -149,7 +149,7 @@ EOF_JOB
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
     imgdir="$vardir/$dataset/affine/out"
-    roidir="$regdir/roi"
+    roidir="$vardir/$dataset/affine/roi"
     logdir="$regdir/log/average-measures"
 
     makedir "$logdir"
@@ -185,7 +185,6 @@ EOF_HEADER
         done
       done
 
-      # FIXME: Use average of all labels instead of refid, requires change of gen-create-roi-masks...
       roi_names=()
       roi_paths=()
       for roi in "${rois[@]}"; do
@@ -204,7 +203,12 @@ EOF_HEADER
         else
           bgvalue=$(get_bgvalue "$roi")
           if [ -n "$bgvalue" ]; then
-            roi_name="$roi!=$bgvalue"
+            if [ "$(is_mask "$bgvalue")" = true ]; then
+              roi="$bgvalue"
+              roi_name="$roi"
+            else
+              roi_name="$roi!=$bgvalue"
+            fi
           else
             roi_name="$roi"
           fi
@@ -275,7 +279,12 @@ EOF_JOB
           else
             bgvalue=$(get_bgvalue "$roi")
             if [ -n "$bgvalue" ]; then
-              roi_name="$roi!=$bgvalue"
+              if [ "$(is_mask "$bgvalue")" = true ]; then
+                roi="$bgvalue"
+                roi_name="$roi"
+              else
+                roi_name="$roi!=$bgvalue"
+              fi
             else
               roi_name="$roi"
             fi

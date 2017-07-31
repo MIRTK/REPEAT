@@ -30,8 +30,6 @@ dataset="$1"; shift
 
 # images that drive the registration
 chn="${chns[0]}"
-bgvalue="$(get_bgvalue "$chn")"
-[ -n "$bgvalue" ] || bgvalue=-32767
 
 # registration method
 regid="$1"; shift
@@ -63,6 +61,16 @@ regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
+
+bgvalue="$(get_bgvalue "$chn")"
+if [ -n "$bgvalue" ]; then
+  if [ "$(is_mask "$bgvalue")" = true ]; then
+    imgdir="$vardir/$dataset/affine/pad"
+    bgvalue="$(get_padvalue "$chn")"
+  fi
+else
+  bgvalue=-32767
+fi
 
 for cfgid in "${cfgids[@]}"; do
   jobdir="$regdir/$cfgid/bin"

@@ -103,12 +103,13 @@ if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# perform affine registration if not done before
+# common pre-processing steps
 jobs_submitted=false
 
 regdir="$vardir/$dataset/affine"
 jobdir="$regdir/bin"
 
+# compute affine transformations to reference
 n=0
 outdir="$regdir/dof"
 if [ -d "$outdir" ]; then
@@ -129,33 +130,92 @@ else
   echo "All affine registration jobs are done, found $n output files"
 fi
 if [ $jobs_submitted = true ]; then
-  echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
   exit 0
 fi
 
+# transform images to affine reference space
+n=0
+nexpected=0
 for mod in "${mods_and_rois[@]}"; do
-  n=0
   outdir="$regdir/out/$mod"
+  let nexpected="$nexpected + ${#imgids[@]}"
   if [ -d "$outdir" ]; then
     for imgid in "${imgids[@]}"; do
       [ ! -f "$outdir/$imgid$imgsuf" ] || let n++
     done
   fi
-  if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#imgids[@]} ]; then
-    jobdsc="$jobdir/transform-$mod.condor"
-    if [ $update = true -o ! -f "$jobdsc" ]; then
-      run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
-    fi
-    submit "$jobdsc"
-  elif [ $n -ne ${#imgids[@]} ]; then
-    error "Seems not all $mod image pre-alignment jobs have finished successfully! Found only $n out of ${#imgids[@]} output files."
-    error "Check log files of image pre-alignment jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
-  else
-    echo "All $mod image pre-alignment jobs are done, found $n output files"
+done
+if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+  echo "n=$n, expected=$nexpected"
+  jobdsc="$jobdir/transform.condor"
+  if [ $update = true -o ! -f "$jobdsc" ]; then
+    run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
+  fi
+  submit "$jobdsc"
+elif [ $n -ne $nexpected ]; then
+  error "Seems not all image pre-alignment jobs have finished successfully! Found only $n out of $nexpected output files."
+  error "Check log files of image pre-alignment jobs in '$regdir/log/transform' for errors, and re-run failed jobs manually."
+else
+  echo "All image pre-alignment jobs are done, found $n output files"
+fi
+if [ $jobs_submitted = true ]; then
+  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  exit 0
+fi
+
+# pad affinely aligned images if foreground masks are used
+n=0
+nexpected=0
+outdir="$regdir/pad"
+for chn in "${chns[@]}"; do
+  msk=$(get_bgvalue "$chn")
+  [ -n "$msk" -a $(is_mask "$msk") = true ] || continue
+  let nexpected="$nexpected+${#imgids[@]}"
+  if [ -d "$outdir/$chn" ]; then
+    for imgid in "${imgids[@]}"; do
+      [ ! -f "$outdir/$chn/$imgid$imgsuf" ] || let n++
+    done
   fi
 done
+if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+  jobdsc="$jobdir/apply-image-masks.condor"
+  if [ $update = true -o ! -f "$jobdsc" ]; then
+    run "$libdir/condor/gen-apply-image-masks" "$dataset"
+  fi
+  submit "$jobdsc"
+elif [ $n -ne $nexpected ]; then
+  echo "Seems not all background padding jobs have finished successfully! Found $n out of $nexpected output files."
+  error "Check log files of batch jobs in '$regdir/log/apply-image-masks' for errors, and re-run failed jobs manually."
+else
+  echo "All background padding jobs are done, found $n output files"
+fi
+
+# create ROI masks used to average voxel-wise quality measures
+for roi in "${rois[@]}"; do
+  if [ "$(is_seg "$roi")" = true ]; then
+    nrois=0
+    roidir="$regdir/roi/$roi"
+    if [ -d "$roidir" ]; then
+      for tgtid in "${tgtids[@]}"; do
+        let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
+      done
+    fi
+    if [ $nrois -eq 0 ]; then
+      jobdsc="$jobdir/create-$roi-masks.condor"
+      if [ $update = true -o ! -f "$jobdsc" ]; then
+        run "$libdir/condor/gen-create-roi-masks" "$dataset"
+      fi
+      submit "$jobdsc"
+    else
+      echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
+    fi
+  fi
+done
+
+# wait for remaining pre-processing jobs
 if [ $jobs_submitted = true ]; then
-  echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
   exit 0
 fi
 
@@ -367,35 +427,6 @@ for cfgid in "${cfgids[@]}"; do
   fi
 
   # ----------------------------------------------------------------------------
-  # create ROI masks for averaging of voxel-wise measures
-  for roi in "${rois[@]}"; do
-    if [ "$(is_seg "$roi")" = true ]; then
-      nrois=0
-      roidir="$regdir/roi/$roi"
-      if [ -d "$roidir" ]; then
-        for tgtid in "${tgtids[@]}"; do
-          let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
-        done
-      fi
-      if [ $nrois -eq 0 ]; then
-        jobdsc="$jobdir/create-$roi-masks.condor"
-        if [ $update = true -o ! -f "$jobdsc" ]; then
-          run "$libdir/condor/gen-create-roi-masks" "$dataset" "$regid" "$cfgid"
-        fi
-        submit "$jobdsc"
-      else
-        echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
-      fi
-    fi
-  done
-  if [ $jobs_submitted = true ]; then
-    all_done=false
-    continue
-  else
-    echo "All ROI mask creation jobs are done"
-  fi
-
-  # ----------------------------------------------------------------------------
   # collect runtime measurements
   if [ "$evltime" = true ]; then
     n=0
@@ -467,9 +498,9 @@ for cfgid in "${cfgids[@]}"; do
   fi
 
 done
-echo
+
 if [ $all_done = true ]; then
-  echo "All jobs finished! You find the results in '$topdir/$csvdir/$dataset/$regid'."
+  echo -e "\nAll jobs finished! You find the results in '$topdir/$csvdir/$dataset/$regid'."
 else
-  echo "Wait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
 fi

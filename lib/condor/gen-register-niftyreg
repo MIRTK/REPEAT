@@ -37,7 +37,6 @@ regcmd=${regid/*-}
 
 # images that drive the registration
 chn="${chns[0]}"
-bgvalue="$(get_bgvalue "$chn")"
 
 # IDs of parameter sets
 cfgids=("$@")
@@ -45,19 +44,27 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # affinely pre-aligned images
-mskdir="$vardir/$dataset/affine/msk"
 imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
-# create foreground masks
+# create/choose foreground masks
+bgvalue="$(get_bgvalue "$chn")"
 if [ -n "$bgvalue" ]; then
-  makedir "$mskdir"
-  for imgid in "${imgids[@]}"; do
-    mskimg="$mskdir/$imgid$imgsuf"
-    [ ! -f "$mskimg" ] || continue
-    run "$mirtk" calculate-element-wise "$imgdir/$imgpre$imgid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
-  done
+  if [ "$(is_mask "$bgvalue")" = true ]; then
+    mskdir="$vardir/$dataset/affine/out/$bgvalue"
+    bgvalue="$(get_padvalue "$chn")"
+  else
+    mskdir="$vardir/$dataset/affine/msk"
+    makedir "$mskdir"
+    for imgid in "${imgids[@]}"; do
+      mskimg="$mskdir/$imgid$imgsuf"
+      [ ! -f "$mskimg" ] || continue
+      run "$mirtk" calculate-element-wise "$imgdir/$imgpre$imgid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
+    done
+  fi
+else
+  mskdir=''
 fi
 
 # dataset and registration specific parameters
@@ -158,7 +165,7 @@ EOF_HEADER
       [ $force = true ] || [ ! -f "$cppout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       masks=()
-      if [ -n "$bgvalue" ]; then
+      if [ -n "$mskdir" ]; then
         masks=('-rmask' "'$mskdir/$tgtid$imgsuf'")
         if [ $issym = true ]; then
           masks=('-fmask' "'$mskdir/$srcid$imgsuf'")
