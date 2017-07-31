@@ -114,8 +114,8 @@ different quantitative measures, and rows correspond to the different ROIs.
 The mean, median, and maximum values can be used to summarise the results of
 different registration methods.
 
-* Inverse consistency error of obtained spatial mappings.
-* Transitivity error of obtained spatial mappings.
+* [Inverse consistency error](http://www.nirep.org/ice) of obtained spatial mappings.
+* [Transitivity error](http://www.nirep.org/te) of obtained spatial mappings.
 * `var`: Variance of intensities at each target voxel.
 * `stdev`: Standard deviation of intensities at each target voxel.
 * `entropy`: Entropy of intensities or class labels at each target voxel.
