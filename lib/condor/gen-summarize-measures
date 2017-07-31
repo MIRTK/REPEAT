@@ -176,6 +176,7 @@ EOF_HEADER
       val_paths=()
       for mod in "${mods[@]}"; do
         for measure in $(get_measures "$mod"); do
+          [ -n "$measure" ] || continue
           [ $measure != 'overlap' ] || measure='dsc'
           [ $(is_overlap_measure $measure) != true ] || continue
           val_path="$regdir/evl/$mod/$measure.nii.gz"
@@ -188,7 +189,11 @@ EOF_HEADER
       roi_names=()
       roi_paths=()
       for roi in "${rois[@]}"; do
-        if [ $(is_seg "$roi") = true ]; then
+        if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
+            roi_path="$roidir/$roi/$refid.nii.gz"
+            roi_names=("${roi_names[@]}" "'$roi'")
+            roi_paths=("${roi_paths[@]}" "'$roi_path'")
+        elif [ $(is_seg "$roi") = true ]; then
           for roi_path in $(find "$roidir/$roi" -name "$refid-l*.nii.gz" | sort); do
             label="$(basename "$roi_path")"
             label=${roi_path%.nii.gz}
@@ -197,21 +202,26 @@ EOF_HEADER
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
           done
         else
-          roi_path="$imgdir/$roi/$refid.nii.gz"
-          roi_names=("${roi_names[@]}" "'$roi'")
+          bgvalue=$(get_bgvalue "$roi")
+          if [ -n "$bgvalue" ]; then
+            roi_name="$roi!=$bgvalue"
+          else
+            roi_name="$roi"
+          fi
+          roi_path="$roidir/$roi/$refid.nii.gz"
+          roi_names=("${roi_names[@]}" "'$roi_name'")
           roi_paths=("${roi_paths[@]}" "'$roi_path'")
         fi
       done
 
       cat >> "$jobdsc" <<EOF_JOB
 arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
-error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
-log       = $logdir/$tgtid.log
+error     = $logdir/$refid.err
+output    = $logdir/$refid.out
+log       = $logdir/$refid.log
 queue
 
 EOF_JOB
-
 
     else
 
@@ -238,6 +248,7 @@ EOF_JOB
         fi
         for mod in "${mods[@]}"; do
           for measure in $(get_measures "$mod"); do
+            [ -n "$measure" ] || continue
             [ $measure != 'overlap' ] || measure='dsc'
             [ $(is_overlap_measure $measure) != true ] || continue
             val_path="$regdir/evl/$mod/$measure/$tgtid.nii.gz"
@@ -249,7 +260,11 @@ EOF_JOB
         roi_names=()
         roi_paths=()
         for roi in "${rois[@]}"; do
-          if [ $(is_seg "$roi") = true ]; then
+          if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
+            roi_path="$roidir/$roi/$tgtid.nii.gz"
+            roi_names=("${roi_names[@]}" "'$roi'")
+            roi_paths=("${roi_paths[@]}" "'$roi_path'")
+          elif [ "$(is_seg "$roi")" = true ]; then
             for roi_path in $(find "$roidir/$roi" -name "$tgtid-l*.nii.gz" | sort); do
               label="$(basename "$roi_path")"
               label=${roi_path%.nii.gz}
@@ -258,8 +273,14 @@ EOF_JOB
               roi_paths=("${roi_paths[@]}" "'$roi_path'")
             done
           else
-            roi_path="$imgdir/$roi/$tgtid.nii.gz"
-            roi_names=("${roi_names[@]}" "'$roi'")
+            bgvalue=$(get_bgvalue "$roi")
+            if [ -n "$bgvalue" ]; then
+              roi_name="$roi!=$bgvalue"
+            else
+              roi_name="$roi"
+            fi
+            roi_path="$roidir/$roi/$tgtid.nii.gz"
+            roi_names=("${roi_names[@]}" "'$roi_name'")
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
           fi
         done

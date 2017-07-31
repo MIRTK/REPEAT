@@ -70,18 +70,26 @@ for cfgid in "${cfgids[@]}"; do
   imgsuf=".nii.gz"
 
   for roi in "${rois[@]}"; do
-    if [ "$(is_seg "$roi")" = true ]; then
-      
-      jobdsc="$jobdir/create-$roi-masks.condor"
+
+    imgpre="$roi/"
+    jobdsc="$jobdir/create-$roi-masks.condor"
+    logdir="$regdir/log/create-$roi-masks"
+    outdir="$regdir/roi/$roi"
+
+    makedir "$outdir"
+
+    # mask/probability map resampled already by gen-transform-* jobs
+    if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
+
+      ln -s "../out/$roi" "$outdir"
+
+    # create separate binary mask for each (positive) label
+    elif [ "$(is_seg "$roi")" = true ]; then
+
       if [ $update = true ] || [ ! -f "$jobdsc" ]; then
         echo "Update: $jobdsc"
 
-        imgpre="$roi/"
-        outdir="$regdir/roi/$roi"
-        logdir="$regdir/log/create-$roi-masks"
-
         makedir "$jobdir"
-        makedir "$outdir"
         makedir "$logdir"
 
         cat > "$jobdsc" <<EOF_HEADER
@@ -105,6 +113,44 @@ EOF_JOB
       else
         echo "Exists: $jobdsc"
       fi
+
+    # create binary mask from intensity image foreground region
+    else
+
+      if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+        echo "Update: $jobdsc"
+
+        makedir "$jobdir"
+        makedir "$logdir"
+
+        cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
+        for tgtid in "${tgtids[@]}"; do
+          outimg="$outdir/$tgtid.nii.gz"
+          [ $force = true ] || [ $(find "$outdir" -name "$tgtid-l*.nii.gz" | wc -l) -eq 0 ] || continue
+          bgvalue=$(get_bgvalue "$roi")
+          if [ -n "$bgvalue" ]; then
+            mask="-mask $bgvalue"
+          else
+            mask=''
+          fi
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "calculate-element-wise '$imgdir/$imgpre$tgtid$imgsuf' $mask -set 1 -pad 0 -o '$outimg' binary"
+error     = $logdir/$tgtid.err
+output    = $logdir/$tgtid.out
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+        done
+      else
+        echo "Exists: $jobdsc"
+      fi
+
     fi
   done
 done

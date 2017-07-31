@@ -74,6 +74,36 @@ get_cfgids()
   fi
 }
 
+# get background value
+get_bgvalue()
+{
+  if [ $1 = 't1w' ]; then
+    echo "0"
+  fi
+}
+
+# whether modality/channel is a binary mask
+is_mask()
+{
+  echo false
+}
+
+# whether modality/channel is a hard segmentation (label image)
+is_seg()
+{
+  if [ $1 = 'seg' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
+# whether modality/channel is a probabilistic segmentation
+is_prob()
+{
+  echo false
+}
+
 # whether a given evaluation measure is a segmentation overlap measure
 is_overlap_measure()
 {
