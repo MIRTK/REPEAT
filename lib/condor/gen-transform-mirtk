@@ -71,20 +71,22 @@ EOF_HEADER
       imgsuf="$(get_suffix "$mod")"
       [ -n "$imgsuf" ] || imgsuf=".nii.gz"
 
-      if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+      if [ "$(is_mask "$mod")" = true ]; then
+        labels="-nn"
+      elif [ "$(is_seg "$mod")" = true ]; then
         labels="-labels"
       else
         labels=""
       fi
-      
+
       for imgid in "${imgids[@]}"; do
         outimg="$outdir/$imgid.nii.gz"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
 arguments = "transform-image '$imgdir/$imgpre$imgid$imgsuf' '$outimg' -target '$imgdir/$imgpre$refid$imgsuf' -dofin '$dofdir/$imgid.dof.gz' -invert $labels"
-error     = $logdir/$imgid.err
-output    = $logdir/$imgid.out
-log       = $logdir/$imgid.log
+error     = $logdir/$imgid-$mod.err
+output    = $logdir/$imgid-$mod.out
+log       = $logdir/$imgid-$mod.log
 queue
 
 EOF_JOB

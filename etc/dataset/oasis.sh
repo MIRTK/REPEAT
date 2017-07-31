@@ -23,8 +23,11 @@ allids=(
 imgids=(
   1000 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010
   1011 1012 1013 1014 1015 1017 1018 1019 1036 1101 1104
-  1107 1110 1113 1116 1119 1122 1125 1128
+  1107 1110 1113 1116 1119 1122 1125
 )
+
+# scan with very different contrast in WM, exclude?
+imgids=(${imgids[@]} 1128)
 
 # kind of images used for registration
 chns=('t1w')
@@ -61,7 +64,7 @@ get_prefix()
   if [ "$1" = 't1w' ]; then
     echo "N4/"
   elif [ "$1" = 'msk' ]; then
-    echo "Masks/PINCRAM+Labels"
+    echo "Masks/PINCRAM+Labels/"
   elif [ "$1" = 'seg' ]; then
     echo "Labels/"
   fi
@@ -77,7 +80,7 @@ get_suffix()
   fi
 }
 
-# get background value
+# get background value or ID of foreground mask
 get_bgvalue()
 {
   echo 'msk'

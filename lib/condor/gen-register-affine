@@ -35,7 +35,7 @@ dataset="$1"
 [ -n "$refid" ] || refid="${imgids[0]}"
 
 # create job description
-parin="$etcdir/configs/mirtk-asym-affine.cfg"
+parin="$etcdir/configs/mirtk-asym-affine.txt"
 regdir="$vardir/$dataset/affine"
 dofdir="$regdir/dof"
 jobdir="$regdir/bin"
