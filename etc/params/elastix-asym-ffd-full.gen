@@ -27,10 +27,10 @@ a=1000
 
 # transformation model parameters
 ds=2.5
-be=0.005
+be=1
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of values is consistent!
+# Attention: Always ensure that header and order of append_row values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 echo "cfgid,usemsk,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,step,epsilon,alpha,A,a,ds,be" > "$parcsv"
@@ -53,7 +53,14 @@ for usemsk in false true; do
   done
 done
 
-# surprisingly, results with ALBERTs dataset were best with highest bending energy weight...
+# try even larger bending energy weights
+#
+# Surprisingly, results with ALBERTs dataset were best for bending energy weight 0.5, i.e.,
+# the highest weight value explored so far.
+#
+# Bending energy weights larger than the weight of the image similarity term appear to be not uncommon.
+# Found values being used of 0.1 (par0025: mouse brain), 0.3, 5, 20 (par0020: rat brain), and an even
+# quantitatively optimized weight of up to 50 (par0023: head/neck).
 usemsk=true
 for ds in 2.5 5.0; do
   for be in 0.8 1.0 1.2 1.4; do

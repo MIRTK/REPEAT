@@ -56,7 +56,12 @@
 (MovingLimitRangeRatio 0.01)
 (UseRelativeWeights "false")
 (Metric0Weight 1)
-(Metric1Weight 0.01)
+
+// Unlike [M]IRTK and NiftyReg, bending energy weights larger than
+// the weight of the image similarity term appear to be not uncommon.
+// Found values being used of 0.3, 20 (par0020: rat brain), and even
+// up to 50 (par0023: head/neck).
+(Metric1Weight 1)
 
 //(Optimizer "ConjugateGradientFRPR")
 (Optimizer "ConjugateGradient")

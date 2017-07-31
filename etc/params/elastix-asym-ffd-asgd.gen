@@ -5,7 +5,7 @@ regid="$(basename "$BASH_SOURCE")"
 regid="${regid/.gen}"
 
 # initial/constant parameter values
-usemsk=false                       # whether to use foreground masks
+usemsk=true                        # whether to use foreground masks
 interp='Linear'                    # Linear, BSpline
 pyramid='Recursive'                # Recursive, Smoothing, Shrinking
 sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
@@ -23,10 +23,10 @@ a=1000
 
 # transformation model parameters
 ds=2.5
-be=0.005
+be=1
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of values is consistent!
+# Attention: Always ensure that header and order of append_row values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 echo "cfgid,usemsk,interp,pyramid,sim,bins,levels,iters,step,adaptive,auto,alpha,A,a,ds,be" > "$parcsv"
@@ -41,7 +41,7 @@ append_row()
 # try automatic parameter selection first
 auto=true
 for ds in 2.5 5.0; do
-  for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
+  for be in 0 0.01 0.05 0.5 1 1.5 5 10 20 50; do
     for iters in 100 300 500; do
       append_row
     done

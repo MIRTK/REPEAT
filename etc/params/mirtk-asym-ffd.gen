@@ -28,7 +28,7 @@ vp=0
 jaceps=0.1
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of values is consistent!
+# Attention: Always ensure that header and order of append_row values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 echo "cfgid,interp,roi,optim,linesearch,divini,srcgrd,levels,iters,steps,rejects,lastn,epsilon,sim,bins,window,ds,be,tp,vp,jaceps" > "$parcsv"
@@ -47,7 +47,8 @@ for be in 0.0001 0.0005 0.001 0.005 0.01 0.05; do
     append_row
   done
   tp=0
-  for vp in 0.0 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
+  let i++  # unused cfgid which corresponded to previous duplicate vp=0, tp=0 rows
+  for vp in 0.0001 0.001 0.005 0.01 0.05 0.1 0.2 0.5 1.0; do
     append_row
   done
 done

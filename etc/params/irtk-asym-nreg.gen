@@ -17,7 +17,7 @@ bins=64
 ds=20     # initial control point spacing!
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of values is consistent!
+# Attention: Always ensure that header and order of append_row values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 echo "cfgid,interp,optim,levels,iters,steps,step,epsilon,sim,bins,ds,be,tp,vp" > "$parcsv"
@@ -36,7 +36,8 @@ for be in 0 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
     append_row
   done
   tp=0
-  for vp in 0 0.0001 0.001 0.005 0.01 0.05; do
+  let i++  # unused cfgid which corresponded to previous duplicate vp=0, tp=0 rows
+  for vp in 0.0001 0.001 0.005 0.01 0.05; do
     append_row
   done
 done
