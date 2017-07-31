@@ -74,31 +74,52 @@ get_cfgids()
   fi
 }
 
-# get background value
+# get background value of intensity image
 get_bgvalue()
 {
-  if [ $1 = 't1w' ]; then
-    echo "0"
+  if [ "$1" = 't1w' ] || [ "$1" = 't2w' ]; then
+    echo 0
   fi
 }
 
-# whether modality/channel is a binary mask
-is_mask()
+# get padded value in foreground extracted intensity image
+# used when get_bgvalue returns an image mask instead of a value
+get_padvalue()
 {
-  echo false
+  echo -1
 }
 
-# whether modality/channel is a hard segmentation (label image)
-is_seg()
+# whether (background) value is a number
+is_number()
 {
-  if [ $1 = 'seg' ]; then
+  if [[ "$1" =~ ^[+-]?[0-9]+(\.[0-9]+)?$ ]] || [ "$1" = 'nan' -o "$1" = 'inf' -o "$1" = '+inf' -o "$1" = '-inf' ]; then
     echo true
   else
     echo false
   fi
 }
 
-# whether modality/channel is a probabilistic segmentation
+# whether type of image is a binary mask
+is_mask()
+{
+  if [ "$1" = 'msk' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
+# whether type of image is a hard segmentation (label image)
+is_seg()
+{
+  if [ "$1" = 'seg' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
+# whether type of image is a probabilistic segmentation
 is_prob()
 {
   echo false

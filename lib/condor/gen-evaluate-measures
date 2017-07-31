@@ -63,7 +63,9 @@ refsuf="$(get_suffix "$refmod")"
 # evaluate-dof '-padding <bgvalue>' or empty string
 refpad=''
 refbgv=$(get_bgvalue "$refmod")
-[ -z "$refbgv" ] || refpad="-padding $refbgv"
+if [ -n "$refbgv" -a "$(is_mask "$refbgv")" != true ]; then
+  refpad="-padding $refbgv"
+fi
 
 # ------------------------------------------------------------------------------
 # evaluate quality measures after affine pre-alignment
@@ -313,7 +315,7 @@ EOF_JOB
           if [ "$isseg" != true ]; then
             normalization='-normalize zscore'
             bgvalue=$(get_bgvalue "$mod")
-            if [ -n "$bgvalue" ]; then
+            if [ -n "$bgvalue" -a $(is_mask "$bgvalue") != true ]; then
               padding="-padding $bgvalue"
               let min="$bgvalue+1"
               let max="$bgvalue+100"

@@ -31,7 +31,16 @@ regid="$1"; shift
 [ -n "$regid" ] || print_help
 
 # include also images used to create ROIs for averaging of voxel-wise measures
-mods=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
+mods=("${mods[@]}" "${rois[@]}")
+
+# include image foreground masks
+for chn in ${chns[@]}; do
+  chnbg=$(get_bgvalue "$chn")
+  if [ $(is_mask "$chn") = true ]; then
+    mods=("${mods[@]}" "$chn")
+  fi
+done
+mods=($(echo "${mods[@]}" | tr ' ' '\n' | sort -u))
 
 # affinely align images to reference
 if [ "$regid" = 'affine' ]; then
