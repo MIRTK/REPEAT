@@ -7,23 +7,22 @@ Synopsis:
   $(basename $BASH_SOURCE) -q <queue> -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]
 
 Description:
-  Main script to generate job descriptions for specified
-  (and supported) batch queuing system, and to submit jobs
+  Main script to generate job descriptions for specified (and supported) batch
+  queuing system, and to submit these evaluation tasks.
 
-  This script checks which step was last completed, and then
-  generates the job description files for the next step in the
-  workflow. The next jobs in line are then submitted to the
-  respective batch queueing system.
+  This script checks which step was last completed, and then generates the
+  job description files for the next step in the workflow. The next jobs in
+  line are then submitted to the respective batch queueing system.
 
-  This command has to be run multiple times until all steps
-  are done, as indicated by the last message to STDOUT.
+  This command has to be run multiple times until all steps are done,
+  as indicated by the last message to STDOUT.
 
 Required arguments:
-  -q, -queue <name>
+  -q, -queue <queue>
     Name of batch queuing system. Currently only 'condor'/'htcondor' supported.
-  -d, -dataset
+  -d, -dataset <dataset>
     Name of evaluate dataset.
-  -r, -reg, -regid
+  -r, -reg, -regid <regid>
     ID of registration tool (incl. version suffix if used).
 
 Optional arguments:
