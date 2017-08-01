@@ -277,7 +277,7 @@ EOF_JOB
 
           cat > "$jobdsc" <<EOF_HEADER
 universe   = vanilla
-executable = $topdir/$libdir/tools/evaluate-overlap
+executable = $mirtk
 initialdir = $topdir
 
 EOF_HEADER
@@ -297,9 +297,9 @@ EOF_HEADER
               done
             fi
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "'$tgtimg' ${srcimgs[@]} $kind -metric $measure -precision 5 -table '$outcsv' -header -id srcid"
+arguments = "evaluate-overlap '$tgtimg' ${srcimgs[@]} $kind -metric $measure -precision 5 -table -header -id srcid"
 error     = $logdir/$tgtid.err
-output    = $logdir/$tgtid.out
+output    = $outcsv
 log       = $logdir/$tgtid.log
 queue
 
