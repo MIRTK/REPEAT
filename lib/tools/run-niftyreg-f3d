@@ -10,30 +10,56 @@
 [ ${mirtk:0:1} = / ] || mirtk="$topdir/$mirtk"
 [ ${niftyreg:0:1} = / ] || niftyreg="$topdir/$niftyreg"
 
-i=0
-args=("$@")
-while [ $i -lt $# ]; do
-  if [ "${args[i]}" = '-cpp' ]; then
-    let i++
-    cpp="${args[i]}"
-    break
-  fi
-  let i++
+args=()
+cpp=
+dof=
+res=
+version=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -ver)
+      version="$2"
+      shift; ;;
+    -dof)
+      dof="$2"
+      shift; ;;
+    -cpp)
+      cpp="$2"
+      shift; ;;
+    -res)
+      res="$2"
+      shift; ;;
+    *)
+      args=("${args[@]}" "$1")
+      ;;
+  esac
+  shift
 done
 
-[ -n "$cpp" ] || error "Could not determine -cpp output file path"
-dof="${cpp/.nii/.dof}"
-[ "$dof" != "$cpp" ] || error "-cpp file name must have extension .nii or .nii.gz"
-[ "${dof:${#dof}-3}" = '.gz' ] || dof="$dof.gz"
-tmpdir="$(mktemp -d)"  # need specific file name extension, but --suffix option not available on macOS
-[ $? -eq 0 -a -n "$tmpdir" ] || error "Failed to create temporary directory for -res output file"
-res="$tmpdir/res.nii.gz"
+if [ -z "$cpp" -a -z "$dof" ]; then
+  error "Missing -cpp or -dof option argument"
+fi
+
+if [ -n "$version" ]; then
+  niftyreg="$niftyreg-$version"
+  [ -f "$niftyreg/bin/reg_f3d" ] || error "NiftyReg version $version not found in '$niftyreg'"
+fi
+
+if [ -z "$res" -o -z "$cpp" ]; then
+  tmp="$(mktemp -d)"
+  [ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
+  [ -z "$res" ] || res="$tmp/res.nii.gz"
+  [ -z "$cpp" ] || cpp="$tmp/cpp.nii.gz"
+else
+  tmp=
+fi
 
 run()
 {
   echo "> $@"
   "$@" || {
-    [ -n "$tmpdir" -a "$tmpdir" != '/' ] || rm -rf "$tmpdir"
+    [ -z "$tmp" -o "$tmp" = / ] || rm -rf "$tmp"
     exit 1
   }
 }
@@ -41,5 +67,5 @@ run()
 echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time run "$niftyreg/bin/reg_f3d" "$@" -res "$res"
-run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
+time run "$niftyreg/bin/reg_f3d" "${args[@]}" -cpp "$cpp" -res "$res"
+[ -z "$dof" ] || run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d

@@ -33,7 +33,9 @@ dataset="$1"; shift
 regid="$1"; shift
 [ -n "$regid" ] || print_help
 issym="$(is_sym $regid)"
-regcmd=${regid/*-}
+
+version="${regid/*-}"
+[ $(is_version "$version") = true ] || version=''
 
 # images that drive the registration
 chn="${chns[0]}"
@@ -72,8 +74,12 @@ if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"
 elif [ -f "$cfgdir/$regid.csv" ]; then
   regcsv="$cfgdir/$regid.csv"
+elif [ -n "$version" -a -f "$cfgdir/$dataset/${regid%-*}.csv" ]; then
+  regcsv="$cfgdir/$dataset/${regid%-*}.csv"
+elif [ -n "$version" -a -f "$cfgdir/${regid%-*}.csv" ]; then
+  regcsv="$cfgdir/${regid%-*}.csv"
 else
-  error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
+  error "Missing parameters CSV file for $regid (version='$version') in $cfgdir[/$dataset]"
 fi
 paropt=($(head -n1 "$regcsv" | tr , '\n'))
 
@@ -86,7 +92,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # paths
   jobdir="$regdir/$cfgid/bin"
-  cppdir="$regdir/$cfgid/dof"
+  dofdir="$regdir/$cfgid/dof"
   logdir="$regdir/$cfgid/log/register"
   pardir="$regdir/$cfgid/etc"
 
@@ -105,7 +111,7 @@ for cfgid in "${cfgids[@]}"; do
   # construct list of reg_f3d arguments
   c=0
   argv=()
-  [ -z "$bgvalue" ] || argv=('-pad' "$bgvalue")
+  [ -z "$bgvalue" ] || argv=("${argv[@]}" '-pad' "$bgvalue")
   while [ $c -lt ${#paropt[@]} ]; do
     opt="${paropt[c]}"
     arg="${parval[c]}"
@@ -126,10 +132,10 @@ for cfgid in "${cfgids[@]}"; do
         ;;
       le)
         vals=($arg)
-        if [ ${#vals[@]} -ne 2 ]; then
+        if [ "$version" = "1.3.9" -a ${#vals[@]} -ne 2 ]; then
           error "Invalid 'le' value: $arg! Must be two numbers separated by space."
         fi
-        argv=("${argv[@]}" '-le' ${vals[0]} ${vals[1]})
+        argv=("${argv[@]}" '-le' ${vals[@]})
         ;;
       ds)
         argv=("${argv[@]}" '-sx' $arg '-sy' $arg '-sz' $arg)
@@ -140,9 +146,10 @@ for cfgid in "${cfgids[@]}"; do
     esac
     let c++
   done
+  [ -z "$version" ] || argv=("${argv[@]}" '-ver' "$version")
 
   # make directories
-  makedir "$cppdir"
+  makedir "$dofdir"
   makedir "$logdir"
   makedir "$jobdir"
 
@@ -161,8 +168,9 @@ initialdir   = $topdir
 EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
-      cppout="$cppdir/$tgtid-$srcid.nii.gz"
-      [ $force = true ] || [ ! -f "$cppout" ] || continue
+      dofout="$dofdir/$tgtid-$srcid.dof.gz"
+      cppout="$dofdir/$tgtid-$srcid.nii.gz"  # to allow check of conversion
+      [ $force = true ] || [ ! -f "$dofout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       masks=()
       if [ -n "$mskdir" ]; then
@@ -172,7 +180,7 @@ EOF_HEADER
         fi
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "-ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' ${masks[@]} ${argv[@]}"
+arguments = "-ref '$imgdir/$imgpre$tgtid$imgsuf' -flo '$imgdir/$imgpre$srcid$imgsuf' -cpp '$cppout' -dof '$dofout' ${masks[@]} ${argv[@]}"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

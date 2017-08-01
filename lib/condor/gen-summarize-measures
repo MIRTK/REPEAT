@@ -33,14 +33,14 @@ regid="$1"; shift
 issym="$(is_sym $regid)"
 
 if [ $evlice = true ]; then
-  if [ ${#tgtids[@]} -ne ${#srcids} ]; then
+  if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
   elif [ $issym = true -a $allsym != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
   fi
   evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
+if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
   echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi

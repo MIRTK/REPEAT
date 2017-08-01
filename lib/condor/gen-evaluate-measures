@@ -33,14 +33,14 @@ regid="$1"; shift
 issym="$(is_sym $regid)"
 
 if [ $evlice = true ]; then
-  if [ ${#tgtids[@]} -ne ${#srcids} ]; then
+  if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
   elif [ $issym = true -a $allsym != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
   fi
   evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
+if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
   echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi
@@ -157,6 +157,7 @@ EOF_JOB
 
     makedir "$outdir"
     makedir "$logdir"
+    makedir "$pardir"
 
     jobdsc="$jobdir/evaluate-dof-$measure.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
@@ -200,6 +201,7 @@ EOF_JOB
 
     makedir "$outdir"
     makedir "$logdir"
+    makedir "$pardir"
 
     jobdsc="$jobdir/evaluate-dof-$measure.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
@@ -252,47 +254,50 @@ EOF_JOB
     fi
 
     for measure in $(get_measures "$mod"); do
-      
+
       logdir="$regdir/log/evaluate-$mod-$measure"
       makedir "$logdir"
 
       jobdsc="$jobdir/evaluate-$mod-$measure.condor"
       if [ $update = true ] || [ ! -f "$jobdsc" ]; then
         echo "Update: $jobdsc"
-        cat > "$jobdsc" <<EOF_HEADER
-universe   = vanilla
-executable = $mirtk
-initialdir = $topdir
-
-EOF_HEADER
 
         # ----------------------------------------------------------------------
         # evaluate segmentation overlap
         [ $measure != 'overlap' ] || measure='dsc'
         if [ $(is_overlap_measure $measure) = true ]; then
 
+          if [ -z "$kind" ]; then
+            error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
+          fi
+
           outdir="$csvdir/$dataset/$regid"
           [ -z "$cfgid" ] || outdir="$outdir/$cfgid"
           makedir "$outdir"
 
-          if [ -z "$kind" ]; then
-            error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
-          fi
+          cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $topdir/$libdir/tools/evaluate-overlap
+initialdir = $topdir
+
+EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
             outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
-            images=()
+            srcimgs=()
             if [ $regid = 'affine' ]; then
+              tgtimg="$imgdir/$imgpre$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
-                images=("${images[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
+                srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
               done
             else
+              tgtimg="$imgdir/$imgpre$tgtid-$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
-                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+                srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
             fi
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-overlap '$imgdir/$imgpre$tgtid$imgsuf' ${images[@]} $kind -metric $measure -precision 5 -table '$outcsv'"
+arguments = "'$tgtimg' ${srcimgs[@]} $kind -metric $measure -precision 5 -table '$outcsv' -header -id srcid"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
@@ -305,12 +310,17 @@ EOF_JOB
         # evaluate voxel-wise measures
         else
 
-          outdir="$regdir/evl/$mod"
-          makedir "$outdir"
+          cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $mirtk
+initialdir = $topdir
+
+EOF_HEADER
 
           padding=''
           normalization=''
           rescaling=''
+
           isseg=$(is_seg "$mod")
           if [ "$isseg" != true ]; then
             normalization='-normalize zscore'
@@ -326,7 +336,12 @@ EOF_JOB
           fi
 
           if [ $regid = 'affine' ]; then
+
+            outdir="$regdir/evl/$mod"
             outimg="$outdir/$measure.nii.gz"
+
+            makedir "$outdir"
+
             for imgid in "${imgids[@]}"; do
               images=("${images[@]}" "'$imgdir/$imgpre$imgid$imgsuf'")
             done
@@ -339,6 +354,10 @@ queue
 
 EOF_JOB
           else
+
+            outdir="$regdir/evl/$mod/$measure"
+            makedir "$outdir"
+
             for tgtid in "${tgtids[@]}"; do
               outimg="$outdir/$tgtid.nii.gz"
               [ $force = true ] || [ ! -f "$outimg" ] || continue

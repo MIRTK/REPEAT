@@ -7,27 +7,34 @@
 ## workflow. It has to be run multiple times until all steps
 ## are done, as indicated by the last message to STDOUT.
 
+nosubmit=false
+
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  error "usage: $(basename $BASH_SOURCE) -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]"
 }
 
 submit()
 {
-  local i=0
-  local n=3
-  local s=30
-  echo "> condor_submit $@"
-  while [ $i -lt $n ]; do
-    condor_submit "$@" && break
-    let i++
-    if [ $i -eq $n ]; then
-      error "Job submission failed for $n times, aborting"
-    fi
-    echo "Job submission failed, trying again in $s sec..."
-    sleep $s
-  done
-  jobs_submitted=true
+  grep -e '^ *queue' "$1" > /dev/null
+  if [ $? -eq 0 ]; then
+    local i=0
+    local n=3
+    local s=30
+    echo "> condor_submit $1"
+    while [ $i -lt $n ]; do
+      [ $nosubmit = true ] || condor_submit "$1" && break
+      let i++
+      if [ $i -eq $n ]; then
+        error "Job submission failed for $n times, aborting"
+      fi
+      echo "Job submission failed, trying again in $s sec..."
+      sleep $s
+    done
+    jobs_submitted=true
+  else
+    error "No jobs in $1, but could not find output files before?!"
+  fi
 }
 
 # ------------------------------------------------------------------------------
@@ -44,8 +51,33 @@ submit()
 # change to top-level directory
 run cd "$topdir"
 
+cfgids=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -d|-dataset)
+      dataset="$2"
+      shift; ;;
+    -r|-reg|regid)
+      regid="$2"
+      shift; ;;
+    -nosubmit)
+      nosubmit=true
+      ;;
+    -*)
+      error "Unknown option: $1"
+      ;;
+    --)
+      shift
+      cfgids=("${cfgids[@]}" "$@")
+      break; ;;
+    *)
+      cfgids=("${cfgids[@]}" "$1")
+      ;;
+  esac
+  shift
+done
+
 # evaluation dataset
-dataset="$1"; shift
 [ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
@@ -55,13 +87,14 @@ dataset="$1"; shift
 let N="${#tgtids[@]} * ${#srcids[@]}"
 
 # registration method
-regid="$1"; shift
 [ -n "$regid" ] || print_help
+version="${regid/*-}"
+[ $(is_version "$version") = true ] || version=''
 
 # generate parameters CSV or check existence of it or preset .cfg file
 regcfg_found=false
 for cfgpre in "$dataset/" ''; do
-  if [ -f "$cfgdir/$cfgpre$regid.csv" ] || [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
+  if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
     regcfg_found=true
     break
   fi
@@ -70,13 +103,24 @@ for cfgpre in "$dataset/" ''; do
     regcfg_found=true
     break
   fi
+  if [ -n "$version" ]; then
+    _regid=${regid%-*}
+    if [ -f "$cfgdir/$cfgpre${_regid}.csv" -o -f "$cfgdir/$cfgpre${_regid}.cfg" ]; then
+      regcfg_found=true
+      break
+    fi
+    if [ -f "$cfgdir/$cfgpre${_regid}.gen" ]; then
+      run "$cfgdir/$cfgpre${_regid}.gen"
+      regcfg_found=true
+      break
+    fi
+  fi
 done
 if [ $regcfg_found = false ]; then
   error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,cfg,gen}'"
 fi
 
 # IDs of parameter sets
-cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 issym="$(is_sym $regid)"
@@ -90,14 +134,14 @@ imgsuf=".nii.gz"
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
 if [ $evlice = true ]; then
-  if [ ${#tgtids[@]} -ne ${#srcids} ]; then
+  if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
   elif [ $issym = true -a $allsym != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
   fi
   evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids} ]; then
+if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
   echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi

@@ -49,6 +49,8 @@ get_cfgids()
   local regid="$2"
   if [ -n "$topdir" -a -n "$cfgdir" -a -n "$dataset" -a -n "$regid" ]; then
     local regcsv cfgpre
+    local version="${regid/*-}"
+    [ $(is_version "$version") = true ] || version=''
     for cfgpre in "$dataset/" ''; do
       if [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
         echo "$cfgpre$regid.cfg"
@@ -66,6 +68,26 @@ get_cfgids()
           error "Script '$cfgdir/$cfgpre$regid.gen' expected to create file: $cfgdir/$cfgpre$regid.csv"
         fi
         break
+      fi
+      if [ -n "$version" ]; then
+        local _regid=${regid%-*}
+        if [ -f "$cfgdir/$cfgpre$_regid.cfg" ]; then
+          echo "$cfgpre$_regid.cfg"
+          break
+        fi
+        if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
+          regcsv="$cfgdir/$cfgpre$_regid.csv"
+          break
+        fi
+        if [ -f "$cfgdir/$cfgpre$_regid.gen" ]; then
+          run "$cfgdir/$cfgpre$_regid.gen"
+          if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
+            regcsv="$cfgdir/$cfgpre$_regid.csv"
+          else
+            error "Script '$cfgdir/$cfgpre$_regid.gen' expected to create file: $cfgdir/$cfgpre$_regid.csv"
+          fi
+          break
+        fi
       fi
     done
     if [ -n "$regcsv" ]; then
@@ -93,6 +115,16 @@ get_padvalue()
 is_number()
 {
   if [[ "$1" =~ ^[+-]?[0-9]+(\.[0-9]+)?$ ]] || [ "$1" = 'nan' -o "$1" = 'inf' -o "$1" = '+inf' -o "$1" = '-inf' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
+# whether regid suffix is a software version number
+is_version()
+{
+  if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?(\.[0-9]+)([a-z]+)?$ ]] || [[ "$1" =~ ^rev[a-f0-9]+$ ]] || [ "$1" = 'dev' -o "$1" = 'master' -o "$1" = 'develop' -o "$1" = 'latest' ]; then
     echo true
   else
     echo false
