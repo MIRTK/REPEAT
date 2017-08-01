@@ -3,3 +3,4 @@
 /tmp
 /var
 .ipynb_checkpoints
+.*.swp

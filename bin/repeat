@@ -1,0 +1,137 @@
+#!/bin/bash
+
+print_help()
+{
+  cat --<<EOF_HELP
+Synopsis:
+  $(basename $BASH_SOURCE) -q <queue> -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]
+
+Description:
+  Main script to generate job descriptions for specified
+  (and supported) batch queuing system, and to submit jobs
+
+  This script checks which step was last completed, and then
+  generates the job description files for the next step in the
+  workflow. The next jobs in line are then submitted to the
+  respective batch queueing system.
+
+  This command has to be run multiple times until all steps
+  are done, as indicated by the last message to STDOUT.
+
+Required arguments:
+  -q, -queue <name>
+    Name of batch queuing system. Currently only 'condor'/'htcondor' supported.
+  -d, -dataset
+    Name of evaluate dataset.
+  -r, -reg, -regid
+    ID of registration tool (incl. version suffix if used).
+
+Optional arguments:
+  cfgids
+    List of registration configurations to evaluate.
+    When none specified, all configurations found in
+    the parameters CSV file of the respective registration
+    tool will be evaluated.
+
+Options:
+  -nosubmit
+    Only generate job description files and output directories.
+    Skip submission of jobs to batch queuing system.
+EOF_HELP
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$libdir" ] || error "etc/settings.sh: libdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
+
+# parse arguments
+queue=
+dataset=
+regid=
+cfgids=()
+opts=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|-help|--help)
+      print_help
+      exit 0; ;;
+    -q|-queue)
+      queue="$2"
+      shift; ;;
+    -d|-dataset)
+      dataset="$2"
+      shift; ;;
+    -r|-reg|regid)
+      regid="$2"
+      shift; ;;
+    -nosubmit)
+      opts=("${opts[@]}" '-nosubmit')
+      ;;
+    --)
+      shift
+      cfgids=("${cfgids[@]}" "$@")
+      break; ;;
+    -*)
+      error "Unknown option: $1"
+      ;;
+    *)
+      cfgids=("${cfgids[@]}" "$1")
+      ;;
+  esac
+  shift
+done
+
+# check required arguments
+[ -n "$queue"   ] || error "Batch queuing system not specified, see --help for usage information"
+[ -n "$dataset" ] || error "Evaluation dataset not specified, see --help for usage information"
+[ -n "$regid"   ] || error "Registration tool not specified, see --help for usage information"
+
+# change to top-level directory
+run cd "$topdir"
+
+# generate parameters CSV if missing and/or check existence of it
+config_found=false
+for cfgpre in "$dataset/" ''; do
+  if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
+    config_found=true
+    break
+  fi
+  if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
+    run "$cfgdir/$cfgpre$regid.gen"
+    config_found=true
+    break
+  fi
+  if [ -n "$version" ]; then
+    _regid=${regid%-*}
+    if [ -f "$cfgdir/$cfgpre${_regid}.csv" ]; then
+      config_found=true
+      break
+    fi
+    if [ -f "$cfgdir/$cfgpre${_regid}.gen" ]; then
+      run "$cfgdir/$cfgpre${_regid}.gen"
+      config_found=true
+      break
+    fi
+  fi
+done
+if [ $config_found = false ]; then
+  error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,gen}'"
+fi
+
+# IDs of parameter sets
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+
+# delegate to batch queuing system specific script
+if [ "$queue" = condor -o "$queue" = htcondor ]; then
+  "$libdir/condor/repeat" "${opts[@]}" -d "$dataset" -r "$regid" -- "${cfgids[@]}"
+else
+  error "Unsupported batch queuing system: $queue"
+fi

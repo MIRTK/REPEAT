@@ -13,14 +13,15 @@ This folder contains scripts used to evaluate the quality of the spatial mapping
 computed with different registration algorithms (and implementations thereof)
 using an available brain image dataset, best with available manual annotations.
 
-* `bin`
-  - Main script(s) to perform evaluation.
+* `bin/repeat`
+  - Main script to perform evaluation.
 * `etc`
   - Configuration shell files sourced by executable scripts.
   - Executable scripts to generate CSV files with registration parameters.
 * `lib`
   - Shell modules defining auxiliary functions sourced by executable scripts.
   - Executable scripts to generate files for batch job submission.
+  - Batch queuing system specific `repeat` scripts.
 * `opt`
   - Directory containing or linking to installations of registration tools.
   - On Linux, save (or link) downloaded MIRTK AppImage in this directory, e.g.,
