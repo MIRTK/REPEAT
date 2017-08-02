@@ -49,8 +49,8 @@ fi
 if [ -z "$res" -o -z "$cpp" ]; then
   tmp="$(mktemp -d)"
   [ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
-  [ -z "$res" ] || res="$tmp/res.nii.gz"
-  [ -z "$cpp" ] || cpp="$tmp/cpp.nii.gz"
+  [ -n "$res" ] || res="$tmp/res.nii.gz"
+  [ -n "$cpp" ] || cpp="$tmp/cpp.nii.gz"
 else
   tmp=
 fi
