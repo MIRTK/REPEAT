@@ -56,11 +56,11 @@ done
 
 # 2. explore optimization related settings
 iters=100
-for epsilon 0 0.0001; do
-  for srcgrd false true; do
-    for passdof false true; do
-      for conjtot false true; do
-        for convgrd false true; do
+for epsilon in 0 0.0001; do
+  for srcgrd in false true; do
+    for passdof in false true; do
+      for conjtot in false true; do
+        for convgrd in false true; do
           for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
             append_row
           done
