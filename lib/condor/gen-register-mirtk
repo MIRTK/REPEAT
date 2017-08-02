@@ -85,9 +85,6 @@ for cfgid in "${cfgids[@]}"; do
   [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
   [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
 
-  # get 'allsym' value from CSV if present, otherwise use global value of settings.sh
-  [ $allsym_col -lt 0 ] || allsym=${parval[allsym_col]}
-
   # substitute values in template configuration
   c=0
   usemsk=false
