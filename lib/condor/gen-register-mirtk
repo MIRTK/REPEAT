@@ -61,6 +61,7 @@ regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"
 paddir="$vardir/$dataset/affine/pad"
 dofin='Id'
+imgsuf=".nii.gz"
 
 for cfgid in "${cfgids[@]}"; do
 
@@ -87,10 +88,47 @@ for cfgid in "${cfgids[@]}"; do
   # get 'allsym' value from CSV if present, otherwise use global value of settings.sh
   [ $allsym_col -lt 0 ] || allsym=${parval[allsym_col]}
 
+  # substitute values in template configuration
+  c=0
+  usemsk=false
+  usepad=true
+  interp='Linear'
+  parcfg="${config}"
+  while [ $c -lt ${#paropt[@]} ]; do
+    arg="${parval[c]}"
+    case "${paropt[c]}" in
+      allsym)
+        allsym="$arg"
+        ;;
+      usemsk)
+        usemsk="$arg"
+        ;;
+      usepad)
+        usepad="$arg"
+        ;;
+      interp)
+        interp="$arg"
+        ;;
+      *)
+        parcfg="${parcfg//<${paropt[c]}>/$arg}"
+        ;;
+    esac
+    let c++
+  done
+
+  # interpolation mode
+  if [ "$usepad" = true ]; then
+    interp="$interp with padding"
+  fi
+  parcfg="${parcfg//<interp>/$interp}"
+  parcfg="${parcfg//<usepad>/$usepad}"
+
   # assemble data terms of energy function
+  m=0
   n=0
-  bgpars=""
-  energy=""
+  bgpars=''
+  energy=''
+  mskdir=''
   for chn in "${chns[@]}"; do
     [ -z "$energy" ] || energy="${energy}...\n${energy_indentation}+ "
     if [ "$(is_seg "$chn")" = true ] || [ "$(is_prob "$chn")" = true ]; then
@@ -98,24 +136,36 @@ for cfgid in "${cfgids[@]}"; do
     else
       term="SIM"
     fi
+    let m++
     let t=$n+1
     let s=$n+2
     if [ "$issym" = true ]; then
-      energy="${energy}${term}[Dissimilarity {i}](I($t) o T^-0.5, I($s) o T^0.5)"
+      energy="${energy}${term}[Dissimilarity $m](I($t) o T^-0.5, I($s) o T^0.5)"
     elif [ "$isic" = true ]; then
-      energy="${energy}${term}[Dissimilarity {i}](I($t) o T^-1, I($s))"
-      energy="${energy}${term}[Dissimilarity {i}](I($t), I($s) o T)"
+      energy="${energy}${term}[Dissimilarity ${m}a](I($t) o T^-1, I($s))"
+      energy="${energy}${term}[Dissimilarity ${m}b](I($t), I($s) o T)"
     else
-      energy="${energy}${term}[Dissimilarity {i}](I($t), I($s) o T)"
+      energy="${energy}${term}[Dissimilarity $m](I($t), I($s) o T)"
     fi
     bgvalue="$(get_bgvalue "$chn")"
     if [ -n "$bgvalue" ]; then
       if [ "$(is_mask "$bgvalue")" = true ]; then
+        if [ "$usemsk" = true ]; then
+          mskdir="$vardir/$dataset/affine/out/$bgvalue"
+        fi
         bgvalue="$(get_padvalue "$bgvalue")"
         [ -n "$bgvalue" ] || bgvalue=-1
+      elif [ "$usemsk" = true -a -z "$mskdir" ]; then
+        mskdir="$vardir/$dataset/affine/msk"
+        makedir "$mskdir"
+        for tgtid in "${tgtids[@]}"; do
+          mskimg="$mskdir/$tgtid$imgsuf"
+          [ ! -f "$mskimg" ] || continue
+          run "$mirtk" calculate-element-wise "$imgdir/$chn/$tgtid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
+        done
       fi
       bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
-      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
+      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"        
     fi
     n=$s
   done
@@ -124,24 +174,6 @@ for cfgid in "${cfgids[@]}"; do
   energy="${energy}...\n${energy_indentation}+ 0 VP[Volume preservation](T)"
   energy="${energy}...\n${energy_indentation}+ 0 LogJac[LogJac penalty](T)"
   energy="${energy}...\n${energy_indentation}+ 0 NegJac[NegJac penalty](T)"
-
-  # substitute values in template configuration
-  c=0
-  parcfg="${config}"
-  while [ $c -lt ${#paropt[@]} ]; do
-    case "${paropt[c]}" in
-      allsym)
-        allsym="${parval[c]}"
-        ;;
-      inclbg)
-        [ "${parval[c]}" != true ] || bgpars=''
-        ;;
-      *)
-        parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
-        ;;
-    esac
-    let c++
-  done
 
   # make directories
   makedir "$pardir"
@@ -174,7 +206,6 @@ EOF_HEADER
       images=()
       for chn in "${chns[@]}"; do
         imgpre="$chn/"
-        imgsuf=".nii.gz"
         bgvalue="$(get_bgvalue "$chn")"
         if [ -n "$bgvalue" -a "$(is_mask "$bgvalue")" = true ]; then
           images=("${images[@]}" -image "'$paddir/$imgpre$tgtid$imgsuf'" "'$paddir/$imgpre$srcid$imgsuf'")      
@@ -182,8 +213,12 @@ EOF_HEADER
           images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
         fi
       done
+      mask=
+      if [ -n "$mskdir" ]; then
+        mask="-mask '$mskdir/$tgtid$imgsuf'"
+      fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$mirtk' register ${images[@]} -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
+arguments = "'$mirtk' register ${images[@]} $mask -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

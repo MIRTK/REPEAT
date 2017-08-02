@@ -1,0 +1,52 @@
+#!/bin/bash
+
+## Generate configuration files for MIRTK 'register' command
+## using asymmetric energy formulation and classic FFD model
+regid="$(basename "$BASH_SOURCE")"
+regid="${regid/.gen}"
+
+# initial/constant parameter values
+usemsk=false
+usepad=true
+interp='Linear'
+roi='Union'
+optim='ConjugateGradientDescent'
+linesearch='Adaptive'
+divini=false
+srcgrd=true
+passdof=false
+conjtot=true
+convgrd=false
+levels=4
+iters=300
+steps=20
+rejects=2
+lastn=10
+epsilon=0.0001
+sim='NMI'
+bins=64
+padbins=false
+window=5
+ds=2.5
+be=0
+tp=0
+vp=0
+jaceps=0.1
+
+# auxiliary function to append row with parameter values
+# Attention: Always ensure that header and order of append_row values is consistent!
+i=0
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+echo "cfgid,interp,roi,optim,linesearch,divini,srcgrd,passdof,conjtot,convgrd,levels,iters,steps,rejects,lastn,epsilon,sim,bins,padbins,window,ds,be,tp,vp,jaceps" > "$parcsv"
+
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  echo "$cfgid,$interp,$roi,$optim,$linesearch,$divini,$srcgrd,$passdof,$conjtot,$convgrd,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps" >> "$parcsv"
+}
+
+# 1. determine optimal range of bending energy weight
+for be in 0.0001 0.0005 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 0.009 0.01 0.05; do
+  append_row
+done
