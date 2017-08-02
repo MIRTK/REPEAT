@@ -50,3 +50,22 @@ append_row()
 for be in 0.0001 0.0005 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 0.009 0.01 0.05; do
   append_row
 done
+for be in 0 0.00001; do
+  append_row
+done
+
+# 2. explore optimization related settings
+iters=100
+for epsilon 0 0.0001; do
+  for srcgrd false true; do
+    for passdof false true; do
+      for conjtot false true; do
+        for convgrd false true; do
+          for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
+            append_row
+          done
+        done
+      done
+    done
+  done
+done
