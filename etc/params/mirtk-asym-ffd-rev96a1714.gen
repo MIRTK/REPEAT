@@ -46,7 +46,7 @@ append_row()
   echo "$cfgid,$interp,$roi,$optim,$linesearch,$divini,$srcgrd,$passdof,$conjtot,$convgrd,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps" >> "$parcsv"
 }
 
-# 1. determine optimal range of bending energy weight
+# 1) determine optimal range of bending energy weight
 for be in 0.0001 0.0005 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 0.009 0.01 0.05; do
   append_row
 done
@@ -54,12 +54,29 @@ for be in 0 0.00001; do
   append_row
 done
 
-# 2. explore optimization related settings
+# 2a) explore advanced implementation specific options (default MIRTK vs. NiftyReg-like)
 iters=100
 for passdof in false true; do
   for conjtot in false true; do
     for convgrd in false true; do
       for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
+        append_row
+      done
+    done
+  done
+done
+
+# 2b) a few more tests with other settings closer to NiftyReg
+epsilon=0
+roi='Overlap'
+padbins=true
+steps=12
+rejects=12
+lastn=0
+for passdof in false true; do
+  for conjtot in false true; do
+    for convgrd in false true; do
+      for be in 0.0001 0.0005 0.001; do
         append_row
       done
     done
