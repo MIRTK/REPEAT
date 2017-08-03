@@ -67,9 +67,13 @@ for passdof in false true; do
 done
 
 # 2b) a few more tests with other settings closer to NiftyReg
+usemsk=true
+usepad=false
+srcgrd=false
 epsilon=0
 roi='Overlap'
 padbins=true
+levels=3
 steps=12
 rejects=12
 lastn=0
