@@ -10,8 +10,8 @@ set_defaults()
 {
   usemsk=false
   usepad=true
-  interp='Linear'
   roi='Union'
+  interp='Linear'
   optim='ConjugateGradientDescent'
   linesearch='Adaptive'
   divini=false
@@ -40,13 +40,13 @@ set_defaults()
 # Attention: Always ensure that header and order of append_row values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,interp,roi,optim,linesearch,divini,srcgrd,passdof,conjtot,convgrd,levels,iters,steps,rejects,lastn,epsilon,sim,bins,padbins,window,ds,be,tp,vp,jaceps" > "$parcsv"
+echo "cfgid,usemsk,usepad,roi,interp,optim,linesearch,divini,srcgrd,passdof,conjtot,convgrd,levels,iters,steps,rejects,lastn,epsilon,sim,bins,padbins,window,ds,be,tp,vp,jaceps" > "$parcsv"
 
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$interp,$roi,$optim,$linesearch,$divini,$srcgrd,$passdof,$conjtot,$convgrd,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps" >> "$parcsv"
+  echo "$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$passdof,$conjtot,$convgrd,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps" >> "$parcsv"
 }
 
 # 1) determine optimal range of bending energy weight
