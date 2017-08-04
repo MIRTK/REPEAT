@@ -236,6 +236,7 @@ else
 fi
 
 # create ROI masks used to average voxel-wise quality measures
+gen_create_roi_masks_updated=false
 for roi in "${rois[@]}"; do
   if [ "$(is_seg "$roi")" = true ]; then
     nrois=0
@@ -247,8 +248,9 @@ for roi in "${rois[@]}"; do
     fi
     if [ $nrois -eq 0 ]; then
       jobdsc="$jobdir/create-$roi-masks.condor"
-      if [ $update = true -o ! -f "$jobdsc" ]; then
+      if [ $update = true -a $gen_create_roi_masks_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-create-roi-masks" "$dataset"
+        gen_create_roi_masks_updated=true
       fi
       submit "$jobdsc"
     else
@@ -319,6 +321,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # ----------------------------------------------------------------------------
   # deform source images to target images
+  gen_transform_updated=false
   for mod in "${mods_and_rois[@]}"; do
     n=0
     outdir="$regdir/out/$mod"
@@ -330,12 +333,13 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
       jobdsc="$jobdir/transform-$mod.condor"
-      if [ $update = true -o ! -f "$jobdsc" ]; then
+      if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
         regpkg=${regid/-*}
         if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
           regpkg='mirtk'
         fi
         run "$libdir/condor/gen-transform-$regpkg" "$dataset" "$regid" "$cfgid"
+        gen_transform_updated=true
       fi
       submit "$jobdsc"
     elif [ $n -ne $N ]; then
@@ -434,6 +438,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # ----------------------------------------------------------------------------
   # evaluate (voxel-wise) quality measures
+  gen_evaluate_measures_updated=false
   for mod in "${mods[@]}"; do
   for measure in $(get_measures "$mod"); do
     n=0
@@ -450,8 +455,9 @@ for cfgid in "${cfgids[@]}"; do
     fi
     if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
       jobdsc="$jobdir/evaluate-$mod-$measure.condor"
-      if [ $update = true -o ! -f "$jobdsc" ]; then
+      if [ $update = true -a $gen_evaluate_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
+        gen_evaluate_measures_updated=true
       fi
       submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
