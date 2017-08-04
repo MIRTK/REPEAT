@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ## Generate configuration files for IRTK 'nreg' command
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # initial/constant parameter values
 interp='Linear'

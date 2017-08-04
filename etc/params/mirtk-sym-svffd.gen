@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ## Generate configuration files for MIRTK 'register' command
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # constants
 allsym=false

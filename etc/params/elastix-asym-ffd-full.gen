@@ -1,33 +1,33 @@
 #!/bin/bash
 
 ## Generate command-line arguments for elastix using 'Full' ImageSampler
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # initial/constant parameter values
-usemsk=false                       # whether to use foreground masks
-interp='Linear'                    # Linear, BSpline
-pyramid='Recursive'                # Recursive, Smoothing, Shrinking
-optim='ConjugateGradient'          # StandardGradientDescent, ConjugateGradient, ConjugateGradientFRPR
-sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
-bins=64                            # 16, 32, 64
-levels=4                           # 3, 4
-iters=100                          # StandardGradientDescent: 100-500; ConjugateGradient: ~100
-
-# ConjugateGradient specific parameters
-cgtype='PolakRibiere'
-steps=20
-step='4.0 2.0 1.0 0.5'
-epsilon=1e-05  # i.e., ValueTolerance
-
-# StandardGradientDescent specific paramaters
-alpha=0.6
-A=20
-a=1000
-
-# transformation model parameters
-ds=2.5
-be=1
+set_defaults()
+{
+  # general parameters
+  usemsk=false                       # whether to use foreground masks
+  interp='Linear'                    # Linear, BSpline
+  pyramid='Recursive'                # Recursive, Smoothing, Shrinking
+  optim='ConjugateGradient'          # StandardGradientDescent, ConjugateGradient, ConjugateGradientFRPR
+  sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
+  bins=64                            # 16, 32, 64
+  levels=4                           # 3, 4
+  iters=100                          # StandardGradientDescent: 100-500; ConjugateGradient: ~100
+  # ConjugateGradient specific parameters
+  cgtype='PolakRibiere'
+  steps=20
+  step='4.0 2.0 1.0 0.5'
+  epsilon=1e-05  # i.e., ValueTolerance
+  # StandardGradientDescent specific paramaters
+  alpha=0.6
+  A=20
+  a=1000
+  # transformation model parameters
+  ds=2.5
+  be=1
+}
 
 # auxiliary function to append row with parameter values
 # Attention: Always ensure that header and order of append_row values is consistent!
@@ -42,7 +42,9 @@ append_row()
   echo "$cfgid,$usemsk,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$epsilon,$alpha,$A,$a,$ds,$be" >> "$parcsv"
 }
 
-# initial model parameter exploration using conjugate gradient descent with line search
+# ------------------------------------------------------------------------------
+# Initial parameter exploration using conjugate gradient descent
+set_defaults
 optim='ConjugateGradient'
 iters=100
 for usemsk in false true; do
@@ -73,18 +75,22 @@ for ds in 2.5 5.0; do
   done
 done
 
-# once initial parameter exploration done, try standard gradient descent
-# with (more) informed control point spacing and bending energy weight choices
-if [ 1 -eq 1 ]; then
-  optim='StandardGradientDescent'
-  ds=5.0
-  for be in 0.5 1 1.5; do
-    for A in 20 50; do
-      for a in 1000 5000 10000 50000 100000 500000; do
-        for iters in 100 300 500; do
-          append_row
-        done
+# ------------------------------------------------------------------------------
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+# ------------------------------------------------------------------------------
+# Compare to standard gradient descent on which stochastic gradient descent is based
+# (here using all image samples, however, no stochastic gradient descent)
+optim='StandardGradientDescent'
+ds=5.0
+for be in 0.5 1 1.5; do
+  for A in 20 50; do
+    for a in 1000 5000 10000 50000 100000 500000; do
+      for iters in 100 300 500; do
+        append_row
       done
     done
   done
-fi
+done

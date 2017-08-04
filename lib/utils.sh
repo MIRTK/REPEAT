@@ -124,7 +124,7 @@ is_number()
 # whether regid suffix is a software version number
 is_version()
 {
-  if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?(\.[0-9]+)([a-z]+)?$ ]] || [[ "$1" =~ ^rev[a-f0-9]+$ ]] || [ "$1" = 'dev' -o "$1" = 'master' -o "$1" = 'develop' -o "$1" = 'latest' ]; then
+  if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?(\.[0-9]+)([a-z]+)?$ ]] || [[ "$1" =~ ^rev_[a-f0-9]+$ ]] || [ "$1" = 'dev' -o "$1" = 'master' -o "$1" = 'develop' -o "$1" = 'latest' ]; then
     echo true
   else
     echo false

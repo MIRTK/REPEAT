@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ## Generate command-line arguments for elastix using 'Full' ImageSampler
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # initial/constant parameter values
 usemsk=true                        # whether to use foreground masks

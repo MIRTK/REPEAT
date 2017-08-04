@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ## Generate command-line arguments for NiftyReg 'reg_f3d' command
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # initial/constant parameter values
 sim='NMI'
@@ -12,19 +11,20 @@ maxit=300
 ds=2.5
 be=0.005
 jl=0
-le=0
+le='0 0'
+l2=0
 
 # auxiliary function to append row with parameter values
 # Attention: Always ensure that header and order of values is consistent!
 i=0
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,sim,bins,ln,maxit,ds,be,jl,le" > "$parcsv"
+echo "cfgid,sim,bins,ln,maxit,ds,be,jl,le,l2" > "$parcsv"
 
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le" >> "$parcsv"
+  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2" >> "$parcsv"
 }
 
 # initial parameter exploration

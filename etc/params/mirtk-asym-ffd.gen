@@ -2,11 +2,10 @@
 
 ## Generate configuration files for MIRTK 'register' command
 ## using asymmetric energy formulation and classic FFD model
-regid="$(basename "$BASH_SOURCE")"
-regid="${regid/.gen}"
+regid="$(basename "${BASH_SOURCE/.gen}")"
 
 # initial/constant parameter values
-interp='Linear with padding'
+interp='Linear'
 roi='Union'
 optim='ConjugateGradientDescent'
 linesearch='Adaptive'
