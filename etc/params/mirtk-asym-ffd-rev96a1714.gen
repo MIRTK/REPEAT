@@ -6,32 +6,35 @@ regid="$(basename "$BASH_SOURCE")"
 regid="${regid/.gen}"
 
 # initial/constant parameter values
-usemsk=false
-usepad=true
-interp='Linear'
-roi='Union'
-optim='ConjugateGradientDescent'
-linesearch='Adaptive'
-divini=false
-srcgrd=true
-passdof=false
-conjtot=true
-convgrd=false
-levels=4
-iters=300
-steps=20
-rejects=2
-lastn=10
-epsilon=0.0001
-sim='NMI'
-bins=64
-padbins=false
-window=5
-ds=2.5
-be=0
-tp=0
-vp=0
-jaceps=0.1
+set_defaults()
+{
+  usemsk=false
+  usepad=true
+  interp='Linear'
+  roi='Union'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=true
+  passdof=false
+  conjtot=true
+  convgrd=false
+  levels=4
+  iters=100
+  steps=20
+  rejects=2
+  lastn=10
+  epsilon=0.0001
+  sim='NMI'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0
+  tp=0
+  vp=0
+  jaceps=0.1
+}
 
 # auxiliary function to append row with parameter values
 # Attention: Always ensure that header and order of append_row values is consistent!
@@ -47,6 +50,8 @@ append_row()
 }
 
 # 1) determine optimal range of bending energy weight
+set_defaults
+iters=300  # max. iterations should not be reason to stop
 for be in 0.0001 0.0005 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 0.009 0.01 0.05; do
   append_row
 done
@@ -81,6 +86,30 @@ for passdof in false true; do
   for conjtot in false true; do
     for convgrd in false true; do
       for be in 0.0001 0.0005 0.001; do
+        append_row
+      done
+    done
+  done
+done
+
+# interim conclusion: initial default settings better; hence, restore these
+set_defaults
+passdof=false
+conjtot=true
+convgrd=false
+be_vals=(0.0001 0.0005 0.001)
+
+# 3) dealing with background in brain extracted images
+for be in ${be_vals[@]}; do
+  for usemsk in false true; do
+    for usepad in false true; do
+      for roi in 'Overlap' 'Union' 'Target' 'Domain'; do
+        if [ $roi != 'Domain' -a $usemsk = false -a $usepad = false ]; then
+          continue  # background not used, i.e., Overlap=Union=Target=Domain
+        fi
+        if [ $roi = 'Domain' -a $usemsk = true ]; then
+          continue  # mask not used
+        fi
         append_row
       done
     done
