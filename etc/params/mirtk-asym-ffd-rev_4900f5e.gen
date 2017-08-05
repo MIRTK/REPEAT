@@ -138,10 +138,10 @@ done
 # ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
-exit 0
+#exit 0
 
 set_defaults
-usemsk=false
+usemsk=true
 usepad=true
 roi='Union'
 
