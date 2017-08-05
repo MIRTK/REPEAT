@@ -6,12 +6,18 @@
 ## generates the job description files for the next step in the
 ## workflow. It has to be run multiple times until all steps
 ## are done, as indicated by the last message to STDOUT.
+##
+## Note: Jobs can also be exeucted serial locally (*not* recommended),
+##       or submitted to an alternatively supported batch queuing
+##       system. At the moment, any 'queue' argument that is not
+##       'condor'/'htcondr', is assumed to correspond to a SLURM
+##       partition to which the jobs are submitted instead.
 
 nosubmit=false
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]"
+  error "usage: $(basename $BASH_SOURCE) [-q <queue>] -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]"
 }
 
 submit()
@@ -21,9 +27,20 @@ submit()
     local i=0
     local n=3
     local s=30
-    echo "> condor_submit $1"
+    if [ $backend = 'condor' ]; then
+      echo "> condor_submit $1"
+    else
+      echo "> $libdir/tools/submit $1"
+    fi
     while [ $i -lt $n ]; do
-      [ $nosubmit = true ] || condor_submit "$1" && break
+      if [ $nosubmit != true ]; then
+        if [ $backend = 'condor' ]; then
+          condor_submit "$1"
+        else
+          "$libdir/tools/submit" "$1" --backend "$backend" --queue "$queue"
+        fi
+        [ $? -ne 0 ] || break
+      fi
       let i++
       if [ $i -eq $n ]; then
         error "Job submission failed for $n times, aborting"
@@ -51,9 +68,14 @@ submit()
 # change to top-level directory
 run cd "$topdir"
 
+queue=''
+backend='local'
 cfgids=()
 while [ $# -gt 0 ]; do
   case "$1" in
+    -q|-queue)
+      queue="$2"
+      shift; ;;
     -d|-dataset)
       dataset="$2"
       shift; ;;
@@ -76,6 +98,14 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+if [ "$queue" = 'condor' -o "$queue" = 'htcondor' ]; then
+  backend='condor'
+  queue=''
+elif [ -n "$queue" ]; then
+  backend='slurm'
+  [ "$queue" != 'slurm' ] || queue='long'
+fi
 
 # evaluation dataset
 [ -n "$dataset" ] || print_help

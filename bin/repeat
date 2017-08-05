@@ -19,7 +19,8 @@ Description:
 
 Required arguments:
   -q, -queue <queue>
-    Name of batch queuing system. Currently only 'condor'/'htcondor' supported.
+    Name of batch queuing system. Either 'local' (serial), 'condor'/'htcondor' (HTCondor),
+    or 'slurm' (i.e., partition 'long') or any other custom SLURM partition name.
   -d, -dataset <dataset>
     Name of evaluate dataset.
   -r, -reg, -regid <regid>
@@ -129,8 +130,4 @@ fi
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # delegate to batch queuing system specific script
-if [ "$queue" = condor -o "$queue" = htcondor ]; then
-  "$libdir/condor/repeat" "${opts[@]}" -d "$dataset" -r "$regid" -- "${cfgids[@]}"
-else
-  error "Unsupported batch queuing system: $queue"
-fi
+"$libdir/tools/repeat" "${opts[@]}" -q "$queue" -d "$dataset" -r "$regid" -- "${cfgids[@]}"
