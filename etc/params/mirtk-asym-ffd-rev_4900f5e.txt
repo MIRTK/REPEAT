@@ -27,10 +27,11 @@ Pad Parzen window estimation   = <padbins>
 ## and the '-asym-' or '-sym-' infix of the 'regid', unless
 ## an energy function is explicitly specified in this template.
 
-Bending energy weight        = <be>
-Topology preservation weight = <tp>
-Volume preservation weight   = <vp>
-Jacobian determinant epsilon = <jaceps>
+Bending energy weight           = <be>
+Volume preservation weight      = <vp>
+Topology preservation weight    = <tp>
+Topology preservation threshold = <gamma>
+Jacobian determinant epsilon    = <jaceps>
 
 
 ## Optimization
