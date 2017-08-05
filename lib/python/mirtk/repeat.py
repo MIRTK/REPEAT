@@ -52,8 +52,11 @@ def get_csvdir(dataset, regid, cfgid=None):
     """Get absolute path of result CSV files."""
     csvdir = os.path.join(topdir, 'var', 'table', dataset, regid)
     if cfgid:
-        if np.issubdtype(cfgid, np.integer):
-            cfgid = '{:04d}'.format(cfgid)
+        if not isinstance(cfgid, str):
+            if isinstance(cfgid, int) or np.issubdtype(cfgid, np.integer):
+                cfgid = '{:04d}'.format(cfgid)
+            else:
+                raise ValueError("cfgid must be int, np.integer, or str")
         csvdir = os.path.join(csvdir, cfgid)
     return csvdir
 
