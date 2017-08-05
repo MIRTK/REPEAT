@@ -37,6 +37,10 @@ Options:
   -nosubmit
     Only generate job description files and output directories.
     Skip submission of jobs to batch queuing system.
+  -noreg, -noregister
+    Only execute non-registration jobs. These jobs may need to
+    run using a specific -queue in order to keep real runtime
+    measurements comparable.
 EOF_HELP
 }
 
@@ -73,6 +77,9 @@ while [ $# -gt 0 ]; do
       shift; ;;
     -nosubmit)
       opts=("${opts[@]}" '-nosubmit')
+      ;;
+    -noreg|-noregister)
+      opts=("${opts[@]}" '-noregister')
       ;;
     --)
       shift

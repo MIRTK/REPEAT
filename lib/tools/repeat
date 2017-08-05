@@ -14,10 +14,11 @@
 ##       partition to which the jobs are submitted instead.
 
 nosubmit=false
+noregister=false
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) [-q <queue>] -d <dataset> -r <regid> [-nosubmit] [--] [<cfgids>]"
+  error "usage: $(basename $BASH_SOURCE) [-q <queue>] -d <dataset> -r <regid> [-nosubmit] [-noregister] [--] [<cfgids>]"
 }
 
 submit()
@@ -337,7 +338,10 @@ for cfgid in "${cfgids[@]}"; do
     if [ $update = true -o ! -f "$jobdsc" ]; then
       run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
     fi
+    _nosubmit="$nosubmit"
+    [ "$noregister" != true ] || nosubmit=true
     submit "$jobdsc"
+    nosubmit=${_nosubmit}
   elif [ $ndofs -ne $npairs ]; then
     echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
     error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
