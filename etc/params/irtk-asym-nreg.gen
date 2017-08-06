@@ -2,33 +2,44 @@
 
 ## Generate configuration files for IRTK 'nreg' command
 regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$interp,$optim,$levels,$iters,$steps,$step,$epsilon,$sim,$bins,$ds,$be,$tp,$vp'
 
 # initial/constant parameter values
-interp='Linear'
-optim='GradientDescent'
-levels=4
-iters=10
-steps=4
-step=1
-epsilon=0.0001
-sim='NMI'
-bins=64
-ds=20     # initial control point spacing!
+set_defaults()
+{
+  interp='Linear'
+  optim='GradientDescent'
+  levels=4
+  iters=10
+  steps=4
+  step=1
+  epsilon=0.0001
+  sim='NMI'
+  bins=64
+  ds=20     # initial control point spacing!
+  be=0
+  tp=0
+  vp=0
+}
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of append_row values is consistent!
-i=0
-parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,interp,optim,levels,iters,steps,step,epsilon,sim,bins,ds,be,tp,vp" > "$parcsv"
-
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$interp,$optim,$levels,$iters,$steps,$step,$epsilon,$sim,$bins,$ds,$be,$tp,$vp" >> "$parcsv"
+  eval "echo \"$cfgrow\"" >> "$parcsv"
 }
 
-# initial parameter exploration
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+set_defaults
+
+# explore regularization weights
 for be in 0 0.00001 0.00005 0.0001 0.0005 0.001 0.005; do
   vp=0
   for tp in 0 0.0001 0.001 0.005 0.01 0.05; do
@@ -43,3 +54,9 @@ done
 
 # use different optimization method
 # (ConjugateGradientDescent should be better than GradientDescent, but slower)
+set_defaults
+optim='ConjugateGradientDescent'
+iters=20
+for be in 0 0.00001 0.0001 0.001; do
+  append_row
+done
