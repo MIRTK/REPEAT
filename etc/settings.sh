@@ -30,6 +30,10 @@ niftyreg="$optdir/niftyreg"
 # recommended: create symbolic link "$optdir/elastix" with absolute path to actual installation
 elastix="$optdir/elastix"
 
+# path of directory containing DRAMMS installation, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/dramms" with absolute path to actual installation
+dramms="$optdir/dramms"
+
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
 # output of a given source to target registration may just be inverted
@@ -87,15 +91,17 @@ is_ic()
 # get filename extension of transformation files
 get_dofsuf()
 {
-  local regpkg=${1/-*}
-  if [ "$regpkg" = 'mirtk' -o "$regpkg" = 'irtk' -o "$regpkg" = 'niftyreg' -o "$regpkg" = 'elastix' ]; then
+  local toolkit=${1/-*}
+  if [ "$toolkit" = 'mirtk' -o "$toolkit" = 'irtk' -o "$toolkit" = 'niftyreg' -o "$toolkit" = 'elastix' ]; then
     echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format by custom scripts
-  elif [ "$regpkg" = 'niftyreg' ]; then
+  elif [ "$toolkit" = 'niftyreg' ]; then
     echo ".nii.gz"  # unused, but saved anyway
-  elif [ "$regpkg" = 'elastix' ]; then
+  elif [ "$toolkit" = 'elastix' ]; then
     echo ".txt"     # unused, but saved anyway
+  elif [ "$toolkit" = 'dramms' ]; then
+    echo ".nii.gz"
   else
-    error "Unknown registration software: $regpkg! Modify get_dofsuf() in $BASH_SOURCE."
+    error "Unknown registration toolkit: $toolkit! Modify get_dofsuf() in $BASH_SOURCE."
   fi
 }
 

@@ -1,0 +1,41 @@
+#!/bin/bash
+
+## Generate command-line arguments for DRAMMS
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$ds,$s,$o,$c,$w,$g,$n,$k,$H,$f'
+
+# initial/constant parameter values
+set_defaults()
+{
+  usemsk=true
+  ds=5    # no. of voxels
+  s=3     # no. of Gabor scales
+  o=4     # no. of Gabor orientations
+  c=0     # mutual-saliencey weighting (0: when needed, 1: force use)
+  w=0     # attribute vector similarity measure (0: difference, 1: correlation)
+  g=0.2   # weight of regularization in [0, 1]
+  n=5     # no. of discrete samples
+  k=10    # maximum no. of iterations
+  H=0.5   # rate at which to switch from discrete to continous optimization
+  f=false # whether to use fast approximation
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# initial exploration of regularization weight
+for g in 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
+  append_row
+done

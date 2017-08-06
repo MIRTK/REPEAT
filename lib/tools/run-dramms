@@ -1,0 +1,77 @@
+#!/bin/bash
+
+## Auxiliary script to run DRAMMS and convert output to MIRTK .dof
+
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk executable path not set"
+[ -n "$dramms" ] || error "etc/settings.sh: dramms installation prefix not set"
+
+[ ${mirtk:0:1}  = / ] || mirtk="$topdir/$mirtk"
+[ ${dramms:0:1} = / ] || dramms="$topdir/$dramms"
+
+args=()
+dof=
+def=
+out=
+version=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -ver)
+      version="$2"
+      shift; ;;
+    -dof)
+      dof="$2"
+      shift; ;;
+    -D)
+      def="$2"
+      shift; ;;
+    -O)
+      out="$2"
+      shift; ;;
+    *)
+      args=("${args[@]}" "$1")
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$def" -a -z "$dof" ]; then
+  error "Missing -D or -dof option argument"
+fi
+
+if [ -n "$version" ]; then
+  if [ -d "$dramms-$version" ]; then
+    dramms="$dramms-$version"
+  elif [ -d "$dramms/$version" ]; then
+    dramms="$dramms/$version"
+  fi
+  if [ ! -f "$dramms/bin/dramms" ]; then
+    error "Binary 'dramms' of DRAMMS version $version not found in '$dramms/bin'"
+  fi
+fi
+
+if [ -z "$out" -o -z "$cpp" ]; then
+  tmp="$(mktemp -d)"
+  [ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
+  [ -n "$out" ] || out="$tmp/out.nii.gz"
+  [ -n "$def" ] || def="$tmp/def.nii.gz"
+else
+  tmp=
+fi
+
+run()
+{
+  echo "> $@"
+  "$@" || {
+    [ -z "$tmp" -o "$tmp" = / ] || rm -rf "$tmp"
+    exit 1
+  }
+}
+
+echo "Host: $(hostname)"
+export LD_LIBRARY_PATH="$dramms/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$dramms/lib:$DYLD_LIBRARY_PATH"
+time run "$dramms/bin/dramms" "${args[@]}" -D "$def" -O "$out"
+[ -z "$dof" ] || run "$mirtk" convert-dof "$def" "$dof" -input-format dramms

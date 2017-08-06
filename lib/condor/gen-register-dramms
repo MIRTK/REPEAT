@@ -1,0 +1,180 @@
+#!/bin/bash
+
+## Generate HTCondor job description file for DRAMMS
+
+print_help()
+{
+  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+}
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ -n "$dramms" ] || error "etc/settings.sh: dramms not set"
+
+# change to top-level directory
+run cd "$topdir"
+
+# evaluation dataset
+dataset="$1"; shift
+[ -n "$dataset" ] || print_help
+. "$setdir/$dataset.sh" || exit 1
+[ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
+[ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+[ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+# registration method
+regid="$1"; shift
+[ -n "$regid" ] || print_help
+issym="$(is_sym $regid)"
+
+version="${regid/*-}"
+[ $(is_version "$version") = true ] || version=''
+
+# images that drive the registration
+chn="${chns[0]}"
+
+# IDs of parameter sets
+cfgids=("$@")
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+
+# affinely pre-aligned images
+imgdir="$vardir/$dataset/affine/out"
+imgpre="$chn/"
+imgsuf=".nii.gz"
+
+# create/choose foreground masks
+bgvalue="$(get_bgvalue "$chn")"
+if [ -n "$bgvalue" ]; then
+  if [ "$(is_mask "$bgvalue")" = true ]; then
+    mskdir="$vardir/$dataset/affine/out/$bgvalue"
+    bgvalue="$(get_padvalue "$chn")"
+  else
+    mskdir="$vardir/$dataset/affine/msk"
+    makedir "$mskdir"
+    for tgtid in "${tgtids[@]}"; do
+      mskimg="$mskdir/$tgtid$imgsuf"
+      [ ! -f "$mskimg" ] || continue
+      run "$mirtk" calculate-element-wise "$imgdir/$imgpre$tgtid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
+    done
+  fi
+else
+  mskdir=''
+fi
+
+# dataset and registration specific parameters
+if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
+  regcsv="$cfgdir/$dataset/$regid.csv"
+elif [ -f "$cfgdir/$regid.csv" ]; then
+  regcsv="$cfgdir/$regid.csv"
+elif [ -n "$version" -a -f "$cfgdir/$dataset/${regid%-*}.csv" ]; then
+  regcsv="$cfgdir/$dataset/${regid%-*}.csv"
+elif [ -n "$version" -a -f "$cfgdir/${regid%-*}.csv" ]; then
+  regcsv="$cfgdir/${regid%-*}.csv"
+else
+  error "Missing parameters CSV file for $regid (version='$version') in $cfgdir[/$dataset]"
+fi
+paropt=($(head -n1 "$regcsv" | tr , '\n'))
+
+# generate job description for each configuration
+regdir="$vardir/$dataset/$regid"
+
+for cfgid in "${cfgids[@]}"; do
+
+  echo "Write HTCondor job description for DRAMMS configuration $cfgid"
+
+  # paths
+  jobdir="$regdir/$cfgid/bin"
+  dofdir="$regdir/$cfgid/dof"
+  outdir="$regdir/$cfgid/out/$chn"
+  logdir="$regdir/$cfgid/log/register"
+  pardir="$regdir/$cfgid/etc"
+
+  # extract parameter values from CSV file
+  if [ ${BASH_VERSION/.*} -lt 4 ]; then
+    parval=()
+    while IFS='\n' read line; do
+      parval=("${parval[@]}" "$line")
+    done < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
+  else
+    readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
+  fi
+  [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
+  [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+
+  # construct list of dramms arguments
+  c=0
+  argv=()
+  usemsk=true
+  while [ $c -lt ${#paropt[@]} ]; do
+    opt="${paropt[c]}"
+    arg="${parval[c]}"
+    case "$opt" in
+      cfgid)
+        ;;
+      usemsk)
+        usemsk=$arg
+        ;;
+      ds)
+        argv=("${argv[@]}" '-x' $arg '-y' $arg '-z' $arg)
+        ;;
+      f|fast)
+        [ $arg != true ] || argv=("${argv[@]}" '-f')
+        ;;
+      *)
+        argv=("${argv[@]}" "-$opt" "$arg")
+        ;;
+    esac
+    let c++
+  done
+  [ -z "$version" ] || argv=("${argv[@]}" '-ver' "$version")
+
+  # make directories
+  makedir "$dofdir"
+  makedir "$outdir"
+  makedir "$logdir"
+  makedir "$jobdir"
+
+  # write job description
+  jobdsc="$jobdir/register.condor"
+  if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+    echo "Update: $jobdsc"
+    cat > "$jobdsc" <<EOF_HEADER
+universe     = vanilla
+executable   = $topdir/$libdir/tools/run-dramms
+requirements = $condor_requirements
+environment  = "$condor_environment"
+getenv       = $condor_getenv
+initialdir   = $topdir
+
+EOF_HEADER
+    for tgtid in "${tgtids[@]}"; do
+    for srcid in "${srcids[@]}"; do
+      imgout="$outdir/$srcid-$tgtid.nii.gz"
+      defout="$dofdir/$tgtid-$srcid.nii.gz"
+      [ $force = true ] || [ ! -f "$defout" ] || continue
+      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
+      mask=''
+      if [ $usemsk = true -a -n "$mskdir" ]; then
+        mask=('-b' "'$mskdir/$tgtid$imgsuf'")
+      fi
+      cat >> "$jobdsc" <<EOF_QUEUE
+arguments = "-T '$imgdir/$imgpre$tgtid$imgsuf' -S '$imgdir/$imgpre$srcid$imgsuf' -D '$defout' -O '$imgout' $mask -a 0 ${argv[@]}"
+error     = $logdir/$tgtid-$srcid.err
+output    = $logdir/$tgtid-$srcid.out
+log       = $logdir/$tgtid-$srcid.log
+queue
+
+EOF_QUEUE
+    done; done
+  else
+    echo "Exists: $jobdsc"
+  fi
+done
