@@ -159,14 +159,15 @@ EOF_HEADER
     for srcid in "${srcids[@]}"; do
       imgout="$outdir/$srcid-$tgtid.nii.gz"
       defout="$dofdir/$tgtid-$srcid.nii.gz"
-      [ $force = true ] || [ ! -f "$defout" ] || continue
+      dofout="$dofdir/$tgtid-$srcid.dof.gz"
+      [ $force = true ] || [ ! -f "$dofout" ] || continue
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       mask=''
       if [ $usemsk = true -a -n "$mskdir" ]; then
         mask=('-b' "'$mskdir/$tgtid$imgsuf'")
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "-T '$imgdir/$imgpre$tgtid$imgsuf' -S '$imgdir/$imgpre$srcid$imgsuf' -D '$defout' -O '$imgout' $mask -a 0 ${argv[@]}"
+arguments = "$mask -T '$imgdir/$imgpre$tgtid$imgsuf' -S '$imgdir/$imgpre$srcid$imgsuf' -D '$defout' -dof '$dofout' -O '$imgout' -a 0 ${argv[@]}"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

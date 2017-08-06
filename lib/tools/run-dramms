@@ -13,7 +13,6 @@
 args=()
 dof=
 def=
-out=
 version=
 
 while [ $# -gt 0 ]; do
@@ -26,9 +25,6 @@ while [ $# -gt 0 ]; do
       shift; ;;
     -D)
       def="$2"
-      shift; ;;
-    -O)
-      out="$2"
       shift; ;;
     *)
       args=("${args[@]}" "$1")
@@ -52,10 +48,9 @@ if [ -n "$version" ]; then
   fi
 fi
 
-if [ -z "$out" -o -z "$cpp" ]; then
+if [ -z "$def" ]; then
   tmp="$(mktemp -d)"
   [ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
-  [ -n "$out" ] || out="$tmp/out.nii.gz"
   [ -n "$def" ] || def="$tmp/def.nii.gz"
 else
   tmp=
@@ -73,5 +68,5 @@ run()
 echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$dramms/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$dramms/lib:$DYLD_LIBRARY_PATH"
-time run "$dramms/bin/dramms" "${args[@]}" -D "$def" -O "$out"
+time run "$dramms/bin/dramms" "${args[@]}" -D "$def"
 [ -z "$dof" ] || run "$mirtk" convert-dof "$def" "$dof" -input-format dramms

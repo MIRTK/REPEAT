@@ -41,6 +41,12 @@ relpath()
   python -c "import os,sys;print(os.path.relpath(*(sys.argv[1:])))" "$@";
 }
 
+# get registration toolkit ID from full regid
+get_toolkit()
+{
+  echo "${1/-*}"
+}
+
 # get IDs of registration configurations (i.e., parameter sets)
 # for a given registration tool that are being evaluated
 get_cfgids()

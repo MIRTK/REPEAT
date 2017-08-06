@@ -91,15 +91,19 @@ is_ic()
 # get filename extension of transformation files
 get_dofsuf()
 {
-  local toolkit=${1/-*}
-  if [ "$toolkit" = 'mirtk' -o "$toolkit" = 'irtk' -o "$toolkit" = 'niftyreg' -o "$toolkit" = 'elastix' ]; then
-    echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format by custom scripts
+  local toolkit="$(get_toolkit "$1")"
+  if [ "$toolkit" = 'mirtk' -o \
+       "$toolkit" = 'irtk' -o \
+       "$toolkit" = 'niftyreg' -o \
+       "$toolkit" = 'elastix' -o \
+       "$toolkit" = 'dramms' ]; then
+    echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format using MIRTK convert-dof
   elif [ "$toolkit" = 'niftyreg' ]; then
     echo ".nii.gz"  # unused, but saved anyway
   elif [ "$toolkit" = 'elastix' ]; then
     echo ".txt"     # unused, but saved anyway
   elif [ "$toolkit" = 'dramms' ]; then
-    echo ".nii.gz"
+    echo ".nii.gz"  # unused, but saved anyway
   else
     error "Unknown registration toolkit: $toolkit! Modify get_dofsuf() in $BASH_SOURCE."
   fi
