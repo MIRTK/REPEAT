@@ -6,6 +6,14 @@
 ## It is recommended, however, to use the modified images used
 ## as atlases by the MIRTK Draw-EM brain segmentation package:
 ## https://www.doc.ic.ac.uk/~am411/atlases-DrawEM.html
+##
+## The Draw-EM ALBERTs atlas includes cGM probability maps generated
+## with an automatic segmentation approach based on a probabilistic
+## neonatal brain atlas. These probability maps can be used to get
+## separate cortical and non-cortical labels for a better evaluation
+## of the registration accuracy. See lib/tools/make-alberts-labels
+## script for commands used to create such labels from the files
+## downloaded from above Draw-EM atlas URL.
 
 # common top level directory of dataset images
 imgdir="$HOME/Atlases/ALBERTs/DrawEM"
@@ -53,7 +61,7 @@ get_prefix()
   elif [ $1 = 't2w' ]; then
     echo "T2/ALBERT_"
   elif [ $1 = 'seg' ]; then
-    echo "segmentations-v3/ALBERT_"
+    echo "labels/ALBERT_"
   elif [ $1 = 'cgm' ]; then
     echo "gm-posteriors-v3/ALBERT_"
   fi
