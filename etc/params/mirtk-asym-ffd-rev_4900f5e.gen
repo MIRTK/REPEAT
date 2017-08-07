@@ -160,6 +160,8 @@ for be in ${be_vals[@]}; do
 done
 
 # 4b) using volume preservation penalty, i.e., sq(log(det(J)))
+tp=0
+gamma=0.5
 for be in ${be_vals[@]}; do
   for jaceps in 0.0000001 0.001 0.01 0.1; do
     for vp in 0.00001 0.0001 0.001 0.01; do
@@ -167,4 +169,10 @@ for be in ${be_vals[@]}; do
     done
   done
 done
+
+
+set_defaults
+usemsk=true
+usepad=true
+roi='Union'
 
