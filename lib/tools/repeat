@@ -33,22 +33,22 @@ submit()
     else
       echo "> $libdir/tools/submit $1"
     fi
-    while [ $i -lt $n ]; do
-      if [ $nosubmit != true ]; then
+    if [ $nosubmit != true ]; then
+      while [ $i -lt $n ]; do
         if [ $backend = 'condor' ]; then
           condor_submit "$1"
         else
           "$libdir/tools/submit" "$1" --backend "$backend" --queue "$queue"
         fi
         [ $? -ne 0 ] || break
-      fi
-      let i++
-      if [ $i -eq $n ]; then
-        error "Job submission failed for $n times, aborting"
-      fi
-      echo "Job submission failed, trying again in $s sec..."
-      sleep $s
-    done
+        let i++
+        if [ $i -eq $n ]; then
+          error "Job submission failed for $n times, aborting"
+        fi
+        echo "Job submission failed, trying again in $s sec..."
+        sleep $s
+      done
+    fi
     jobs_submitted=true
   else
     error "No jobs in $1, but could not find output files before?!"
