@@ -219,7 +219,7 @@ EOF_HEADER
       done
 
       cat >> "$jobdsc" <<EOF_JOB
-arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header -threads $threads"
+arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
 error     = $logdir/$refid.err
 output    = $logdir/$refid.out
 log       = $logdir/$refid.log
@@ -295,7 +295,7 @@ EOF_JOB
         done
 
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header -threads $threads"
+arguments = "average-measure ${val_paths[@]} -name ${val_names[@]} -roi ${roi_paths[@]} -roi-name ${roi_names[@]} -mean '$outcsv' -stdev '$stdcsv' -size '$numcsv' -digits 5 -header"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
