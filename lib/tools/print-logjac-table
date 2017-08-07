@@ -52,7 +52,7 @@ for srcid in "${srcids[@]}"; do
                         -lpctavg 5 -upctavg 95 -min -max \
                         -set 1 -sum -reset-mask \
                         -mask NaN -threshold-gt 0 -set 1 -sum \
-                        -delim , -digits 9)"
+                        -delim , -digits 9 -threads $threads)"
     [ $? -eq 0 ] || error "Failed: calculate-element-wise '$jacimg' [...]"
   else
     error "Missing: $jacimg"

@@ -70,7 +70,7 @@ EOF_HEADER
       outimg="$outdir/$chn/$imgid$imgsuf"
       [ $force = true ] || [ ! -f "$outimg" ] || continue
       cat >> "$jobdsc" <<EOF_JOB
-arguments = "calculate-element-wise '$imgdir/$chn/$imgid$imgsuf' -mask '$imgdir/$msk/$imgid$imgsuf' -pad $pad -out '$outimg'"
+arguments = "calculate-element-wise '$imgdir/$chn/$imgid$imgsuf' -mask '$imgdir/$msk/$imgid$imgsuf' -pad $pad -out '$outimg' -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log

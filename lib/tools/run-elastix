@@ -17,7 +17,6 @@ srcmsk=
 partxt=
 outdof=
 outtxt=
-threads=
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -77,7 +76,10 @@ fi
 args=(-out "$tmpdir" -p "$partxt" -f "$tgtimg" -m "$srcimg")
 [ -z "$tgtmsk"  ] || args=("${args[@]}" -fMask "$tgtmsk")
 [ -z "$srcmsk"  ] || args=("${args[@]}" -mMask "$srcmsk")
-[ -z "$threads" ] || args=("${args[@]}" -threads "$threads")
+if [ -n "$threads" -a $threads -gt 0 ]; then
+  [ $threads -gt 0 ] || threads=1
+  args=("${args[@]}" -threads "$threads")
+fi
 
 echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$elastix/lib:$LD_LIBRARY_PATH"

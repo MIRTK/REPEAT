@@ -60,6 +60,9 @@ force=false
 # whose output files already exist unless force=true as well
 update=true
 
+# maximum no. of threads to use for each job
+threads=8  # <0: use all available CPU cores
+
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=

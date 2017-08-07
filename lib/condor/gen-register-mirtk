@@ -215,7 +215,7 @@ EOF_HEADER
         mask="-mask '$mskdir/$tgtid$imgsuf'"
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "'$mirtk' register ${images[@]} $mask -parin '$parin' -dofin '$dofin' -dofout '$dofout'"
+arguments = "'$mirtk' register ${images[@]} $mask -parin '$parin' -dofin '$dofin' -dofout '$dofout' -threads $threads"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log

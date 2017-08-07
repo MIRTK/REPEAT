@@ -133,7 +133,7 @@ EOF_HEADER
         outimg="$outdir/$tgtid-$srcid.nii.gz"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' '$dofdir/$tgtid-$srcid.dof.gz' $refpad -outside NaN -float -v"
+arguments = "evaluate-jacobian '$refdir/$refpre$refid$refsuf' '$outimg' '$dofdir/$tgtid-$srcid.dof.gz' $refpad -outside NaN -float -v -threads $threads"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
@@ -178,7 +178,7 @@ EOF_HEADER
         done
         echo -e "$dofs" > "$pardir/dofs-ic-$tgtid.txt"
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg' -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
@@ -225,7 +225,7 @@ EOF_HEADER
         done
         echo -e "$dofs" > "$pardir/dofs-te-$tgtid.txt"
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg'"
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$refid$refsuf' $refpad -output '$outimg' -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
@@ -297,7 +297,7 @@ EOF_HEADER
               done
             fi
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-overlap '$tgtimg' ${srcimgs[@]} $kind -metric $measure -precision 5 -table -header -id srcid"
+arguments = "evaluate-overlap '$tgtimg' ${srcimgs[@]} $kind -metric $measure -precision 5 -table -header -id srcid -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $outcsv
 log       = $logdir/$tgtid.log
@@ -346,7 +346,7 @@ EOF_HEADER
               images=("${images[@]}" "'$imgdir/$imgpre$imgid$imgsuf'")
             done
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
+arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding -threads $threads"
 error     = $logdir/$measure.err
 output    = $logdir/$measure.out
 log       = $logdir/$measure.log
@@ -366,7 +366,7 @@ EOF_JOB
                 images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
               cat >> "$jobdsc" <<EOF_JOB
-arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding"
+arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log

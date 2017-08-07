@@ -71,7 +71,7 @@ EOF_HEADER
         images=("${images[@]}" -image "'$imgdir/$imgpre$imgid$imgsuf'" "'$imgdir/$imgpre$refid$imgsuf'")
       done
       cat >> "$jobdsc" <<EOF_CLUSTER
-arguments = "register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz'"
+arguments = "register ${images[@]} -parin '$parin' -dofout '$dofdir/$imgid.dof.gz' -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log

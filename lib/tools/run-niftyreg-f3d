@@ -30,6 +30,9 @@ while [ $# -gt 0 ]; do
     -res)
       res="$2"
       shift; ;;
+    -omp)
+      threads="$2"
+      shift; ;;
     *)
       args=("${args[@]}" "$1")
       ;;
@@ -44,6 +47,12 @@ fi
 if [ -n "$version" ]; then
   niftyreg="$niftyreg-$version"
   [ -f "$niftyreg/bin/reg_f3d" ] || error "NiftyReg version $version not found in '$niftyreg'"
+  if [ "$version" != '1.3.9' ]; then
+    if [ -n "$threads" -a $threads -ge 0 ]; then
+      [ $threads -gt 0 ] || threads=1
+      args=("${args[@]}" -omp "$threads")
+    fi
+  fi
 fi
 
 if [ -z "$res" -o -z "$cpp" ]; then

@@ -83,7 +83,7 @@ EOF_HEADER
         outimg="$outdir/$imgid.nii.gz"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "transform-image '$imgdir/$imgpre$imgid$imgsuf' '$outimg' -target '$imgdir/$imgpre$refid$imgsuf' -dofin '$dofdir/$imgid.dof.gz' -invert $labels"
+arguments = "transform-image '$imgdir/$imgpre$imgid$imgsuf' '$outimg' -target '$imgdir/$imgpre$refid$imgsuf' -dofin '$dofdir/$imgid.dof.gz' -invert $labels -threads $threads"
 error     = $logdir/$imgid-$mod.err
 output    = $logdir/$imgid-$mod.out
 log       = $logdir/$imgid-$mod.log
@@ -149,7 +149,7 @@ EOF_HEADER
           [ $force = true ] || [ ! -f "$outimg" ] || continue
           if [ ! -f "$dofdir/$tgtid-$srcid.dof.gz" ] && [ $issym = true ] && [[ $tgtid > $srcid ]]; then
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$srcid-$tgtid.dof.gz' -invert $labels"
+arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$srcid-$tgtid.dof.gz' -invert $labels -threads $threads"
 error     = $logdir/$srcid-$tgtid.err
 output    = $logdir/$srcid-$tgtid.out
 log       = $logdir/$srcid-$tgtid.log
@@ -158,7 +158,7 @@ queue
 EOF_JOB
           else
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$tgtid-$srcid.dof.gz' $labels"
+arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$tgtid-$srcid.dof.gz' $labels -threads $threads"
 error     = $logdir/$srcid-$tgtid.err
 output    = $logdir/$srcid-$tgtid.out
 log       = $logdir/$srcid-$tgtid.log
