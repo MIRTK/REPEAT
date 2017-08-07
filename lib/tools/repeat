@@ -86,6 +86,9 @@ while [ $# -gt 0 ]; do
     -nosubmit)
       nosubmit=true
       ;;
+    -noreg|-noregister)
+      noregister=true
+      ;;
     --)
       shift
       cfgids=("${cfgids[@]}" "$@")
