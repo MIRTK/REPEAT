@@ -168,7 +168,6 @@ fi
 issym="$(is_sym $regid)"
 
 # registration tool specific settings
-mods_and_rois=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
 dofsuf=$(get_dofsuf "$regid")
 [ -n "$dofsuf" ] || error "get_dofsuf() not defined for $regid"
 imgsuf=".nii.gz"
@@ -229,7 +228,7 @@ if [ "$extdof" != true ]; then
   # transform images to affine reference space
   n=0
   nexpected=0
-  for mod in "${mods_and_rois[@]}"; do
+  for mod in $(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u); do
     outdir="$regdir/out/$mod"
     let nexpected="$nexpected + ${#imgids[@]}"
     if [ -d "$outdir" ]; then
@@ -399,7 +398,7 @@ for cfgid in "${cfgids[@]}"; do
   # ----------------------------------------------------------------------------
   # deform source images to target images
   gen_transform_updated=false
-  for mod in "${mods_and_rois[@]}"; do
+  for mod in "${mods[@]}"; do
     n=0
     outdir="$regdir/out/$mod"
     if [ -d "$outdir" ]; then

@@ -38,9 +38,6 @@ dofsuf="$(get_dofsuf "$regid")"
   error "MIRTK transform-image requires transformation in .dof format!\nUse different/custom command to apply computed transformations."
 }
 
-# include also images used to create ROIs for averaging of voxel-wise measures
-mods=("${mods[@]}" "${rois[@]}")
-
 # include image foreground masks
 for chn in ${chns[@]}; do
   chnbg=$(get_bgvalue "$chn")

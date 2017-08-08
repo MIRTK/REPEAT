@@ -56,9 +56,6 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
-# include also images used to create ROIs for averaging of voxel-wise measures
-mods=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
-
 # deform images to each respective target image
 regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/out"

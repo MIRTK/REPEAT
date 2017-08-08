@@ -34,9 +34,6 @@ run cd "$topdir"
 # registration method
 dofsuf=$(get_dofsuf "$regid")
 
-# include also images used to create ROIs for averaging of voxel-wise measures
-mods=($(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u))
-
 # affinely align images to reference
 if [ "$regid" = 'affine' ]; then
 
