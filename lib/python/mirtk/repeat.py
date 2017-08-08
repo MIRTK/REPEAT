@@ -356,7 +356,9 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
                     df.srcid = df.srcid.map(lambda x: x.split('-')[0])
                 id_vars = df.columns.intersection(['dataset', 'regid', 'toolkit', 'command', 'version', 'cfgid', 'tgtid', 'srcid']).tolist()
                 df = pd.melt(df, id_vars=id_vars, var_name='label', value_name='dsc')
-        dfs[m] = df
+        if 'tgtid' in df and 'srcid' in df:
+            df = df[df.tgtid!=df.srcid]
+        dfs[m] = df.copy()
     return dfs
 
 
