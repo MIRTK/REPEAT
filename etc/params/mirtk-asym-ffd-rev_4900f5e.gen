@@ -185,3 +185,15 @@ for be in ${be_vals[@]}; do
     append_row
   done
 done
+
+# 4c) using both topology and volume preservation penalties
+gamma=0.5
+jaceps=0.1
+for be in ${be_vals[@]}; do
+  for vp in 0.001 0.01 0.1; do
+    for tp in 0.001 0.01 0.1 0.5; do
+      append_row
+    done
+  done
+done
+
