@@ -358,13 +358,13 @@ class JobDesc(object):
             script += str(cmds[i])
             script += " 1> \"$out\" 2> \"$err\"\n"
             script += "[ $? -eq 0 ] || {\n"
-            script += "  echo >> \"$out\"\n"
-            script += "  echo FAILED >> \"$out\"\n"
+            script += "  echo >> \"$err\"\n"
+            script += "  echo FAILED >> \"$err\"\n"
             script += "  echo \"`date '+%y/%m/%d %H:%M:%S'` FAIL Job {} command {} failed\"\n".format(jobid, i + 1)
             script += "  exit 1\n"
             script += "}\n"
-            script += "echo >> \"$out\"\n"
-            script += "echo DONE >> \"$out\"\n"
+            script += "echo >> \"$err\"\n"
+            script += "echo DONE >> \"$err\"\n"
             if len(cmds) > 1:
                 script += "echo \"`date '+%y/%m/%d %H:%M:%S'` INFO Finished job {} command {}/{}\"\n".format(jobid, i + 1, len(cmds))
         script += "\n"
@@ -458,13 +458,13 @@ class Job(TreeNode):
         return self.desc.commands(macros=self.macros)
 
     def mark_finished_jobs(self):
-        """Mark job as done when all command output files have the word 'DONE' on the last line."""
+        """Mark job as done when all command error files have the word 'DONE' on the last line."""
         if not self.done:
             self.done = True
             re_done = re.compile(r'DONE$')
             for cmd in self.commands():
-                if os.path.isfile(cmd.output):
-                    with open(cmd.output, "r") as f:
+                if os.path.isfile(cmd.error):
+                    with open(cmd.error, "r") as f:
                         lines = f.readlines()
                         while len(lines) > 0 and lines[-1].strip() == '':
                             lines.pop()
@@ -837,7 +837,7 @@ class JobBatch(TreeNode):
         return n
 
     def mark_finished_jobs(self):
-        """Mark jobs with existing output file ending with 'DONE' as done."""
+        """Mark jobs with existing STDERR file ending with 'DONE' as done."""
         n = 0
         for child in self.children:
             n += child.mark_finished_jobs()
@@ -867,7 +867,7 @@ def run_job_local(job):
             else:
                 with open(cmd.output, "w") as out, open(cmd.error, "w") as err:
                     subprocess.check_call(argv, stdout=out, stderr=err)
-                    out.write("\nDONE\n")
+                    err.write("\nDONE\n")
     if not _try_run:
         sys.stdout.write(" done\n")
         sys.stdout.flush()
