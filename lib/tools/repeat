@@ -128,11 +128,12 @@ fi
 version="${regid/*-}"
 [ $(is_version "$version") = true ] || version=''
 
-# whether transformations were pre-computed another time or provided by someone
-extdof="$(has_existing_dofs "$regid")"
+# whether files were pre-computed or provided by someone
+extdof="$(use_existing_dofs "$dataset" "$regid")"
+extout="$(use_existing_imgs "$dataset" "$regid")"
 
 # generate parameters CSV or check existence of it or preset .cfg file
-if [ "$extdof" != true ]; then
+if [ "$extdof" != true -a "$extout" != true ]; then
   regcfg_found=false
   for cfgpre in "$dataset/" ''; do
     if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
@@ -174,28 +175,45 @@ imgsuf=".nii.gz"
 
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
-if [ $evltime = true -a "$extdof" = true ]; then
-  evltime=false
-  echo "Info: Skipping evaluation of runtime because transformations were pre-computed."
+if [ $evltime = true ]; then
+  if [ "$extdof" = true -o "$extout" = true ]; then
+    echo "Info: Skipping evaluation of runtime because transformations/deformed images were pre-computed."
+    evltime=false
+  fi
+fi
+if [ $evljac = true ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of Jacobian determinants because only pre-computed deformed images are available."
+    evljac=false
+  fi
 fi
 if [ $evlice = true ]; then
-  if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of inverse consistency error because only pre-computed deformed images are available."
+    evlice=false
+  elif [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
+    evlice=false
   elif [ $issym = true -a $allsym != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
+    evlice=false
   fi
-  evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
-  echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
-  evlmte=false
+if [ $evlmte = true  ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of inverse consistency error because only pre-computed deformed images are available."
+    evlmte=false
+  elif [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
+    echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
+    evlmte=false
+  fi
 fi
 
 # ------------------------------------------------------------------------------
 # common pre-processing steps
 jobs_submitted=false
 
-if [ "$extdof" != true ]; then
+if [ "$extdof" != true -a "$extout" != true ]; then
 
   regdir="$vardir/$dataset/affine"
   jobdir="$regdir/bin"
@@ -369,7 +387,7 @@ for cfgid in "${cfgids[@]}"; do
     if [ $ndofs -ne $npairs ]; then
       error "Expected $npairs existing transformations matching '$outdir/*-*$dofsuf', but found only $ndofs!"
     fi
-  else
+  elif [ "$extout" != true ]; then
     if [ $ndofs -eq 0 ] || [ $update = true -a $ndofs -lt $npairs ]; then
       if [ "$extdof" = true ]; then
         error "Expected $npairs existing transformations matching patter: $outdir/*-*$dofsuf, but found only $ndofs!"
@@ -397,37 +415,41 @@ for cfgid in "${cfgids[@]}"; do
 
   # ----------------------------------------------------------------------------
   # deform source images to target images
-  gen_transform_updated=false
-  for mod in "${mods[@]}"; do
-    n=0
-    outdir="$regdir/out/$mod"
-    if [ -d "$outdir" ]; then
-      for tgtid in "${tgtids[@]}"; do
-      for srcid in "${srcids[@]}"; do
-        [ $tgtid = $srcid ] || [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
-      done; done
-    fi
-    if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
-      jobdsc="$jobdir/transform-$mod.condor"
-      if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
-        toolkit="$(get_toolkit "$regid")"
-        if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
-          toolkit='mirtk'
-        fi
-        run "$libdir/condor/gen-transform-$toolkit" "$dataset" "$regid" "$cfgid"
-        gen_transform_updated=true
+  if [ "$extout" != true ]; then
+    gen_transform_updated=false
+    for mod in "${mods[@]}"; do
+      n=0
+      outdir="$regdir/out/$mod"
+      if [ -d "$outdir" ]; then
+        for tgtid in "${tgtids[@]}"; do
+        for srcid in "${srcids[@]}"; do
+          [ $tgtid = $srcid ] || [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
+        done; done
       fi
-      submit "$jobdsc"
-    elif [ $n -ne $N ]; then
-      error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
-      error "Check log files of image deformation jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
-    else
-      echo "All $mod image deformation jobs are done, found $n output files"
+      if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
+        jobdsc="$jobdir/transform-$mod.condor"
+        if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
+          toolkit="$(get_toolkit "$regid")"
+          if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
+            toolkit='mirtk'
+          fi
+          run "$libdir/condor/gen-transform-$toolkit" "$dataset" "$regid" "$cfgid"
+          gen_transform_updated=true
+        fi
+        submit "$jobdsc"
+      elif [ $n -ne $N ]; then
+        error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
+        error "Check log files of image deformation jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
+      else
+        echo "All $mod image deformation jobs are done, found $n output files"
+      fi
+    done
+    if [ $jobs_submitted = true ]; then
+      all_done=false
+      continue
     fi
-  done
-  if [ $jobs_submitted = true ]; then
-    all_done=false
-    continue
+  else
+    echo "Info: Using provided already deformed images for evaluation"
   fi
 
   # ----------------------------------------------------------------------------

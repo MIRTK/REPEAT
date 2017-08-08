@@ -54,7 +54,9 @@ get_cfgids()
   local dataset="$1"
   local regid="$2"
   if [ -n "$topdir" -a -n "$dataset" -a -n "$regid" ]; then
-    if [ "$(has_existing_dofs "$regid")" = true ]; then
+    local extdof="$(use_existing_dofs "$dataset" "$regid")"
+    local extout="$(use_existing_imgs "$dataset" "$regid")"
+    if [ "$extdof" = true -o "$extout" = true ]; then
       if [ -n "$vardir" ]; then
         local regdir="$topdir/$vardir/$dataset/$regid"
         if [ -d "$regdir" ]; then
@@ -63,7 +65,7 @@ get_cfgids()
             basename ${d/\/dof}
           done
         else
-          error "get_cfgids: Could not find directory with existing transformations for dataset=$dataset, regid=$regid!"
+          error "get_cfgids: Could not find directory with existing files for dataset=$dataset, regid=$regid!"
         fi
       else
         error "get_cfgids: vardir not set"

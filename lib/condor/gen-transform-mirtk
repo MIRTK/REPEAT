@@ -32,7 +32,7 @@ run cd "$topdir"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
 # whether transformations were pre-computed another time or provided by someone
-extdof="$(has_existing_dofs "$regid")"
+extdof="$(use_existing_dofs "$dataset" "$regid")"
 dofsuf="$(get_dofsuf "$regid")"
 [ "$dofsuf" = '.dof.gz' ] || {
   error "MIRTK transform-image requires transformation in .dof format!\nUse different/custom command to apply computed transformations."

@@ -95,6 +95,20 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
         for arg in dataset:
             df = pd.concat([df, get_params(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version)])
         return df
+    if isinstance(regid, dict):
+        toolkit = list(regid.keys())
+        command = {}
+        version = {}
+        for tk in toolkit:
+            command[tk] = {}
+            if isinstance(regid[tk], dict):
+                command[tk] = list(regid[tk].keys())
+                for cmd in regid[tk]:
+                    k = get_regid(toolkit=tk, command=cmd)
+                    version[k] = regid[tk][cmd]
+            else:
+                command[tk] = regid[tk]
+        regid = None
     if is_iterable(regid):
         for arg in regid:
             df = pd.concat([df, get_params(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version)])
@@ -103,10 +117,14 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
         for arg in toolkit:
             df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version)])
         return df
+    if isinstance(command, dict):
+        command = command[toolkit]
     if is_iterable(command):
         for arg in command:
             df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version)])
         return df
+    if isinstance(version, dict):
+        version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
             df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg)])
@@ -129,9 +147,10 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
         if parcsv is not None:
             break
     if parcsv is None:
-        raise Exception("Could not find parameters CSV file of dataset={}, toolkit={}, command={}, version={}".format(dataset, toolkit, command, version))
-    df = pd.read_csv(parcsv)
-    df.drop_duplicates(subset=df.columns.difference(['cfgid']), inplace=True)
+        df = pd.DataFrame({'cfgid': pd.Series([1])})
+    else:
+        df = pd.read_csv(parcsv)
+        df.drop_duplicates(subset=df.columns.difference(['cfgid']), inplace=True)
     df.insert(0, 'dataset', dataset)
     df.insert(1, 'regid', regid)
     df.insert(2, 'toolkit', toolkit)
@@ -152,6 +171,20 @@ def read_average_measures(dataset, regid=None, toolkit=None, command=None, versi
         for arg in dataset:
             df = pd.concat([df, read_average_measures(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(regid, dict):
+        toolkit = list(regid.keys())
+        command = {}
+        version = {}
+        for tk in toolkit:
+            command[tk] = {}
+            if isinstance(regid[tk], dict):
+                command[tk] = list(regid[tk].keys())
+                for cmd in regid[tk]:
+                    k = get_regid(toolkit=tk, command=cmd)
+                    version[k] = regid[tk][cmd]
+            else:
+                command[tk] = regid[tk]
+        regid = None
     if is_iterable(regid):
         for arg in regid:
             df = pd.concat([df, read_average_measures(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
@@ -160,10 +193,14 @@ def read_average_measures(dataset, regid=None, toolkit=None, command=None, versi
         for arg in toolkit:
             df = pd.concat([df, read_average_measures(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(command, dict):
+        command = command[toolkit]
     if is_iterable(command):
         for arg in command:
             df = pd.concat([df, read_average_measures(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(version, dict):
+        version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
             df = pd.concat([df, read_average_measures(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, tgtid=tgtid, cfgid=cfgid)])
@@ -221,6 +258,20 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
         for arg in dataset:
             df = pd.concat([df, read_measurements(measure=measure, dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(regid, dict):
+        toolkit = list(regid.keys())
+        command = {}
+        version = {}
+        for tk in toolkit:
+            command[tk] = {}
+            if isinstance(regid[tk], dict):
+                command[tk] = list(regid[tk].keys())
+                for cmd in regid[tk]:
+                    k = get_regid(toolkit=tk, command=cmd)
+                    version[k] = regid[tk][cmd]
+            else:
+                command[tk] = regid[tk]
+        regid = None
     if is_iterable(regid):
         for arg in regid:
             df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
@@ -229,10 +280,14 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
         for arg in toolkit:
             df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=arg, command=command, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(command, dict):
+        command = command[toolkit]
     if is_iterable(command):
         for arg in command:
             df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, tgtid=tgtid, cfgid=cfgid)])
         return df
+    if isinstance(version, dict):
+        version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
             df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, tgtid=tgtid, cfgid=cfgid)])
@@ -279,7 +334,7 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
     return df
 
 
-def read_results(dataset, regid=None, toolkit=None, command=None, version=None, measure=['vox', 'dsc', 'jac', 'time']):
+def read_results(dataset, regid=None, toolkit=None, command=None, version=None, measure=['vox', 'dsc', 'jac', 'time'], cfgid=None):
     """Read all results for a number of quality measures."""
     if not measure:
         raise ValueError("Need to specify at least one evaluation 'measure'")
@@ -298,6 +353,20 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
                 else:
                     dfs[m] = res[m]
         return dfs
+    if isinstance(regid, dict):
+        toolkit = list(regid.keys())
+        command = {}
+        version = {}
+        for tk in toolkit:
+            command[tk] = {}
+            if isinstance(regid[tk], dict):
+                command[tk] = list(regid[tk].keys())
+                for cmd in regid[tk]:
+                    k = get_regid(toolkit=tk, command=cmd)
+                    version[k] = regid[tk][cmd]
+            else:
+                command[tk] = regid[tk]
+        regid = None
     if is_iterable(regid):
         for arg in regid:
             res = read_results(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, measure=measure)
@@ -316,6 +385,8 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
                 else:
                     dfs[m] = res[m]
         return dfs
+    if isinstance(command, dict):
+        command = command[toolkit]
     if is_iterable(command):
         for arg in command:
             res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, measure=measure)
@@ -325,6 +396,8 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
                 else:
                     dfs[m] = res[m]
         return dfs
+    if isinstance(version, dict):
+        version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
             res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, measure=measure)
@@ -341,6 +414,15 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         regid = get_regid(toolkit=toolkit, command=command, version=version)
     if regid == 'affine':
         cfgids = []
+    elif cfgid is not None:
+        if isinstance(cfgid, dict):
+            cfgids = cfgid[regid]
+            if isinstance(cfgids, dict):
+                cfgids = cfgids[dataset]
+        elif is_iterable(cfgid):
+            cfgids = list(cfgid)
+        else:
+            cfgids = [cfgid]
     else:
         cfgids = get_params(dataset, regid).cfgid.tolist()
     for m in measure:

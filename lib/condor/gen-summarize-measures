@@ -34,7 +34,7 @@ run cd "$topdir"
 
 # registration method
 issym="$(is_sym "$regid")"
-extdof="$(has_existing_dofs "$regid")"
+extdof="$(use_existing_dofs "$dataset" "$regid")"
 
 if [ "$evltime" = true -a "$extdof" = true ]; then
   echo "Info: Skipping evaluation of runtime because transformations were pre-computed."

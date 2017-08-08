@@ -40,7 +40,7 @@ run cd "$topdir"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 
-extdof="$(has_existing_dofs "$regid")"
+extdof="$(use_existing_dofs "$dataset" "$regid")"
 if [ "$extdof" = true ]; then
   regdir="$vardir/$dataset/shared"
 else

@@ -41,6 +41,16 @@ tgtids=("${imgids[@]:0:4}")
 # when this list is undefined or empty, all imgids are used
 srcids=("${imgids[@]}")
 
+# for evaluation of original ANTs SyN transformations of the MICCAI'12
+# challenge, only a subset of transformed images and segmentations
+# is available; no longer had the transformation files themselves;
+# files provided by challenge participant Christian Ledig.
+# - Andreas Schuh
+if [ "$regid" = 'ants-syn-2012' ]; then
+  #tgtids=("${imgids[@]}")
+  srcids=(1000 1001 1002 1006 1007 1008 1009 1010 1011 1012 1013 1014 1015 1017 1036)
+fi
+
 # kind of images used for registration
 chns=('t1w')
 

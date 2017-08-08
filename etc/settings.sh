@@ -71,14 +71,32 @@ condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.i
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
 
-# whether transformations of given registration method were computed beforehand
-# between all or a subset of the images of the dataset
-has_existing_dofs()
+# whether transformations of registration method were computed beforehand
+# or obtained elsewhere for a given dataset, e.g., from another study
+use_existing_dofs()
 {
+  local dataset="$1"
+  local regid="$2"
   # MAPER NiftyReg transformations computed for the original MICCAI'12 challenge
   # provided by Christian Ledig; these were computed using NiftyReg F3D with
   # FSL FAST tissue segmentations
-  if [ "$1" = 'niftyreg-asym-maper-2012' ]; then
+  if [ "$dataset" = 'oasis' -a "$regid" = 'niftyreg-asym-maper-2012' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
+# whether deformed images of registration method were computed beforehand
+# or obtained elsewhere for a given dataset, e.g., from another study
+use_existing_imgs()
+{
+  local dataset="$1"
+  local regid="$2"
+  # deformed T1-weighted images and segmentations for deformations
+  # computed with ANTs SyN by the respective participants of the MICCAI'12
+  # challenge provided by Christian Ledig
+  if [ "$dataset" = 'oasis' -a "$regid" = 'ants-syn-2012' ]; then
     echo true
   else
     echo false
@@ -89,6 +107,8 @@ has_existing_dofs()
 is_sym()
 {
   if [ "${regid/-sym-/}" != "$regid" ]; then
+    echo true
+  elif [ "${regid:0:8}" != 'ants-syn' ]; then
     echo true
   else
     echo false
@@ -121,6 +141,8 @@ get_dofsuf()
     echo ".txt"     # unused, but saved anyway
   elif [ "$toolkit" = 'dramms' ]; then
     echo ".nii.gz"  # unused, but saved anyway
+  elif [ "$toolkit" = 'ants' ]; then
+    echo ".nii.gz"
   else
     error "Unknown registration toolkit: $toolkit! Modify get_dofsuf() in $BASH_SOURCE."
   fi
