@@ -53,51 +53,67 @@ get_cfgids()
 {
   local dataset="$1"
   local regid="$2"
-  if [ -n "$topdir" -a -n "$cfgdir" -a -n "$dataset" -a -n "$regid" ]; then
-    local regcsv cfgpre
-    local version="${regid/*-}"
-    [ $(is_version "$version") = true ] || version=''
-    for cfgpre in "$dataset/" ''; do
-      if [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
-        echo "$cfgpre$regid.cfg"
-        break
+  if [ -n "$topdir" -a -n "$dataset" -a -n "$regid" ]; then
+    if [ "$(has_existing_dofs "$regid")" = true ]; then
+      if [ -n "$vardir" ]; then
+        local regdir="$topdir/$vardir/$dataset/$regid"
+        if [ -d "$regdir" ]; then
+          local d
+          for d in $(ls -d "$regdir/"????"/dof"); do
+            basename ${d/\/dof}
+          done
+        else
+          error "get_cfgids: Could not find directory with existing transformations for dataset=$dataset, regid=$regid!"
+        fi
+      else
+        error "get_cfgids: vardir not set"
       fi
-      if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
-        regcsv="$cfgdir/$cfgpre$regid.csv"
-        break
-      fi
-      if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
-        run "$cfgdir/$cfgpre$regid.gen"
+    elif [ -n "$cfgdir" ]; then
+      local regcsv cfgpre
+      local version="${regid/*-}"
+      [ $(is_version "$version") = true ] || version=''
+      for cfgpre in "$dataset/" ''; do
+        if [ -f "$cfgdir/$cfgpre$regid.cfg" ]; then
+          echo "$cfgpre$regid.cfg"
+          break
+        fi
         if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
           regcsv="$cfgdir/$cfgpre$regid.csv"
-        else
-          error "Script '$cfgdir/$cfgpre$regid.gen' expected to create file: $cfgdir/$cfgpre$regid.csv"
-        fi
-        break
-      fi
-      if [ -n "$version" ]; then
-        local _regid=${regid%-*}
-        if [ -f "$cfgdir/$cfgpre$_regid.cfg" ]; then
-          echo "$cfgpre$_regid.cfg"
           break
         fi
-        if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
-          regcsv="$cfgdir/$cfgpre$_regid.csv"
-          break
-        fi
-        if [ -f "$cfgdir/$cfgpre$_regid.gen" ]; then
-          run "$cfgdir/$cfgpre$_regid.gen"
-          if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
-            regcsv="$cfgdir/$cfgpre$_regid.csv"
+        if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
+          run "$cfgdir/$cfgpre$regid.gen"
+          if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
+            regcsv="$cfgdir/$cfgpre$regid.csv"
           else
-            error "Script '$cfgdir/$cfgpre$_regid.gen' expected to create file: $cfgdir/$cfgpre$_regid.csv"
+            error "Script '$cfgdir/$cfgpre$regid.gen' expected to create file: $cfgdir/$cfgpre$regid.csv"
           fi
           break
         fi
+        if [ -n "$version" ]; then
+          local _regid=${regid%-*}
+          if [ -f "$cfgdir/$cfgpre$_regid.cfg" ]; then
+            echo "$cfgpre$_regid.cfg"
+            break
+          fi
+          if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
+            regcsv="$cfgdir/$cfgpre$_regid.csv"
+            break
+          fi
+          if [ -f "$cfgdir/$cfgpre$_regid.gen" ]; then
+            run "$cfgdir/$cfgpre$_regid.gen"
+            if [ -f "$cfgdir/$cfgpre$_regid.csv" ]; then
+              regcsv="$cfgdir/$cfgpre$_regid.csv"
+            else
+              error "Script '$cfgdir/$cfgpre$_regid.gen' expected to create file: $cfgdir/$cfgpre$_regid.csv"
+            fi
+            break
+          fi
+        fi
+      done
+      if [ -n "$regcsv" ]; then
+        tail -n +2 "$regcsv" | cut -d, -f1
       fi
-    done
-    if [ -n "$regcsv" ]; then
-      tail -n +2 "$regcsv" | cut -d, -f1
     fi
   fi
 }

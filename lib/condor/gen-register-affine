@@ -12,8 +12,14 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset>"
+  echo "usage: $(basename $BASH_SOURCE) <dataset>" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+
+[ -n "$dataset" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -28,8 +34,6 @@ print_help()
 run cd "$topdir"
 
 # evaluation dataset
-dataset="$1"
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ -n "$refid" ] || refid="${imgids[0]}"

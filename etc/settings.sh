@@ -71,6 +71,20 @@ condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.i
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
 
+# whether transformations of given registration method were computed beforehand
+# between all or a subset of the images of the dataset
+has_existing_dofs()
+{
+  # MAPER NiftyReg transformations computed for the original MICCAI'12 challenge
+  # provided by Christian Ledig; these were computed using NiftyReg F3D with
+  # FSL FAST tissue segmentations
+  if [ "$1" = 'niftyreg-asym-maper-2012' ]; then
+    echo true
+  else
+    echo false
+  fi
+}
+
 # whether registration method uses symmetric energy function
 is_sym()
 {

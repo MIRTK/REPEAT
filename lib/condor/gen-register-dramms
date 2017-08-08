@@ -4,8 +4,15 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -21,8 +28,6 @@ print_help()
 run cd "$topdir"
 
 # evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#chns[@]}   -eq 1 ] || error "$setdir/$dataset.sh: chns must be array of length 1"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
@@ -30,10 +35,7 @@ dataset="$1"; shift
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
 # registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
 issym="$(is_sym $regid)"
-
 version="${regid/*-}"
 [ $(is_version "$version") = true ] || version=''
 

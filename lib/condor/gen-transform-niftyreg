@@ -4,8 +4,15 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -20,15 +27,11 @@ print_help()
 run cd "$topdir"
 
 # evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#mods[@]}   -gt 0 ] || error "$setdir/$dataset.sh: mods not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
 # registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
 dofsuf=$(get_dofsuf "$regid")
 
 # include also images used to create ROIs for averaging of voxel-wise measures

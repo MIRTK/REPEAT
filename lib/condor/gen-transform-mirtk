@@ -4,8 +4,15 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -19,16 +26,17 @@ print_help()
 # change to top-level directory
 run cd "$topdir"
 
-# evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
+# include dataset specific settings (*after* setting regid)
 . "$setdir/$dataset.sh" || exit 1
 [ ${#mods[@]}   -gt 0 ] || error "$setdir/$dataset.sh: mods not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
-# registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
+# whether transformations were pre-computed another time or provided by someone
+extdof="$(has_existing_dofs "$regid")"
+dofsuf="$(get_dofsuf "$regid")"
+[ "$dofsuf" = '.dof.gz' ] || {
+  error "MIRTK transform-image requires transformation in .dof format!\nUse different/custom command to apply computed transformations."
+}
 
 # include also images used to create ROIs for averaging of voxel-wise measures
 mods=("${mods[@]}" "${rois[@]}")
@@ -108,8 +116,13 @@ else
   issym="$(is_sym $regid)"
 
   regdir="$vardir/$dataset/$regid"
-  imgdir="$vardir/$dataset/affine/out"
-  imgsuf='.nii.gz'
+
+  if [ "$extdof" = true ]; then
+    [ -n "$imgdir" ] || error "$setdir/$dataset.sh: imgdir not set"
+  else
+    imgdir="$vardir/$dataset/affine/out"
+    imgsuf='.nii.gz'
+  fi
 
   for cfgid in "${cfgids[@]}"; do
     dofdir="$regdir/$cfgid/dof"
@@ -120,7 +133,12 @@ else
 
     for mod in "${mods[@]}"; do
 
-      imgpre="$mod/"
+      if [ "$extdof" = true ]; then
+        imgpre="$(get_prefix "$mod")"
+        imgsuf="$(get_suffix "$mod")"
+      else
+        imgpre="$mod/"
+      fi
       outdir="$regdir/$cfgid/out/$mod"
       logdir="$regdir/$cfgid/log/transform-$mod"
 

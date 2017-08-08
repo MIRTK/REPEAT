@@ -4,8 +4,15 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -21,26 +28,27 @@ print_help()
 run cd "$topdir"
 
 # evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#rois[@]}   -gt 0 ] || error "$setdir/$dataset.sh: rois not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
 # registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
-issym="$(is_sym $regid)"
+issym="$(is_sym "$regid")"
+extdof="$(has_existing_dofs "$regid")"
 
-if [ $evlice = true ]; then
+if [ "$evltime" = true -a "$extdof" = true ]; then
+  echo "Info: Skipping evaluation of runtime because transformations were pre-computed."
+  evltime=false
+fi
+if [ "$evlice" = true ]; then
   if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
-  elif [ $issym = true -a $allsym != true ]; then
+  elif [ "$issym" = true -a "$allsym" != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
   fi
   evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
+if [ "$evlmte" = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
   echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
   evlmte=false
 fi
@@ -63,7 +71,7 @@ else
 
   cfgids=("$@")
   [ ${#cfgids}    -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids}    -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  [ ${#cfgids}    -gt 0 ] || error "get_cfgids is empty for $regid"
   [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
   [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
@@ -148,8 +156,11 @@ EOF_JOB
   jobdsc="$jobdir/average-measures.condor"
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-    imgdir="$vardir/$dataset/affine/out"
-    roidir="$vardir/$dataset/affine/roi"
+    if [ "$extdof" = true ]; then
+      roidir="$vardir/$dataset/shared/roi"
+    else
+      roidir="$vardir/$dataset/affine/roi"
+    fi
     logdir="$regdir/log/average-measures"
 
     makedir "$logdir"
@@ -265,7 +276,12 @@ EOF_JOB
         roi_paths=()
         for roi in "${rois[@]}"; do
           if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
-            roi_path="$roidir/$roi/$tgtid.nii.gz"
+            if [ "$extdof" = true ]; then
+              roisuf="$(get_suffix "$roi")"
+              roi_path="$roidir/$roi/$tgtid$roisuf"
+            else
+              roi_path="$roidir/$roi/$tgtid.nii.gz"
+            fi
             roi_names=("${roi_names[@]}" "'$roi'")
             roi_paths=("${roi_paths[@]}" "'$roi_path'")
           elif [ "$(is_seg "$roi")" = true ]; then

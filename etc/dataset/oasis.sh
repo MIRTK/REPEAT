@@ -29,6 +29,18 @@ imgids=(
 # scan with very different contrast in WM, exclude?
 imgids=(${imgids[@]} 1128)
 
+# ID of image used as reference for affine pre-alignment of all images
+# when not set, use first image ID
+refid="${imgids[0]}"
+
+# list of image IDs used as targets/fixed images
+# when this list is undefined or empty, all imgids are used
+tgtids=("${imgids[@]:0:4}")
+
+# list of image IDs used as source/moving images
+# when this list is undefined or empty, all imgids are used
+srcids=("${imgids[@]}")
+
 # kind of images used for registration
 chns=('t1w')
 
@@ -45,18 +57,6 @@ mods=('t1w' 'seg')
 #   value (see get_bgvalue). If image has no background, an average is
 #   computed for the entire image domain, i.e., a sum over all voxels.
 rois=('msk' 'seg')
-
-# ID of image used as reference for affine pre-alignment of all images
-# when not set, use first image ID
-refid="${imgids[0]}"
-
-# list of image IDs used as targets/fixed images
-# when this list is undefined or empty, all imgids are used
-tgtids=("${imgids[@]:0:4}")
-
-# list of image IDs used as source/moving images
-# when this list is undefined or empty, all imgids are used
-srcids=("${imgids[@]}")
 
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()

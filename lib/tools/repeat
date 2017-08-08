@@ -125,33 +125,38 @@ let N="${#tgtids[@]} * ${#srcids[@]}"
 version="${regid/*-}"
 [ $(is_version "$version") = true ] || version=''
 
+# whether transformations were pre-computed another time or provided by someone
+extdof="$(has_existing_dofs "$regid")"
+
 # generate parameters CSV or check existence of it or preset .cfg file
-regcfg_found=false
-for cfgpre in "$dataset/" ''; do
-  if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
-    regcfg_found=true
-    break
-  fi
-  if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
-    run "$cfgdir/$cfgpre$regid.gen"
-    regcfg_found=true
-    break
-  fi
-  if [ -n "$version" ]; then
-    _regid=${regid%-*}
-    if [ -f "$cfgdir/$cfgpre${_regid}.csv" -o -f "$cfgdir/$cfgpre${_regid}.cfg" ]; then
+if [ "$extdof" != true ]; then
+  regcfg_found=false
+  for cfgpre in "$dataset/" ''; do
+    if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
       regcfg_found=true
       break
     fi
-    if [ -f "$cfgdir/$cfgpre${_regid}.gen" ]; then
-      run "$cfgdir/$cfgpre${_regid}.gen"
+    if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
+      run "$cfgdir/$cfgpre$regid.gen"
       regcfg_found=true
       break
     fi
+    if [ -n "$version" ]; then
+      _regid=${regid%-*}
+      if [ -f "$cfgdir/$cfgpre${_regid}.csv" -o -f "$cfgdir/$cfgpre${_regid}.cfg" ]; then
+        regcfg_found=true
+        break
+      fi
+      if [ -f "$cfgdir/$cfgpre${_regid}.gen" ]; then
+        run "$cfgdir/$cfgpre${_regid}.gen"
+        regcfg_found=true
+        break
+      fi
+    fi
+  done
+  if [ $regcfg_found = false ]; then
+    error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,cfg,gen}'"
   fi
-done
-if [ $regcfg_found = false ]; then
-  error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,cfg,gen}'"
 fi
 
 # IDs of parameter sets
@@ -184,97 +189,105 @@ fi
 # common pre-processing steps
 jobs_submitted=false
 
-regdir="$vardir/$dataset/affine"
-jobdir="$regdir/bin"
+if [ "$extdof" != true ]; then
 
-# compute affine transformations to reference
-n=0
-outdir="$regdir/dof"
-if [ -d "$outdir" ]; then
-  for imgid in "${imgids[@]}"; do
-    [ ! -f "$outdir/$imgid.dof.gz" ] || let n++
-  done
-fi
-if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#imgids[@]} ]; then
-  jobdsc="$jobdir/register.condor"
-  if [ $update = true -o ! -f "$jobdsc" ]; then
-    run "$libdir/condor/gen-register-affine" "$dataset"
-  fi
-  submit "$jobdsc"
-elif [ $n -ne ${#imgids[@]} ]; then
-  echo "Seems not all affine registration jobs have finished successfully! Found $n out of ${#imgids[@]} output files."
-  error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
-else
-  echo "All affine registration jobs are done, found $n output files"
-fi
-if [ $jobs_submitted = true ]; then
-  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
-  exit 0
-fi
+  regdir="$vardir/$dataset/affine"
+  jobdir="$regdir/bin"
 
-# transform images to affine reference space
-n=0
-nexpected=0
-for mod in "${mods_and_rois[@]}"; do
-  outdir="$regdir/out/$mod"
-  let nexpected="$nexpected + ${#imgids[@]}"
+  # compute affine transformations to reference
+  n=0
+  outdir="$regdir/dof"
   if [ -d "$outdir" ]; then
     for imgid in "${imgids[@]}"; do
-      [ ! -f "$outdir/$imgid$imgsuf" ] || let n++
+      [ ! -f "$outdir/$imgid.dof.gz" ] || let n++
     done
   fi
-done
-if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
-  echo "n=$n, expected=$nexpected"
-  jobdsc="$jobdir/transform.condor"
-  if [ $update = true -o ! -f "$jobdsc" ]; then
-    run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
+  if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#imgids[@]} ]; then
+    jobdsc="$jobdir/register.condor"
+    if [ $update = true -o ! -f "$jobdsc" ]; then
+      run "$libdir/condor/gen-register-affine" "$dataset"
+    fi
+    submit "$jobdsc"
+  elif [ $n -ne ${#imgids[@]} ]; then
+    echo "Seems not all affine registration jobs have finished successfully! Found $n out of ${#imgids[@]} output files."
+    error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
+  else
+    echo "All affine registration jobs are done, found $n output files"
   fi
-  submit "$jobdsc"
-elif [ $n -ne $nexpected ]; then
-  error "Seems not all image pre-alignment jobs have finished successfully! Found only $n out of $nexpected output files."
-  error "Check log files of image pre-alignment jobs in '$regdir/log/transform' for errors, and re-run failed jobs manually."
-else
-  echo "All image pre-alignment jobs are done, found $n output files"
-fi
-if [ $jobs_submitted = true ]; then
-  echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
-  exit 0
-fi
+  if [ $jobs_submitted = true ]; then
+    echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+    exit 0
+  fi
 
-# pad affinely aligned images if foreground masks are used
-n=0
-nexpected=0
-outdir="$regdir/pad"
-for chn in "${chns[@]}"; do
-  msk=$(get_bgvalue "$chn")
-  [ -n "$msk" -a $(is_mask "$msk") = true ] || continue
-  let nexpected="$nexpected+${#imgids[@]}"
-  if [ -d "$outdir/$chn" ]; then
-    for imgid in "${imgids[@]}"; do
-      [ ! -f "$outdir/$chn/$imgid$imgsuf" ] || let n++
-    done
+  # transform images to affine reference space
+  n=0
+  nexpected=0
+  for mod in "${mods_and_rois[@]}"; do
+    outdir="$regdir/out/$mod"
+    let nexpected="$nexpected + ${#imgids[@]}"
+    if [ -d "$outdir" ]; then
+      for imgid in "${imgids[@]}"; do
+        [ ! -f "$outdir/$imgid$imgsuf" ] || let n++
+      done
+    fi
+  done
+  if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+    echo "n=$n, expected=$nexpected"
+    jobdsc="$jobdir/transform.condor"
+    if [ $update = true -o ! -f "$jobdsc" ]; then
+      run "$libdir/condor/gen-transform-mirtk" "$dataset" 'affine'
+    fi
+    submit "$jobdsc"
+  elif [ $n -ne $nexpected ]; then
+    error "Seems not all image pre-alignment jobs have finished successfully! Found only $n out of $nexpected output files."
+    error "Check log files of image pre-alignment jobs in '$regdir/log/transform' for errors, and re-run failed jobs manually."
+  else
+    echo "All image pre-alignment jobs are done, found $n output files"
   fi
-done
-if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
-  jobdsc="$jobdir/apply-image-masks.condor"
-  if [ $update = true -o ! -f "$jobdsc" ]; then
-    run "$libdir/condor/gen-apply-image-masks" "$dataset"
+  if [ $jobs_submitted = true ]; then
+    echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+    exit 0
   fi
-  submit "$jobdsc"
-elif [ $n -ne $nexpected ]; then
-  echo "Seems not all background padding jobs have finished successfully! Found $n out of $nexpected output files."
-  error "Check log files of batch jobs in '$regdir/log/apply-image-masks' for errors, and re-run failed jobs manually."
-else
-  echo "All background padding jobs are done, found $n output files"
-fi
+
+  # pad affinely aligned images if foreground masks are used
+  n=0
+  nexpected=0
+  outdir="$regdir/pad"
+  for chn in "${chns[@]}"; do
+    msk=$(get_bgvalue "$chn")
+    [ -n "$msk" -a $(is_mask "$msk") = true ] || continue
+    let nexpected="$nexpected+${#imgids[@]}"
+    if [ -d "$outdir/$chn" ]; then
+      for imgid in "${imgids[@]}"; do
+        [ ! -f "$outdir/$chn/$imgid$imgsuf" ] || let n++
+      done
+    fi
+  done
+  if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+    jobdsc="$jobdir/apply-image-masks.condor"
+    if [ $update = true -o ! -f "$jobdsc" ]; then
+      run "$libdir/condor/gen-apply-image-masks" "$dataset"
+    fi
+    submit "$jobdsc"
+  elif [ $n -ne $nexpected ]; then
+    echo "Seems not all background padding jobs have finished successfully! Found $n out of $nexpected output files."
+    error "Check log files of batch jobs in '$regdir/log/apply-image-masks' for errors, and re-run failed jobs manually."
+  else
+    echo "All background padding jobs are done, found $n output files"
+  fi
+
+fi # extdof?
 
 # create ROI masks used to average voxel-wise quality measures
 gen_create_roi_masks_updated=false
 for roi in "${rois[@]}"; do
-  if [ "$(is_seg "$roi")" = true ]; then
+  if [ "$(is_mask "$roi")" != true -a "$(is_prob "$roi")" != true ]; then
     nrois=0
-    roidir="$regdir/roi/$roi"
+    if [ "$extdof" = true ]; then
+      roidir="$vardir/$dataset/shared/roi/$roi"
+    else
+      roidir="$vardir/$dataset/affine/roi/$roi"
+    fi
     if [ -d "$roidir" ]; then
       for tgtid in "${tgtids[@]}"; do
         let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
@@ -283,7 +296,7 @@ for roi in "${rois[@]}"; do
     if [ $nrois -eq 0 ]; then
       jobdsc="$jobdir/create-$roi-masks.condor"
       if [ $update = true -a $gen_create_roi_masks_updated = false ] || [ ! -f "$jobdsc" ]; then
-        run "$libdir/condor/gen-create-roi-masks" "$dataset"
+        run "$libdir/condor/gen-create-roi-masks" "$dataset" "$regid"
         gen_create_roi_masks_updated=true
       fi
       submit "$jobdsc"
@@ -336,24 +349,34 @@ for cfgid in "${cfgids[@]}"; do
       [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
     done; done
   fi
-  if [ $ndofs -eq 0 ] || [ $update = true -a $ndofs -lt $npairs ]; then
-    jobdsc="$jobdir/register.condor"
-    if [ $update = true -o ! -f "$jobdsc" ]; then
-      run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
+  if [ "$extdof" = true ]; then
+    if [ $ndofs -ne $npairs ]; then
+      error "Expected $npairs existing transformations matching '$outdir/*-*$dofsuf', but found only $ndofs!"
     fi
-    _nosubmit="$nosubmit"
-    [ "$noregister" != true ] || nosubmit=true
-    submit "$jobdsc"
-    nosubmit=${_nosubmit}
-  elif [ $ndofs -ne $npairs ]; then
-    echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
-    error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
   else
-    echo "All registration jobs are done, found $ndofs output files"
-  fi
-  if [ $jobs_submitted = true ]; then
-    all_done=false
-    continue
+    if [ $ndofs -eq 0 ] || [ $update = true -a $ndofs -lt $npairs ]; then
+      if [ "$extdof" = true ]; then
+        error "Expected $npairs existing transformations matching patter: $outdir/*-*$dofsuf, but found only $ndofs!"
+      else
+        jobdsc="$jobdir/register.condor"
+        if [ $update = true -o ! -f "$jobdsc" ]; then
+          run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
+        fi
+        _nosubmit="$nosubmit"
+        [ "$noregister" != true ] || nosubmit=true
+        submit "$jobdsc"
+        nosubmit=${_nosubmit}
+      fi
+    elif [ $ndofs -ne $npairs ]; then
+      echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
+      error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
+    else
+      echo "All registration jobs are done, found $ndofs output files"
+    fi
+    if [ $jobs_submitted = true ]; then
+      all_done=false
+      continue
+    fi
   fi
 
   # ----------------------------------------------------------------------------
@@ -371,11 +394,11 @@ for cfgid in "${cfgids[@]}"; do
     if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
       jobdsc="$jobdir/transform-$mod.condor"
       if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
-        regpkg=${regid/-*}
+        toolkit="$(get_toolkit "$regid")"
         if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
-          regpkg='mirtk'
+          toolkit='mirtk'
         fi
-        run "$libdir/condor/gen-transform-$regpkg" "$dataset" "$regid" "$cfgid"
+        run "$libdir/condor/gen-transform-$toolkit" "$dataset" "$regid" "$cfgid"
         gen_transform_updated=true
       fi
       submit "$jobdsc"

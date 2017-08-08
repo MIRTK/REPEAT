@@ -12,8 +12,15 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset>"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> [<regid>]" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="${1:-affine}"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -28,24 +35,34 @@ print_help()
 run cd "$topdir"
 
 # evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#rois[@]}   -gt 0 ] || error "$setdir/$dataset.sh: rois not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 
-# registration ID of affine pre-alignment
-regid='affine'
-regdir="$vardir/$dataset/$regid"
+extdof="$(has_existing_dofs "$regid")"
+if [ "$extdof" = true ]; then
+  regdir="$vardir/$dataset/shared"
+else
+  regid='affine'
+  regdir="$vardir/$dataset/$regid"
+fi
 
+regdir="$vardir/$dataset/$regid"
 jobdir="$regdir/bin"
-imgdir="$regdir/out"
-imgsuf=".nii.gz"
 
 for roi in "${rois[@]}"; do
 
-  imgpre="$roi/"
+  if [ "$extdof" = true ]; then
+    [ -n "$imgdir" ] || error "$setdir/$dataset.sh: imgdir not set"
+    imgpre="$(get_prefix "$roi")"
+    imgsuf="$(get_suffix "$roi")"
+  else
+    imgdir="$regdir/out"
+    imgpre="$roi/"
+    imgsuf=".nii.gz"
+  fi
+
   jobdsc="$jobdir/create-$roi-masks.condor"
   logdir="$regdir/log/create-$roi-masks"
   outdir="$regdir/roi/$roi"
@@ -54,8 +71,15 @@ for roi in "${rois[@]}"; do
   if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
 
     if [ ! -L "$outdir" ]; then
-      makedir "$(dirname "$outdir")"
-      run ln -s "../out/$roi" "$outdir"
+      if [ "$extdof" = true ]; then
+        makedir "$outdir"
+        for imgid in "${imgids[@]}"; do
+          run ln -s "$imgdir/$imgpre$imgid$imgsuf" "$outdir/$imgid$imgsuf"
+        done
+      else
+        makedir "$(dirname "$outdir")"
+        run ln -s "../out/$roi" "$outdir"
+      fi
     fi
 
   # create separate binary mask for each (positive) label
