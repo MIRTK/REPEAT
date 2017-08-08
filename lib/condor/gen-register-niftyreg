@@ -170,10 +170,11 @@ initialdir   = $topdir
 EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
+      [ $tgtid != $srcid ] || continue
+      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || continue
       dofout="$dofdir/$tgtid-$srcid.dof.gz"
       cppout="$dofdir/$tgtid-$srcid.nii.gz"  # to allow check of conversion
       [ $force = true ] || [ ! -f "$dofout" ] || continue
-      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       masks=()
       if [ -n "$mskdir" ]; then
         masks=('-rmask' "'$mskdir/$tgtid$imgsuf'")

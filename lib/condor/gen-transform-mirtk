@@ -174,7 +174,7 @@ log       = $logdir/$srcid-$tgtid.log
 queue
 
 EOF_JOB
-          else
+          elif [ $tgtid != $srcid ]; then
             cat >> "$jobdsc" <<EOF_JOB
 arguments = "transform-image '$imgdir/$imgpre$srcid$imgsuf' '$outimg' -target '$imgdir/$imgpre$tgtid$imgsuf' -dofin '$dofdir/$tgtid-$srcid.dof.gz' $labels -threads $threads"
 error     = $logdir/$srcid-$tgtid.err

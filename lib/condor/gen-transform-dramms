@@ -97,6 +97,7 @@ EOF_HEADER
 
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
+        [ $tgtid != $srcid ] || continue
         outimg="$outdir/$srcid-$tgtid.nii.gz"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB

@@ -122,7 +122,6 @@ fi
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
-let N="${#tgtids[@]} * ${#srcids[@]}"
 
 # registration method
 [ -n "$regid" ] || print_help
@@ -318,6 +317,28 @@ if [ $jobs_submitted = true ]; then
   exit 0
 fi
 
+# ----------------------------------------------------------------------------
+# expected no. of transformed images, pairwise registrations
+N=0
+for tgtid in "${tgtids[@]}"; do
+for srcid in "${srcids[@]}"; do
+  if [ "$tgtid" != "$srcid" ]; then
+    let N++
+  fi
+done; done
+
+npairs=0
+if [ "$issym" = true ] && [ $allsym != true ]; then
+  for tgtid in "${tgtids[@]}"; do
+  for srcid in "${srcids[@]}"; do
+    if [[ "$tgtid" < "$srcid" ]]; then
+      let npairs++
+    fi
+  done; done
+else
+  npairs=$N
+fi
+
 # ------------------------------------------------------------------------------
 # for each parameter set...
 all_done=true
@@ -332,27 +353,13 @@ for cfgid in "${cfgids[@]}"; do
   jobdir="$regdir/bin"
 
   # ----------------------------------------------------------------------------
-  # expected no. of pairwise registrations
-  if [ "$issym" = true ] && [ $allsym != true ]; then
-    npairs=0
-    for tgtid in "${tgtids[@]}"; do
-    for srcid in "${srcids[@]}"; do
-      if [ "$tgtid" = "$srcid" ] || [[ "$tgtid" < "$srcid" ]]; then
-        let npairs++
-      fi
-    done; done
-  else
-    npairs=$N
-  fi
-
-  # ----------------------------------------------------------------------------
   # perform pairwise registrations
   ndofs=0
   outdir="$regdir/dof"
   if [ -d "$outdir" ]; then
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
-      [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
+      [ $tgtid = $srcid ] || [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
     done; done
   fi
   if [ "$extdof" = true ]; then
@@ -394,7 +401,7 @@ for cfgid in "${cfgids[@]}"; do
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
-        [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
+        [ $tgtid = $srcid ] || [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
       done; done
     fi
     if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
@@ -432,18 +439,17 @@ for cfgid in "${cfgids[@]}"; do
     if [ -d "$outdir" ]; then
       for tgtid in "${tgtids[@]}"; do
       for srcid in "${srcids[@]}"; do
-        [ ! -f "$outdir/$tgtid-$srcid$imgsuf" ] || let n++
+        [ $tgtid = $srcid ] || [ ! -f "$outdir/$tgtid-$srcid$imgsuf" ] || let n++
       done; done
     fi
-    let nexpected="$ndofs - ${#tgtids[@]}"
-    if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+    if [ $n -eq 0 ] || [ $update = true -a $n -lt $ndofs ]; then
       jobdsc="$jobdir/evaluate-dof-$measure.condor"
       if [ $update = true -o ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
       fi
       submit "$jobdsc"
-    elif [ $n -ne $nexpected ]; then
-      echo "Seems not all Jacobian determinant evaluation jobs have finished successfully! Found $n out of $nexpected output files."
+    elif [ $n -ne $ndofs ]; then
+      echo "Seems not all Jacobian determinant evaluation jobs have finished successfully! Found $n out of $ndofs output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
       echo "All Jacobian determinant evaluation jobs are done, found $n output files"

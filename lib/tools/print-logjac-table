@@ -8,8 +8,16 @@
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) <dataset> <regid> <cfgid> <tgtid>"
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> <cfgid> <tgtid>" 1>&2
+  exit 1
 }
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+cfgid="$1"; shift
+tgtid="$1"; shift
+[ -n "$dataset" -a -n "$regid" -a -n "$cfgid" -a -n "$tgtid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -22,23 +30,9 @@ print_help()
 cd "$topdir" || exit 1
 
 # evaluation dataset
-dataset="$1"; shift
-[ -n "$dataset" ] || print_help
 . "$setdir/$dataset.sh" || exit 1
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
-
-# registration method
-regid="$1"; shift
-[ -n "$regid" ] || print_help
-
-# parameter set
-cfgid="$1"; shift
-[ -n "$cfgid" ] || print_help
-
-# target image
-tgtid="$1"; shift
-[ -n "$tgtid" ] || print_help
 
 # print table of Jacobian determinants statistics
 jacdir="$vardir/$dataset/$regid/$cfgid/evl/dof/jac"

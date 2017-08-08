@@ -200,9 +200,10 @@ initialdir   = $topdir
 EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
+      [ $tgtid != $srcid ] || continue
+      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || continue
       dofout="$dofdir/$tgtid-$srcid.dof.gz"
       [ $force = true ] || [ ! -f "$dofout" ] || continue
-      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       images=()
       for chn in "${chns[@]}"; do
         imgpre="$chn/"

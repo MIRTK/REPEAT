@@ -131,9 +131,10 @@ initialdir   = $topdir
 EOF_HEADER
     for tgtid in "${tgtids[@]}"; do
     for srcid in "${srcids[@]}"; do
+      [ $tgtid != $srcid ] || continue
+      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || continue
       dofout="$dofdir/$tgtid-$srcid.dof.gz"
       [ $force = true ] || [ ! -f "$dofout" ] || continue
-      [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || [ $tgtid = $srcid ] || continue
       cat >> "$jobdsc" <<EOF_QUEUE
 arguments = "'$irtk/$regcmd' '$imgdir/$imgpre$tgtid$imgsuf' '$imgdir/$imgpre$srcid$imgsuf' -parin '$regcfg' -dofout '$dofout'"
 error     = $logdir/$tgtid-$srcid.err
