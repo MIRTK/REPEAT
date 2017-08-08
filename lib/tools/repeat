@@ -175,6 +175,10 @@ imgsuf=".nii.gz"
 
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
+if [ $evltime = true -a "$extdof" = true ]; then
+  evltime=false
+  echo "Info: Skipping evaluation of runtime because transformations were pre-computed."
+fi
 if [ $evlice = true ]; then
   if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
