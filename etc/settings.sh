@@ -108,7 +108,7 @@ is_sym()
 {
   if [ "${regid/-sym-/}" != "$regid" ]; then
     echo true
-  elif [ "${regid:0:8}" != 'ants-syn' ]; then
+  elif [ "${regid:0:8}" = 'ants-syn' ]; then
     echo true
   else
     echo false
