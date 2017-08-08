@@ -33,7 +33,8 @@ run cd "$topdir"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
 # registration method
-issym="$(is_sym $regid)"
+issym="$(is_sym "$regid")"
+extdof="$(has_existing_dofs "$regid")"
 
 if [ $evlice = true ]; then
   if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
@@ -67,6 +68,13 @@ refpad=''
 refbgv=$(get_bgvalue "$refmod")
 if [ -n "$refbgv" -a "$(is_mask "$refbgv")" != true ]; then
   refpad="-padding $refbgv"
+fi
+
+# reference image used for overlap evaluation
+if [ "$extdof" = true ]; then
+  tgtdir="$imgdir"
+else
+  tgtdir="$vardir/$dataset/affine/out"
 fi
 
 # ------------------------------------------------------------------------------
@@ -247,6 +255,14 @@ EOF_JOB
     imgpre="$mod/"
     imgsuf=".nii.gz"
 
+    if [ "$extdof" = true ]; then
+      tgtpre="$(get_prefix "$mod")"
+      tgtsuf="$(get_suffix "$mod")"
+    else
+      tgtpre="$mod/"
+      tgtsuf=".nii.gz"
+    fi
+
     if [ $(is_seg "$mod") = true ]; then
       kind="-labels"
     elif [ $(is_prob "$mod") = true ]; then
@@ -286,14 +302,13 @@ EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
             outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
+            tgtimg="$tgtdir/$tgtpre$tgtid$tgtsuf"
             srcimgs=()
             if [ $regid = 'affine' ]; then
-              tgtimg="$imgdir/$imgpre$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
                 [ $tgtid = $srcid ] || srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
               done
             else
-              tgtimg="$imgdir/$imgpre$tgtid-$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
                 [ $tgtid = $srcid ] || srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
@@ -363,7 +378,7 @@ EOF_JOB
             for tgtid in "${tgtids[@]}"; do
               outimg="$outdir/$tgtid.nii.gz"
               [ $force = true ] || [ ! -f "$outimg" ] || continue
-              images=()
+              images=("'$tgtdir/$tgtpre$tgtid$tgtsuf'")
               for srcid in "${srcids[@]}"; do
                 [ $tgtid = $srcid ] || images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
