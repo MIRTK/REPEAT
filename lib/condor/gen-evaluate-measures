@@ -365,7 +365,7 @@ EOF_JOB
               [ $force = true ] || [ ! -f "$outimg" ] || continue
               images=()
               for srcid in "${srcids[@]}"; do
-                images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+                [ $tgtid = $srcid ] || images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
               cat >> "$jobdsc" <<EOF_JOB
 arguments = "aggregate-images $measure ${images[@]} -output '$outimg' -bins 0 $normalization $rescaling $padding -threads $threads"
