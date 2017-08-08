@@ -61,8 +61,10 @@ get_cfgids()
         local regdir="$topdir/$vardir/$dataset/$regid"
         if [ -d "$regdir" ]; then
           local d
-          for d in $(ls -d "$regdir/"????"/dof"); do
-            basename ${d/\/dof}
+          local subdir='dof'
+          [ $extdof = true ] || subdir='out'
+          for d in $(ls -d "$regdir/"????"/$subdir"); do
+            basename ${d/\/$subdir}
           done
         else
           error "get_cfgids: Could not find directory with existing files for dataset=$dataset, regid=$regid!"
