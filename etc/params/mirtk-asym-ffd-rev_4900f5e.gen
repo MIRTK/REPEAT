@@ -181,7 +181,7 @@ done
 gamma=0.5
 jaceps=0.1
 for be in ${be_vals[@]}; do
-  for tp in 0.1 0.5 1 2; do
+  for vp in 0.1 0.5 1 2; do
     append_row
   done
 done
