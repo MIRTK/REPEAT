@@ -290,12 +290,12 @@ EOF_HEADER
             if [ $regid = 'affine' ]; then
               tgtimg="$imgdir/$imgpre$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
-                srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
+                [ $tgtid = $srcid ] || srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid$imgsuf'")
               done
             else
               tgtimg="$imgdir/$imgpre$tgtid-$tgtid$imgsuf"
               for srcid in "${srcids[@]}"; do
-                srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
+                [ $tgtid = $srcid ] || srcimgs=("${srcimgs[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
             fi
             cat >> "$jobdsc" <<EOF_JOB
