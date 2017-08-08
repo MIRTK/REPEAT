@@ -94,7 +94,7 @@ if [ -n "$refbgv" -a "$(is_mask "$refbgv")" != true ]; then
 fi
 
 # reference image used for overlap evaluation
-if [ "$extdof" = true ]; then
+if [ "$extdof" = true -o "$extout" = true ]; then
   tgtdir="$imgdir"
 else
   tgtdir="$vardir/$dataset/affine/out"
@@ -278,7 +278,7 @@ EOF_JOB
     imgpre="$mod/"
     imgsuf=".nii.gz"
 
-    if [ "$extdof" = true ]; then
+    if [ "$extdof" = true -o "$extout" = true ]; then
       tgtpre="$(get_prefix "$mod")"
       tgtsuf="$(get_suffix "$mod")"
     else

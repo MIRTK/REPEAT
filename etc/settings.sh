@@ -151,9 +151,10 @@ get_dofsuf()
 # get evaluation measures for given modality/channel/contrast
 get_measures()
 {
-  if [ "$1" = 't1w' -o "$1" = 't2w' ]; then
+  local mod="$1"
+  if [ "$mod" = 't1w' -o "$mod" = 't2w' ]; then
     echo "sdev entropy"
-  elif [ "$1" = 'seg' ]; then
+  elif [ "$mod" = 'seg' ]; then
     echo "dsc entropy"
   fi
 }
