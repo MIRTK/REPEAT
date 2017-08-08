@@ -280,17 +280,19 @@ fi # extdof?
 
 # create ROI masks used to average voxel-wise quality measures
 gen_create_roi_masks_updated=false
+if [ "$extdof" = true ]; then
+  roidir="$vardir/$dataset/shared/roi/$roi"
+  jobdir="$vardir/$dataset/shared/bin"
+else
+  roidir="$vardir/$dataset/affine/roi/$roi"
+  jobdir="$vardir/$dataset/affine/bin"
+fi
 for roi in "${rois[@]}"; do
   if [ "$(is_mask "$roi")" != true -a "$(is_prob "$roi")" != true ]; then
     nrois=0
-    if [ "$extdof" = true ]; then
-      roidir="$vardir/$dataset/shared/roi/$roi"
-    else
-      roidir="$vardir/$dataset/affine/roi/$roi"
-    fi
     if [ -d "$roidir" ]; then
       for tgtid in "${tgtids[@]}"; do
-        let nrois="$nrois + $(find "$roidir" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
+        let nrois="$nrois + $(find "$roidir/$roi" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
       done
     fi
     if [ $nrois -eq 0 ]; then

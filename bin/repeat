@@ -103,38 +103,5 @@ done
 # change to top-level directory
 run cd "$topdir"
 
-# generate parameters CSV if missing and/or check existence of it
-config_found=false
-for cfgpre in "$dataset/" ''; do
-  if [ -f "$cfgdir/$cfgpre$regid.csv" ]; then
-    config_found=true
-    break
-  fi
-  if [ -f "$cfgdir/$cfgpre$regid.gen" ]; then
-    run "$cfgdir/$cfgpre$regid.gen"
-    config_found=true
-    break
-  fi
-  if [ -n "$version" ]; then
-    _regid=${regid%-*}
-    if [ -f "$cfgdir/$cfgpre${_regid}.csv" ]; then
-      config_found=true
-      break
-    fi
-    if [ -f "$cfgdir/$cfgpre${_regid}.gen" ]; then
-      run "$cfgdir/$cfgpre${_regid}.gen"
-      config_found=true
-      break
-    fi
-  fi
-done
-if [ $config_found = false ]; then
-  error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,gen}'"
-fi
-
-# IDs of parameter sets
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-
 # delegate to batch queuing system specific script
 "$libdir/tools/repeat" "${opts[@]}" -q "$queue" -d "$dataset" -r "$regid" -- "${cfgids[@]}"

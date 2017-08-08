@@ -47,8 +47,6 @@ else
   regid='affine'
   regdir="$vardir/$dataset/$regid"
 fi
-
-regdir="$vardir/$dataset/$regid"
 jobdir="$regdir/bin"
 
 for roi in "${rois[@]}"; do
@@ -70,13 +68,15 @@ for roi in "${rois[@]}"; do
   # mask/probability map resampled already by gen-transform-* jobs
   if [ "$(is_mask "$roi")" = true -o "$(is_prob "$roi")" = true ]; then
 
-    if [ ! -L "$outdir" ]; then
-      if [ "$extdof" = true ]; then
-        makedir "$outdir"
-        for imgid in "${imgids[@]}"; do
+    if [ "$extdof" = true ]; then
+      makedir "$outdir"
+      for imgid in "${imgids[@]}"; do
+        if [ ! -L "$outdir/$imgid$imgsuf" ]; then
           run ln -s "$imgdir/$imgpre$imgid$imgsuf" "$outdir/$imgid$imgsuf"
-        done
-      else
+        fi
+      done
+    else
+      if [ ! -L "$outdir" ]; then
         makedir "$(dirname "$outdir")"
         run ln -s "../out/$roi" "$outdir"
       fi
