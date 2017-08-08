@@ -103,5 +103,10 @@ done
 # change to top-level directory
 run cd "$topdir"
 
+# set environment variables
+[ -z "$PYTHONPATH" ] || PYTHONPATH=":$PYTHONPATH"
+PYTHONPATH="$topdir/lib/python"
+export PYTHONPATH
+
 # delegate to batch queuing system specific script
 "$libdir/tools/repeat" "${opts[@]}" -q "$queue" -d "$dataset" -r "$regid" -- "${cfgids[@]}"
