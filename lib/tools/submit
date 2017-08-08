@@ -328,7 +328,10 @@ class JobDesc(object):
 
     def script(self, jobid='(unknown)', taskid=0, hostid='', macros={}):
         """Generate shell script for command execution."""
-        cmds = self.commands(macros=macros)
+        if taskid > 0:
+            cmds = [self.cmds[taskid - 1].copy(macros)]
+        else:
+            cmds = self.commands(macros=macros)
         script = "echo \"`date '+%y/%m/%d %H:%M:%S'` INFO Started job "
         if jobid and isinstance(jobid, str) and jobid[-1] == ')' and (len(cmds) > 0 or hostid):
             script += jobid[0:-1]
@@ -345,15 +348,14 @@ class JobDesc(object):
             script += "Host={}".format(hostid)
         script += ")\"\n"
         for i in range(len(cmds)):
-            cmd = cmds[i]
-            ini = Command.quote(cmd.initialdir)
-            out = Command.quote(cmd.output)
-            err = Command.quote(cmd.error)
+            ini = Command.quote(cmds[i].initialdir)
+            out = Command.quote(cmds[i].output)
+            err = Command.quote(cmds[i].error)
             script += "\n"
             script += "cd {} || exit 1\n".format(ini)
             script += "out={}\n".format(out)
             script += "err={}\n".format(err)
-            script += str(cmd)
+            script += str(cmds[i])
             script += " 1> \"$out\" 2> \"$err\"\n"
             script += "[ $? -eq 0 ] || {\n"
             script += "  echo >> \"$out\"\n"
@@ -496,7 +498,23 @@ class Job(TreeNode):
 
     def script(self, jobid='(unknown)', taskid=0, hostid=''):
         """Generate shell script for job execution."""
-        return self.desc.script(jobid=jobid, taskid=taskid, hostid=hostid, macros=self.macros)
+        if isinstance(taskid, str):
+            script = ''
+            if len(self) > 0:
+                macros = {}
+                for k, v in self.macros.items():
+                    script += "  {}='{}'\n".format(k, v)
+                    macros[k] = '${' + k + '}'
+                for i in range(len(self)):
+                    if i > 0:
+                        script += "el"
+                    script += "if [ {} -eq {} ]; then\n\n".format(taskid, i + 1)
+                    script += self.desc.script(jobid=jobid, taskid=(i + 1), hostid=hostid, macros=macros)
+                    script += '\n'
+                script += "fi\n\n"
+        else:
+            script = self.desc.script(jobid=jobid, taskid=taskid, hostid=hostid, macros=self.macros)
+        return script
 
 
 class JobArray(TreeNode):
@@ -887,10 +905,8 @@ def run_local(jobs, deps):
 # ==============================================================================
 
 
-def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log=''):
+def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log='', job_as_array=False):
     """Submit SLURM job."""
-    sbatch_script = "#!/bin/sh\n"
-    sbatch_script += job.script(jobid='$SLURM_JOB_NAME (JobId=$SLURM_JOB_ID)', taskid='$SLURM_ARRAY_TASK_ID', hostid='$SLURM_JOB_NODELIST')
     for cmd in job.commands():
         for i in range(len(cmd.arguments)):
             if cmd.arguments[i] == '-threads':
@@ -905,6 +921,7 @@ def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log=''):
         '-p', queue,
         '--mem={}G'.format(memory)
     ]
+    taskid=0
     if isinstance(job, JobArray):
         ranges = []
         i = -1
@@ -918,6 +935,10 @@ def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log=''):
         if len(ranges) == 0:
             raise Exception("JobArray not marked as done but ranges list is empty!")
         sbatch_argv.append('--array=' + ','.join(['{}-{}'.format(r[0] + 1, r[1] + 1) for r in ranges]))
+        taskid = '$SLURM_ARRAY_TASK_ID'
+    elif job_as_array and len(job) > 1:
+        sbatch_argv.append('--array={}-{}'.format(1, len(job)))
+        taskid = '$SLURM_ARRAY_TASK_ID'
     if deps:
         if _try_run:
             deps = ['$j{}'.format(dep) for dep in deps]
@@ -926,6 +947,8 @@ def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log=''):
         sbatch_argv.append('--dependency=afterok:' + ',afterok:'.join(deps))
     if log:
         sbatch_argv.extend(['-o', log, '-e', log, '--open-mode=append'])
+    sbatch_script = "#!/bin/sh\n"
+    sbatch_script += job.script(jobid='$SLURM_JOB_NAME (JobId=$SLURM_JOB_ID)', taskid=taskid, hostid='$SLURM_JOB_NODELIST')
     if _try_run:
         global _next_job_id
         sys.stdout.write('\nsubmit_job_{uid}()\n{{\n'.format(uid=_next_job_id))
@@ -985,7 +1008,7 @@ def slurm_deps(jobs, deps, i):
     return uids
 
 
-def run_slurm(jobs, deps, threads=1, memory=8, queue='long', log=''):
+def run_slurm(jobs, deps, threads=1, memory=8, queue='long', log='', job_as_array=False):
     todo = set()
     for i in range(len(jobs)):
         if not jobs[i].done:
@@ -996,7 +1019,7 @@ def run_slurm(jobs, deps, threads=1, memory=8, queue='long', log=''):
         for i in prev:
             uids = slurm_deps(jobs, deps, i)
             if uids is not None:
-                run_job_slurm(jobs[i], deps=uids, threads=threads, memory=memory, queue=queue, log=log)
+                run_job_slurm(jobs[i], deps=uids, threads=threads, memory=memory, queue=queue, log=log, job_as_array=job_as_array)
             else:
                 todo.add(i)
         if prev == todo or len(prev) < len(todo):
@@ -1030,6 +1053,8 @@ if __name__ == '__main__':
                         help="Queue of batch processing backend to which to submit the jobs")
     parser.add_argument('--print', dest='try_run', action='store_true',
                         help="Print job submission commands without execution")
+    parser.add_argument('--job-as-array', action='store_true',
+                        help="Submit jobs with multiple commands/tasks as job array")
     parser.add_argument('--log', default='', help="Common batch queuing job log")
     args = parser.parse_args()
 
@@ -1066,7 +1091,7 @@ if __name__ == '__main__':
     if _try_run:
         sys.stdout.write("#!/bin/bash\n")
     if args.backend == 'slurm':
-        run_slurm(jobs, deps, threads=args.threads, memory=args.memory, queue=args.queue, log=args.log)
+        run_slurm(jobs, deps, threads=args.threads, memory=args.memory, queue=args.queue, log=args.log, job_as_array=args.job_as_array)
     elif args.backend == 'local':
         run_local(jobs, deps)
 

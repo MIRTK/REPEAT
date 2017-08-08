@@ -38,7 +38,7 @@ submit()
         if [ $backend = 'condor' ]; then
           condor_submit "$1"
         else
-          "$libdir/tools/submit" "$1" --backend "$backend" --queue "$queue"
+          "$libdir/tools/submit" "$1" --backend "$backend" --queue "$queue" --job-as-array
         fi
         [ $? -ne 0 ] || break
         let i++
