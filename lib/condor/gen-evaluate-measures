@@ -35,18 +35,41 @@ run cd "$topdir"
 # registration method
 issym="$(is_sym "$regid")"
 extdof="$(use_existing_dofs "$dataset" "$regid")"
+extout="$(use_existing_imgs "$dataset" "$regid")"
 
+# disable evaluation measures that cannot be computed
+if [ $evltime = true ]; then
+  if [ "$extdof" = true -o "$extout" = true ]; then
+    echo "Info: Skipping evaluation of runtime because transformations/deformed images were pre-computed."
+    evltime=false
+  fi
+fi
+if [ $evljac = true ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of Jacobian determinants because only pre-computed deformed images are available."
+    evljac=false
+  fi
+fi
 if [ $evlice = true ]; then
-  if [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of inverse consistency error because only pre-computed deformed images are available."
+    evlice=false
+  elif [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of inverse consistency error because not all srcimgs are used as tgtimgs."
+    evlice=false
   elif [ $issym = true -a $allsym != true ]; then
     echo "Info: Skipping evaluation of inverse consistency error because allsym not 'true'."
+    evlice=false
   fi
-  evlice=false
 fi
-if [ $evlmte = true -a ${#tgtids[@]} -ne ${#srcids[@]} ]; then
-  echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
-  evlmte=false
+if [ $evlmte = true  ]; then
+  if [ "$extdof" = false -a "$extout" = true ]; then
+    echo "Info: Skipping evaluation of mean transitivity error because only pre-computed deformed images are available."
+    evlmte=false
+  elif [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
+    echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
+    evlmte=false
+  fi
 fi
 
 # reference image used as evaluate-dof -target

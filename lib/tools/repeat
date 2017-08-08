@@ -201,7 +201,7 @@ if [ $evlice = true ]; then
 fi
 if [ $evlmte = true  ]; then
   if [ "$extdof" = false -a "$extout" = true ]; then
-    echo "Info: Skipping evaluation of inverse consistency error because only pre-computed deformed images are available."
+    echo "Info: Skipping evaluation of mean transitivity error because only pre-computed deformed images are available."
     evlmte=false
   elif [ ${#tgtids[@]} -ne ${#srcids[@]} ]; then
     echo "Info: Skipping evaluation of mean transitivity error because not all srcimgs are used as tgtimgs."
