@@ -197,3 +197,44 @@ for be in ${be_vals[@]}; do
   done
 done
 
+
+# ------------------------------------------------------------------------------
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
+set_new_defaults()
+{
+  set_defaults
+  usemsk=true
+  usepad=true
+  roi='Union'
+  gamma=0.5
+  jaceps=0.1
+  be=0.0005
+  vp=0.001
+  tp=0.001
+}
+
+# ------------------------------------------------------------------------------
+# Fine tuning
+
+# 5. Last time, compare best result for different gradient calculations
+# 5a) Using previous background options
+set_new_defaults
+for srcgrd in false true; do
+  for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+    append_row
+  done
+done
+
+# 5b) Use alternative background settings found to perform well as part of 3)
+set_new_defaults
+usemsk=false
+usepad=false
+roi='Domain'
+for srcgrd in false true; do
+  for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+    append_row
+  done
+done
