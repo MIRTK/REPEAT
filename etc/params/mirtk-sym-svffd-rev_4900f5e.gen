@@ -40,7 +40,7 @@ set_defaults()
   gamma=0.5
   # SVFFD parameters
   im='SS'
-  imgsteps=64
+  imsteps=64
   maxsv=0
   nbch=0
   uselie=false
