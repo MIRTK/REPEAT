@@ -49,12 +49,14 @@ for i in {1..16}; do
     if [ ! -f "$t1wimg" ]; then
       echo "Preprocessing skullstripped T1-weighted image of $imgid"
       run "$ants/bin/N4BiasFieldCorrection" -d 3 -i "images/t1w/$imgid.nii.gz" -x "$mskimg" -o "$t1wimg" "${arg_N4[@]}"
+      run "$mirtk" edit-image "$t1wimg" "$t1wimg" -copy-origin-orientation-spacing "images/t1w/$imgid.nii.gz"
     fi
   else
     t1wimg="images/t1w-n3/$imgid.nii.gz"
     if [ ! -f "$t1wimg" ]; then
       echo "Preprocessing skullstripped T1-weighted image of $imgid"
       run "$ants/bin/N3BiasFieldCorrection" 3 "images/t1w/$imgid.nii.gz" "$t1wimg"
+      run "$mirtk" edit-image "$t1wimg" "$t1wimg" -copy-origin-orientation-spacing "images/t1w/$imgid.nii.gz"
     fi
   fi
   segimg="labels/$imgid.nii.gz"

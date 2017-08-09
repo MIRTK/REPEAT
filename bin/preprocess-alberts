@@ -71,8 +71,8 @@ for i in {1..20}; do
     run "$mirtk" calculate-element-wise "gm-posteriors-v3/$imgid.nii.gz" -threshold 0.5 -set 1 -pad 0 -out "$cgmmsk"
   fi
   segimg="labels/$imgid.nii.gz"
-  if [ ! -f "$segimg" ]; do
+  if [ ! -f "$segimg" ]; then
     echo "Creating segmentation with separate cortical labels for $imgid"
     run "$mirtk" calculate-element-wise "segmentations-v3/$imgid.nii.gz" -label 5..16 20..41 -mask "$cgmmsk" -add 100 -o "$segimg"
-  done
+  fi
 done
