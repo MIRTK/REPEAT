@@ -1,4 +1,5 @@
 /etc/params/*.csv
+/lib/python/nibabel*
 /opt
 /tmp
 /var
