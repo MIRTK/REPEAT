@@ -1,0 +1,68 @@
+#!/bin/bash
+
+## Auxiliary script used to preprocess LPBA40 dataset images
+##
+## Download:
+## * http://www.loni.usc.edu/atlases/Atlas_Detail.php?atlas_id=12
+##   - "LPBA40 Subjects Delineation Space: MRI and label files in delineation space"
+##
+## Automatic pre-processing steps:
+## * All Analyze images are converted to NIfTI .nii.gz format using MIRTK convert-image.
+## * T1-weighted images are rescaled to [0, 2000], using 'float' as datatype.
+## * N3 bias field correction with default parameters.
+##   - Alternatively, use N4 with non-default parameters (default make matters worse).
+## * Bias corrected images are saved by ANTs using 'float' datatype.
+
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ -n "$ants"   ] || error "etc/settings.sh: ants not set"
+. "$topdir/$setdir/lpba40.sh" || exit 1
+
+[ ${mirtk:0:1} = '/' ] || mirtk="$topdir/$mirtk"
+[ ${ants:0:1}  = '/' ] || ants="$topdir/$ants"
+
+export LD_LIBRARY_PATH="$ants/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$ants/lib:$DYLD_LIBRARY_PATH"
+
+run cd "$imgdir"
+
+makedir 'masks' 'labels'
+if [ "$use_N4" = true ]; then
+  makedir 'images/t1w-n4'
+else
+  makedir 'images/t1w-n3'
+fi
+
+for i in {1..40}; do
+  imgid=$(printf S%02d $i)
+  mskimg="masks/$imgid-brain.nii.gz"
+  if [ ! -f "$mskimg" ]; then
+    echo "Creating brain mask in delineation space for $imgid"
+    run "$mirtk" calculate-element-wise "$imgid/$imgid.delineation.skullstripped.hdr" -mask 0 -set 1 -o "$mskimg" binary
+  fi
+  if [ "$use_N4" = true ]; then
+    t1wimg="images/t1w-n4/$imgid.nii.gz"
+    if [ ! -f "$t1wimg" ]; then
+      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      tmpimg="images/t1w-n4/_$imgid.nii.gz"
+      run "$mirtk" convert-image "$imgid/$imgid.delineation.skullstripped.hdr" "$tmpimg" -rescale 0 2000 -float
+      run "$ants/bin/N4BiasFieldCorrection" -d 3 -i "$tmpimg" -x "$mskimg" -o "$t1wimg" "${arg_N4[@]}"
+      run rm -f "$tmpimg"
+    fi
+  else
+    t1wimg="images/t1w-n3/$imgid.nii.gz"
+    if [ ! -f "$t1wimg" ]; then
+      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      tmpimg="images/t1w-n3/_$imgid.nii.gz"
+      run "$mirtk" convert-image "$imgid/$imgid.delineation.skullstripped.hdr" "$tmpimg" -rescale 0 2000 -float
+      run "$ants/bin/N3BiasFieldCorrection" 3 "$tmpimg" "$t1wimg"
+      run rm -f "$tmpimg"
+    fi
+  fi
+  segimg="labels/$imgid.nii.gz"
+  if [ ! -f "$segimg" ]; then
+    echo "Converting manual segmentation of $imgid"
+    run "$mirtk" convert-image "$imgid/$imgid.delineation.structure.label.hdr" "$segimg"
+  fi
+done

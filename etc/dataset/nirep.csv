@@ -1,0 +1,34 @@
+Label Number,Label Name,Label Group: Non-Cortical,Label Group: Cortical
+1,L occipital lobe,-,+
+2,R occipital lobe,-,+
+3,L cingulate gyrus,-,+
+4,R cingulate gyrus,-,+
+5,L insula gyrus,-,+
+6,R insula gyrus,-,+
+7,L temporal pole,-,+
+8,R temporal pole,-,+
+9,L superior temporal gyrus,-,+
+10,R superior temporal gyrus,-,+
+11,L infero temporal region,-,+
+12,R infero temporal region,-,+
+13,L parahippocampal gyrus,-,+
+14,R parahippocampal gyrus,-,+
+15,L frontal pole,-,+
+16,R frontal pole,-,+
+17,L superior frontal gyrus,-,+
+18,R superior frontal gyrus,-,+
+19,L middle frontal gyrus,-,+
+20,R middle frontal gyrus,-,+
+21,L inferior gyrus,-,+
+22,R inferior gyrus,-,+
+23,L orbital frontal gyrus,-,+
+24,R orbital frontal gyrus,-,+
+25,L precentral gyrus,-,+
+26,R precentral gyrus,-,+
+27,L superior parietal lobule,-,+
+28,R superior parietal lobule,-,+
+29,L inferior parietal lobule,-,+
+30,R inferior parietal lobule,-,+
+31,L postcentral gyrus,-,+
+32,R postcentral gyrus,-,+
+33,unassigned gray matter,-,-

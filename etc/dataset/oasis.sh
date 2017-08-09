@@ -1,11 +1,16 @@
-## OASIS-MAL35 dataset information
+## OASIS MAL35 dataset information
 ##
 ## From MICCAI 2012 Grand Challenge and Workshop on Multi-Atlas Labeling.
 ## Manual segmentations of 35 adult brain images of the OASIS database
-## were provided by Neuromorphometrics Inc.
+## were provided for this challenge by Neuromorphometrics Inc.
 ##
-## http://masiweb.vuse.vanderbilt.edu/workshop2012/
-## http://www.oasis-brains.org/
+## Download:
+## * http://masiweb.vuse.vanderbilt.edu/workshop2012/
+## * http://www.oasis-brains.org/
+##
+## Images used for MIRTK evaluation pre-processed by Christian Ledig:
+## * N4 bias field correction.
+## * Brain masks computed with PINCRAM (http://soundray.org/pincram/)
 
 # common top level directory of dataset images
 imgdir="$HOME/Datasets/MAL35"

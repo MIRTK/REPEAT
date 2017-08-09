@@ -4,19 +4,21 @@
 ## http://brain-development.org/brain-atlases/neonatal-brain-atlas-albert/
 ##
 ## It is recommended, however, to use the modified images used
-## as atlases by the MIRTK Draw-EM brain segmentation package:
-## https://www.doc.ic.ac.uk/~am411/atlases-DrawEM.html
-##
+## as atlases by the MIRTK Draw-EM brain segmentation package.
 ## The Draw-EM ALBERTs atlas includes cGM probability maps generated
 ## with an automatic segmentation approach based on a probabilistic
 ## neonatal brain atlas. These probability maps can be used to get
 ## separate cortical and non-cortical labels for a better evaluation
-## of the registration accuracy. See lib/tools/make-alberts-labels
-## script for commands used to create such labels from the files
-## downloaded from above Draw-EM atlas URL.
+## of the registration accuracy.
+##
+## Download:
+## * https://www.doc.ic.ac.uk/~am411/atlases-DrawEM.html
+##
+## Pre-processing:
+## * Run 'bin/preprocess-alberts' script.
 
 # common top level directory of dataset images
-imgdir="$HOME/Atlases/ALBERTs/DrawEM"
+imgdir="$HOME/Datasets/ALBERTs"
 
 # list of image IDs
 imgids=()
@@ -53,13 +55,20 @@ tgtids=("${imgids[@]:0:5}")
 # when this list is undefined or empty, use all imgids
 srcids=("${imgids[@]}")
 
+# parameters of preprocessing steps
+# (default equivalent to bias field correction of Draw-EM pipeline v1.1)
+use_N4=true
+arg_N4=(-c '[50x50x50,0.001]' -s 2 -b '[100,3]' -t '[0.15,0.01,200]')
+
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()
 {
-  if [ $1 = 't1w' ]; then
-    echo "T1/ALBERT_"
-  elif [ $1 = 't2w' ]; then
-    echo "T2/ALBERT_"
+  if [ $1 = 't2w' ]; then
+    if [ "$use_N4" = true ]; then
+      echo "images/t2w-n4/ALBERT_"
+    else
+      echo "images/t2w-n3/ALBERT_"
+    fi
   elif [ $1 = 'seg' ]; then
     echo "labels/ALBERT_"
   elif [ $1 = 'cgm' ]; then

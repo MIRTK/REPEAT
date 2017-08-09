@@ -1,0 +1,311 @@
+0,Background,Background,NA
+1,3rdVentricle,3rdVentricle,NA
+2,4thVentricle,4thVentricle,NA
+3,RightAccumbensArea,RightAccumbensArea,right
+4,LeftAccumbensArea,LeftAccumbensArea,left
+5,RightAmygdala,RightAmygdala,right
+6,LeftAmygdala,LeftAmygdala,left
+7,BrainStem,BrainStem,NA
+8,RightCaudate,RightCaudate,right
+9,LeftCaudate,LeftCaudate,left
+10,RightCerebellumExterior,RightCerebellumExterior,right
+11,LeftCerebellumExterior,LeftCerebellumExterior,left
+12,RightCerebellumWhiteMatter,RightCerebellumWhiteMatter,right
+13,LeftCerebellumWhiteMatter,LeftCerebellumWhiteMatter,left
+14,RightCerebralExterior,RightCerebralExterior,right
+15,LeftCerebralExterior,LeftCerebralExterior,left
+16,RightCerebralWhiteMatter,RightCerebralWhiteMatter,right
+17,LeftCerebralWhiteMatter,LeftCerebralWhiteMatter,left
+18,CSF,CSF,NA
+19,RightHippocampus,RightHippocampus,right
+20,LeftHippocampus,LeftHippocampus,left
+21,RightInfLatVent,RightInfLatVent,right
+22,LeftInfLatVent,LeftInfLatVent,left
+23,RightLateralVentricle,RightLateralVentricle,right
+24,LeftLateralVentricle,LeftLateralVentricle,left
+25,RightPallidum,RightPallidum,right
+26,LeftPallidum,LeftPallidum,left
+27,RightPutamen,RightPutamen,right
+28,LeftPutamen,LeftPutamen,left
+29,RightThalamusProper,RightThalamusProper,right
+30,LeftThalamusProper,LeftThalamusProper,left
+31,RightVentralDC,RightVentralDC,right
+32,LeftVentralDC,LeftVentralDC,left
+33,Rightvessel,Rightvessel,right
+34,Leftvessel,Leftvessel,left
+35,OpticChiasm,OpticChiasm,NA
+36,CerebellarVermalLobulesI-V,CerebellarVermalLobulesI-V,NA
+37,CerebellarVermalLobulesVI-VII,CerebellarVermalLobulesVI-VII,NA
+38,CerebellarVermalLobulesVIII-X,CerebellarVermalLobulesVIII-X,NA
+39,LeftBasalForebrain,Leftbasalforebrain,left
+40,RightBasalForebrain,Rightbasalforebrain,right
+41,RightACg,Ganteriorcingulategyrus Right,right
+42,LeftACg,Ganteriorcingulategyrus Left,left
+43,RightAIns,Anteriorinsula Right,right
+44,LeftAIns,Anteriorinsula Left,left
+45,RightAOrG,Anteriororbitalgyrus Right,right
+46,LeftAOrG,Anteriororbitalgyrus Left,left
+47,RightAnG,Angulargyrus Right,right
+48,LeftAnG,Angulargyrus Left,left
+49,RightCalc,Calcarinecortex Right,right
+50,LeftCalc,Calcarinecortex Left,left
+51,RightCO,Centraloperculum Right,right
+52,LeftCO,Centraloperculum Left,left
+53,RightCun,Cuneus Right,right
+54,LeftCun,Cuneus Left,left
+55,RightEntA,Ententorhinalarea Right,right
+56,LeftEntA,Ententorhinalarea Left,left
+57,RightFO,Frontaloperculum Right,right
+58,LeftFO,Frontaloperculum Left,left
+59,RightFRP,Frontalpole Right,right
+60,LeftFRP,Frontalpole Left,left
+61,RightFuG,Fusiformgyrus Right,right
+62,LeftFuG,Fusiformgyrus Left,left
+63,RightGRe,Gyrusrectus Right,right
+64,LeftGRe,Gyrusrectus Left,left
+65,RightIOG,Inferioroccipitalgyrus Right,right
+66,LeftIOG,Inferioroccipitalgyrus Left,left
+67,RightITG,Inferiortemporalgyrus Right,right
+68,LeftITG,Inferiortemporalgyrus Left,left
+69,RightLiG,Lingualgyrus Right,right
+70,LeftLiG,Lingualgyrus Left,left
+71,RightLOrG,Lateralorbitalgyrus Right,right
+72,LeftLOrG,Lateralorbitalgyrus Left,left
+73,RightMCgG,Middlecingulategyrus Right,right
+74,LeftMCgG,Middlecingulategyrus Left,left
+75,RightMFC,Medialfrontalcortex Right,right
+76,LeftMFC,Medialfrontalcortex Left,left
+77,RightMFG,Middlefrontalgyrus Right,right
+78,LeftMFG,Middlefrontalgyrus Left,left
+79,RightMOG,Middleoccipitalgyrus Right,right
+80,LeftMOG,Middleoccipitalgyrus Left,left
+81,RightMOrG,Medialorbitalgyrus Right,right
+82,LeftMOrG,Medialorbitalgyrus Left,left
+83,RightMPoG,Postcentralgyrusmedialsegment Right,right
+84,LeftMPoG,Postcentralgyrusmedialsegment Left,left
+85,RightMPrG,Precentralgyrusmedialsegment Right,right
+86,LeftMPrG,Precentralgyrusmedialsegment Left,left
+87,RightMSFG,Superiorfrontalgyrusmedialsegment Right,right
+88,LeftMSFG,Superiorfrontalgyrusmedialsegment Left,left
+89,RightMTG,Middletemporalgyrus Right,right
+90,LeftMTG,Middletemporalgyrus Left,left
+91,RightOCP,Occipitalpole Right,right
+92,LeftOCP,Occipitalpole Left,left
+93,RightOFuG,Occipitalfusiformgyrus Right,right
+94,LeftOFuG,Occipitalfusiformgyrus Left,left
+95,RightOpIFG,Opercularpartoftheinferiorfrontalgyrus Right,right
+96,LeftOpIFG,Opercularpartoftheinferiorfrontalgyrus Left,left
+97,RightOrIFG,Orbitalpartoftheinferiorfrontalgyrus Right,right
+98,LeftOrIFG,Orbitalpartoftheinferiorfrontalgyrus Left,left
+99,RightPCgG,Posteriorcingulategyrus Right,right
+100,LeftPCgG,Posteriorcingulategyrus Left,left
+101,RightPCu,Precuneus Right,right
+102,LeftPCu,Precuneus Left,left
+103,RightPHG,Parahippocampalgyrus Right,right
+104,LeftPHG,Parahippocampalgyrus Left,left
+105,RightPIns,Posteriorinsula Right,right
+106,LeftPIns,Posteriorinsula Left,left
+107,RightPO,Parietaloperculum Right,right
+108,LeftPO,Parietaloperculum Left,left
+109,RightPoG,Postcentralgyrus Right,right
+110,LeftPoG,Postcentralgyrus Left,left
+111,RightPOrG,Posteriororbitalgyrus Right,right
+112,LeftPOrG,Posteriororbitalgyrus Left,left
+113,RightPP,Planumpolare Right,right
+114,LeftPP,Planumpolare Left,left
+115,RightPrG,Precentralgyrus Right,right
+116,LeftPrG,Precentralgyrus Left,left
+117,RightPT,Planumtemporale Right,right
+118,LeftPT,Planumtemporale Left,left
+119,RightSCA,Subcallosalarea Right,right
+120,LeftSCA,Subcallosalarea Left,left
+121,RightSFG,Superiorfrontalgyrus Right,right
+122,LeftSFG,Superiorfrontalgyrus Left,left
+123,RightSMC,Supplementarymotorcortex Right,right
+124,LeftSMC,Supplementarymotorcortex Left,left
+125,RightSMG,Supramarginalgyrus Right,right
+126,LeftSMG,Supramarginalgyrus Left,left
+127,RightSOG,Superioroccipitalgyrus Right,right
+128,LeftSOG,Superioroccipitalgyrus Left,left
+129,RightSPL,Superiorparietallobule Right,right
+130,LeftSPL,Superiorparietallobule Left,left
+131,RightSTG,Superiortemporalgyrus Right,right
+132,LeftSTG,Superiortemporalgyrus Left,left
+133,RightTMP,Temporalpole Right,right
+134,LeftTMP,Temporalpole Left,left
+135,RightTrIFG,Triangularpartoftheinferiorfrontalgyrus Right,right
+136,LeftTrIFG,Triangularpartoftheinferiorfrontalgyrus Left,left
+137,RightTTG,Transversetemporalgyrus Right,right
+138,LeftTTG,Transversetemporalgyrus Left,left
+139,NA,Not  Used,NA
+140,NA,Not  Used,NA
+141,NA,Not  Used,NA
+142,NA,Not  Used,NA
+143,NA,Not  Used,NA
+144,NA,Not  Used,NA
+145,NA,Not  Used,NA
+146,NA,Not  Used,NA
+147,NA,Not  Used,NA
+148,NA,Not  Used,NA
+149,NA,Not  Used,NA
+150,LeftSPG,Superior Parietal Gyrus Left,left
+151,LeftCingG,Cingulate Gyrus Left,left
+152,LeftSFG,Superior Frontal Gyrus Left,left
+153,LeftMFG,Middle Frontal Gyrus Left,left
+154,LeftIFG,Inferior Frontal Gyrus Left,left
+155,LeftPrCG,Precentral Gyrus Left,left
+156,LeftPoCG,Postcentral Gyrus Left,left
+157,LeftAG,Angular Gyrus Left,left
+158,LeftPrCu,Pre-Cuneus Left,left
+159,LeftCu,Cuneus Left,left
+160,LeftLG,Lingual Gyrus Left,left
+161,LeftFu,Fusiform Gyrus Left,left
+162,LeftPHG,Parahippocampal Gyrus Left,left
+163,LeftSOG,Superior Occipital Gyrus Left,left
+164,LeftIOG,Inferior Occipital Gyrus Left,left
+165,LeftMOG,Middle Occipital Gyrus Left,left
+166,LeftENT,Entorhinal Area Left,left
+167,LeftSTG,Superior Temporal Gyrus Left,left
+168,LeftITG,Inferior Temporal Gyrus Left,left
+169,LeftMTG,Middle Temporal Gyrus Left,left
+170,LeftLFOG,Lateral Fronto-Orbital Gyrus Left,left
+171,LeftMFOG,Middle Fronto-Orbital Gyrus Left,left
+172,LeftSMG,Supramarginal Gyrus Left,left
+173,LeftRG,Gyrus Rectus Left,left
+174,LeftIns,Insular Left,left
+175,LeftAmyg,Amygdala Left,left
+176,LeftHippo,Hippocampus Left,left
+177,Leftcerebrellum,Cerebellum Left,left
+178,LeftCST,Corticospinal Tract Left,left
+179,LeftICP,Inferior Cerebellar Peduncle Left,left
+180,LeftML,Medial Lemniscus Left,left
+181,LeftSCP,Superior Cerebellar Peduncle Left,left
+182,LeftCP,Cerebral Peduncle Left,left
+183,LeftALIC,Anterior Limb Of Internal Capsule Left,left
+184,LeftPLIC,Posterior Limb Of Internal Capsule Left,left
+185,LeftPTR,Posterior Thalamic Radiation (Include Optic Radiation) Left,left
+186,LeftACR,Anterior Corona Radiata Left,left
+187,LeftSCR,Superior Corona Radiata Left,left
+188,LeftPCR,Posterior Corona Radiata Left,left
+189,LeftCGC,Cingulum (Cingulate Gyrus) Left,left
+190,LeftCGH,Cingulum (Hippocampus) Left,left
+191,LeftFx/ST,Fornix (Cres) / Stria Terminalis (Can Not Be Resolved With Current Resolution) Left,left
+192,LeftSLF,Superior Longitudinal Fasciculus Left,left
+193,LeftSFO,Superior Fronto-Occipital Fasciculus (Could Be A Part Of Anterior Internal Capsule) Left,left
+194,LeftIFO,Inferior Fronto-Occipital Fasciculus Left,left
+195,LeftSS,Sagittal Stratum (Include Inferior Longitidinal Fasciculus And Inferior Fronto-Occipital Fasciculus) Left,left
+196,LeftEC,External Capsule Left,left
+197,LeftUNC,Uncinate Fasciculus Left,left
+198,LeftPCT,Pontine Crossing Tract (A Part Of Mcp) Left,left
+199,LeftMCP,Middle Cerebellar Peduncle Left,left
+200,LeftFx,Fornix (Column And Body Of Fornix) Left,left
+201,LeftGCC,Genu Of Corpus Callosum Left,left
+202,LeftBCC,Body Of Corpus Callosum Left,left
+203,LeftSCC,Splenium Of Corpus Callosum Left,left
+204,LeftRLIC,Retrolenticular Part Of Internal Capsule Left,left
+205,LeftRedNc,Red Nucleus Left,left
+206,LeftSnigra,Substancia Nigra Left,left
+207,LeftTAP,Tapatum Left,left
+208,LeftCaud,Caudate Nucleus Left,left
+209,LeftPut,Putamen Left,left
+210,LeftThal,Thalamus Left,left
+211,LeftGP,Globus Pallidus Left,left
+212,LeftMidbrain,Midbrain Left,left
+213,LeftPons,Pons Left,left
+214,LeftMedulla,Medulla Left,left
+215,RightSPG,Superior Parietal Gyrus Right,right
+216,RightCingG,Cingulate Gyrus Right,right
+217,RightSFG,Superior Frontal Gyrus Right,right
+218,RightMFG,Middle Frontal Gyrus Right,right
+219,RightIFG,Inferior Frontal Gyrus Right,right
+220,RightPrCG,Precentral Gyrus Right,right
+221,RightPoCG,Postcentral Gyrus Right,right
+222,RightAG,Angular Gyrus Right,right
+223,RightPrCu,Pre-Cuneus Right,right
+224,RightCu,Cuneus Right,right
+225,RightLG,Lingual Gyrus Right,right
+226,RightFuG,Fusiform Gyrus Right,right
+227,RightPHG,Parahippocampal Gyrus Right,right
+228,RightSOG,Superior Occipital Gyrus Right,right
+229,RightIOG,Inferior Occipital Gyrus Right,right
+230,RightMOG,Middle Occipital Gyrus Right,right
+231,RightENT,Entorhinal Area Right,right
+232,RightSTG,Superior Temporal Gyrus Right,right
+233,RightITG,Inferior Temporal Gyrus Right,right
+234,RightMTG,Middle Temporal Gyrus Right,right
+235,RightLFOG,Lateral Fronto-Orbital Gyrus Right,right
+236,RightMFOG,Middle Fronto-Orbital Gyrus Right,right
+237,RightSMG,Supramarginal Gyrus Right,right
+238,RightRG,Gyrus Rectus Right,right
+239,RightIns,Insular Right,right
+240,RightAmyg,Amygdala Right,right
+241,RightHippo,Hippocampus Right,right
+242,Rightcerebellum,Cerebellum Right,right
+243,RightCST,Corticospinal Tract Right,right
+244,RightICP,Inferior Cerebellar Peduncle Right,right
+245,RightML,Medial Lemniscus Right,right
+246,RightSCP,Superior Cerebellar Peduncle Right,right
+247,RightCP,Cerebral Peduncle Right,right
+248,RightALIC,Anterior Limb Of Internal Capsule Right,right
+249,RightPLIC,Posterior Limb Of Internal Capsule Right,right
+250,RightPTR,Posterior Thalamic Radiation (Include Optic Radiation) Right,right
+251,RightACR,Anterior Corona Radiata Right,right
+252,RightSCR,Superior Corona Radiata Right,right
+253,RightPCR,Posterior Corona Radiata Right,right
+254,RightCGC,Cingulum (Cingulate Gyrus) Right,right
+255,RightCGH,Cingulum (Hippocampus) Right,right
+256,RightFx/ST,Fornix (Cres) / Stria Terminalis (Can Not Be Resolved With Current Resolution) Right,right
+257,RightSLF,Superior Longitudinal Fasciculus Right,right
+258,RightSFO,Superior Fronto-Occipital Fasciculus (Could Be A Part Of Anterior Internal Capsule) Right,right
+259,RightIFO,Inferior Fronto-Occipital Fasciculus Right,right
+260,RightSS,Sagittal Stratum (Include Inferior Longitidinal Fasciculus And Inferior Fronto-Occipital Fasciculus) Right,right
+261,RightEC,External Capsule Right,right
+262,RightUNC,Uncinate Fasciculus Right,right
+263,RightPCT,Pontine Crossing Tract (A Part Of Mcp) Right,right
+264,RightMCP,Middle Cerebellar Peduncle Right,right
+265,RightFx,Fornix (Column And Body Of Fornix) Right,right
+266,RightGCC,Genu Of Corpus Callosum Right,right
+267,RightBCC,Body Of Corpus Callosum Right,right
+268,RightSCC,Splenium Of Corpus Callosum Right,right
+269,RightRLIC,Retrolenticular Part Of Internal Capsule Right,right
+270,RightRedNc,Red Nucleus Right,right
+271,RightSnigra,Substancia Nigra Right,right
+272,RightTAP,Tapatum Right,right
+273,RightCaud,Caudate Nucleus Right,right
+274,RightPut,Putamen Right,right
+275,RightThal,Thalamus Right,right
+276,RightGP,Globus Pallidus Right,right
+277,RightMidbrain,Midbrain Right,right
+278,RightPons,Pons Right,right
+279,RightMedulla,Medulla Right,right
+280,LeftACL,Anterior Commissure Left,left
+281,RightACR,Anterior Commissure Right,right
+282,LeftALL,Ansa Lenticularis Left,left
+283,RightALR,Ansa Lenticularis Right,right
+284,LeftOTL,Optic Tract Left,left
+285,RightOTR,Optic Tract Right,right
+286,LeftLFL,Lenticular Fasciclus Left,left
+287,RightLFR,Lenticular Fasciclus Right,right
+288,LeftMBL,Mammillary Body Right/Left,NA
+289,RightMBR,Mammillary Body Right/Left,NA
+290,LeftNAL,Nucleus Accumbens Left,left
+291,RightNAR,Nucleus Accumbens Right,right
+292,LeftNIML,Nucleus Innominata Of Mynert Left,left
+293,RightNIMR,Nucleus Innominata Of Mynert Right,right
+294,LeftSSWML,Sub-Striatum White Matter  Left,left
+295,RightSSWMR,Sub-Striatum White Matter  Right,right
+296,LeftHL,Hypothalamus Left,left
+297,RightHR,Hypothalamus Right,right
+298,LeftLVLFL,LVL Frontal Left,left
+299,RightLVLFR,LVL Frontal Right,right
+300,LeftLVLBL,LVL Body Left,left
+301,RightLVLFR,LVL Body Right,right
+302,LeftLVLAL,LVL Atrium Left,left
+303,RightLVLAR,LVL Atrium Right,right
+304,LeftLVLOL,LVL Occiptal Left,left
+305,RightLVLOR,LVL Occiptal Right,right
+306,LeftLVLTL,LVL Temporal Left,left
+307,RightLVLTR,LVL Temporal Right,right
+308,IVV,IV Ventricle,right
+309,LeftDN,Dentate Nucleus Left,left
+310,RightDN,Dentate Nucleus Right,right

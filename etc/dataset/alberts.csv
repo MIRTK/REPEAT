@@ -1,0 +1,85 @@
+Label Number,Label Name,Label Group: Non-Cortical,Label Group: Cortical
+1,Hippocampus right,+,-
+2,Hippocampus left,+,-
+3,Amygdala right,+,-
+4,Amygdala left,+,-
+5,Anterior temporal lobe; medial part right,+,-
+6,Anterior temporal lobe; medial part left,+,-
+7,Anterior temporal lobe; lateral part right,+,-
+8,Anterior temporal lobe; lateral part left,+,-
+9,Gyri parahippocampalis et ambiens anterior part right,+,-
+10,Gyri parahippocampalis et ambiens anterior part left,+,-
+11,Superior temporal gyrus; middle part right,+,-
+12,Superior temporal gyrus; middle part left,+,-
+13,Medial and inferior temporal gyri anterior part right,+,-
+14,Medial and inferior temporal gyri anterior part left,+,-
+15,Lateral occipitotemporal gyrus; gyrus fusiformis anterior part right,+,-
+16,Lateral occipitotemporal gyrus; gyrus fusiformis anterior part left,+,-
+17,Cerebellum right,+,-
+18,Cerebellum left,+,-
+19,Brainstem; spans the midline,+,-
+20,Insula left,+,-
+21,Insula right,+,-
+22,Occipital lobe left,+,-
+23,Occipital lobe right,+,-
+24,Gyri parahippocampalis et ambiens posterior part left,+,-
+25,Gyri parahippocampalis et ambiens posterior part right,+,-
+26,Lateral occipitotemporal gyrus; gyrus fusiformis posterior part left,+,-
+27,Lateral occipitotemporal gyrus; gyrus fusiformis posterior part right,+,-
+28,Medial and inferior temporal gyri posterior part left,+,-
+29,Medial and inferior temporal gyri posterior part right,+,-
+30,Superior temporal gyrus; posterior part left,+,-
+31,Superior temporal gyrus; posterior part right,+,-
+32,Cingulate gyrus; anterior part left,+,-
+33,Cingulate gyrus; anterior part right,+,-
+34,Cingulate gyrus; posterior part left,+,-
+35,Cingulate gyrus; posterior part right,+,-
+36,Frontal lobe left,+,-
+37,Frontal lobe right,+,-
+38,Parietal lobe left,+,-
+39,Parietal lobe right,+,-
+40,Caudate nucleus left,+,-
+41,Caudate nucleus right,+,-
+42,Thalamus left,+,-
+43,Thalamus right,+,-
+44,Subthalamic nucleus left,+,-
+45,Subthalamic nucleus right,+,-
+46,Lentiform Nucleus left,+,-
+47,Lentiform Nucleus right,+,-
+48,Corpus Callosum,+,-
+49,Lateral Ventricle right,+,-
+50,Lateral Ventricle left,+,-
+105,Anterior temporal lobe; medial part right,-,+
+106,Anterior temporal lobe; medial part left,-,+
+107,Anterior temporal lobe; lateral part right,-,+
+108,Anterior temporal lobe; lateral part left,-,+
+109,Gyri parahippocampalis et ambiens anterior part right,-,+
+110,Gyri parahippocampalis et ambiens anterior part left,-,+
+111,Superior temporal gyrus; middle part right,-,+
+112,Superior temporal gyrus; middle part left,-,+
+113,Medial and inferior temporal gyri anterior part right,-,+
+114,Medial and inferior temporal gyri anterior part left,-,+
+115,Lateral occipitotemporal gyrus; gyrus fusiformis anterior part right,-,+
+116,Lateral occipitotemporal gyrus; gyrus fusiformis anterior part left,-,+
+120,Insula left,-,+
+121,Insula right,-,+
+122,Occipital lobe left,-,+
+123,Occipital lobe right,-,+
+124,Gyri parahippocampalis et ambiens posterior part left,-,+
+125,Gyri parahippocampalis et ambiens posterior part right,-,+
+126,Lateral occipitotemporal gyrus; gyrus fusiformis posterior part left,-,+
+127,Lateral occipitotemporal gyrus; gyrus fusiformis posterior part right,-,+
+128,Medial and inferior temporal gyri posterior part left,-,+
+129,Medial and inferior temporal gyri posterior part right,-,+
+130,Superior temporal gyrus; posterior part left,-,+
+131,Superior temporal gyrus; posterior part right,-,+
+132,Cingulate gyrus; anterior part left,-,+
+133,Cingulate gyrus; anterior part right,-,+
+134,Cingulate gyrus; posterior part left,-,+
+135,Cingulate gyrus; posterior part right,-,+
+136,Frontal lobe left,-,+
+137,Frontal lobe right,-,+
+138,Parietal lobe left,-,+
+139,Parietal lobe right,-,+
+140,Caudate nucleus left,-,+
+141,Caudate nucleus right,-,+

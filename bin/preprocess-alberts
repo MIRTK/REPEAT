@@ -1,0 +1,78 @@
+#!/bin/bash
+
+## Auxiliary script used to preprocess ALBERTs dataset images
+##
+## Download:
+## * https://www.doc.ic.ac.uk/~am411/atlases-DrawEM.html
+##
+## Manual steps:
+## * Move extracted 'atlases-DrawEM/ALBERTs' to '$imgdir'
+##
+## Automatic pre-processing steps:
+## * T2-weighted images are rescaled to [0, 1000], keeping 'float' as datatype.
+## * N4 bias field correction with parameters of Draw-EM v1.1 pipeline.
+##   - Alternatively, use N3 with default parameters.
+## * Bias corrected images are saved by ANTs using 'float' datatype.
+## * 40 ROIs are split into cortical and non-cortical labels using
+##   the cGM probability map provided by the Draw-EM atlas.
+
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ -n "$ants"   ] || error "etc/settings.sh: ants not set"
+. "$topdir/$setdir/alberts.sh" || exit 1
+
+[ ${mirtk:0:1} = '/' ] || mirtk="$topdir/$mirtk"
+[ ${ants:0:1}  = '/' ] || ants="$topdir/$ants"
+
+export LD_LIBRARY_PATH="$ants/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$ants/lib:$DYLD_LIBRARY_PATH"
+
+run cd "$imgdir"
+
+makedir 'masks' 'labels'
+if [ "$use_N4" = true ]; then
+  makedir 'images/t2w-n4'
+else
+  makedir 'images/t2w-n3'
+fi
+
+for i in {1..20}; do
+  imgid=$(printf ALBERT_%02d $i)
+  # preprocess T2-weighted image
+  mskimg="masks/$imgid-brain.nii.gz"
+  if [ ! -f "$mskimg" ]; then
+    echo "Creating brain mask for $imgid"
+    run "$mirtk" calculate-element-wise "T2/$imgid.nii.gz" -mask 0 -set 1 -o "$mskimg" binary
+  fi
+  if [ "$use_N4" = true ]; then
+    t2wimg="images/t2w-n4/$imgid.nii.gz"
+    if [ ! -f "$t2wimg" ]; then
+      echo "Preprocessing skullstripped T2-weighted image of $imgid"
+      tmpimg="images/t2w-n4/_$imgid.nii.gz"
+      run "$mirtk" convert-image "T2/$imgid.nii.gz" "$tmpimg" -rescale 0 1000 -float
+      run "$ants/bin/N4BiasFieldCorrection" -d 3 -i "$tmpimg" -x "$mskimg" -o "$t2wimg" "${arg_N4[@]}"
+      run rm -f "$tmpimg"
+    fi
+  else
+    t2wimg="images/t2w-n3/$imgid.nii.gz"
+    if [ ! -f "$t2wimg" ]; then
+      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      tmpimg="images/t2w-n3/_$imgid.nii.gz"
+      run "$mirtk" convert-image "T2/$imgid.nii.gz" "$tmpimg" -rescale 0 1000 -float
+      run "$ants/bin/N3BiasFieldCorrection" 3 "$tmpimg" "$t2wimg"
+      run rm -f "$tmpimg"
+    fi
+  fi
+  # create segmentation with cortical labels
+  cgmmsk="masks/$imgid-cgm.nii.gz"
+  if [ ! -f "$cgmmsk" ]; then
+    echo "Creating binary cGM mask for $imgid"
+    run "$mirtk" calculate-element-wise "gm-posteriors-v3/$imgid.nii.gz" -threshold 0.5 -set 1 -pad 0 -out "$cgmmsk"
+  fi
+  segimg="labels/$imgid.nii.gz"
+  if [ ! -f "$segimg" ]; do
+    echo "Creating segmentation with separate cortical labels for $imgid"
+    run "$mirtk" calculate-element-wise "segmentations-v3/$imgid.nii.gz" -label 5..16 20..41 -mask "$cgmmsk" -add 100 -o "$segimg"
+  done
+done

@@ -150,7 +150,6 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
         df = pd.DataFrame({'cfgid': pd.Series([1])})
     else:
         df = pd.read_csv(parcsv)
-        df.drop_duplicates(subset=df.columns.difference(['cfgid']), inplace=True)
     df.insert(0, 'dataset', dataset)
     df.insert(1, 'regid', regid)
     df.insert(2, 'toolkit', toolkit)
@@ -424,13 +423,17 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         else:
             cfgids = [cfgid]
     else:
-        cfgids = get_params(dataset, regid).cfgid.tolist()
+        cfgids = []
+        for cfgid in get_params(dataset, regid).cfgid:
+            if os.path.isdir(get_csvdir(dataset, regid, cfgid)):
+                cfgids.append(cfgid)
     for m in measure:
         if m == 'vox':
             df = read_average_measures(dataset=dataset, regid=regid, cfgid=cfgids)
         elif m == 'jac':
             df = read_measurements(measure='logjac', dataset=dataset, regid=regid, cfgid=cfgids)
-            df = df.assign(pctexcl=(100. * df.nexcl / (df.n + df.nexcl)))
+            if 'nexcl' in df and 'n' in df and 'pctexcl' not in df:
+                df = df.assign(pctexcl=(100. * df.nexcl / (df.n + df.nexcl)))
         else:
             df = read_measurements(measure=m, dataset=dataset, regid=regid, cfgid=cfgids)
             if m == 'dsc':
@@ -460,7 +463,7 @@ def average_overlap(dfs, measure=None):
             df = dfs[m].assign(ingroup=False)
             datasets = df.dataset.unique()
             for dataset in datasets:
-                csv_path = os.path.join(topdir, 'etc', 'dataset', dataset + '-labels.csv')
+                csv_path = os.path.join(topdir, 'etc', 'dataset', dataset + '.csv')
                 if os.path.isfile(csv_path):
                     label2group = {}
                     labels = pd.read_csv(csv_path, index_col=0, header=0)
@@ -473,10 +476,12 @@ def average_overlap(dfs, measure=None):
                     col = sub.label.map(lambda l: int(l) in label2group)
                     df.loc[df.dataset==dataset, 'ingroup'] = col
             id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid', 'tgtid', 'srcid', 'ingroup']).tolist()
-            df = df.groupby(id_vars).mean()
+            g = df.groupby(id_vars)
+            df = g.mean()  #.assign(count=g.size())
             df.reset_index(drop=False, inplace=True)
             avg[m] = df[df.ingroup==True].merge(reg_info, on=['regid'])
-            del avg[m]['ingroup']
+            if 'ingroup' in avg[m]:
+                del avg[m]['ingroup']
     if len(measure) == 1 and measure[0] is not None:
         return avg[measure[0]]
     return avg
@@ -498,7 +503,7 @@ def average_group_overlap(dfs, measure=None):
             df = dfs[m].assign(group=None)
             datasets = df.dataset.unique()
             for dataset in datasets:
-                csv_path = os.path.join(topdir, 'etc', 'dataset', dataset + '-labels.csv')
+                csv_path = os.path.join(topdir, 'etc', 'dataset', dataset + '.csv')
                 if os.path.isfile(csv_path):
                     label2group = {}
                     labels = pd.read_csv(csv_path, index_col=0, header=0)
@@ -511,7 +516,8 @@ def average_group_overlap(dfs, measure=None):
                     col = sub.label.map(lambda l: label2group[int(l)] if int(l) in label2group else None)
                     df.loc[df.dataset==dataset, 'group'] = col
             id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid', 'tgtid', 'srcid', 'group']).tolist()
-            df = df.groupby(id_vars).mean()
+            g = df.groupby(id_vars)
+            df = g.mean()  #.assign(count=g.size())
             df.reset_index(drop=False, inplace=True)
             avg[m] = df.merge(reg_info, on=['regid'])
     if len(measure) == 1 and not measure[0] is None:
@@ -519,18 +525,25 @@ def average_group_overlap(dfs, measure=None):
     return avg
 
 
-def set_params(df):
+def set_params(df, params=None):
     """Merge DataFrame with registration parameters obtained with get_params."""
     if isinstance(df, pd.DataFrame):
-        id_vars = df.columns.intersection(['dataset', 'regid', 'toolkit', 'command', 'version', 'cfgid']).tolist()
+        id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid']).tolist()
         datasets = df.dataset.unique().tolist()
         regids = df.regid.unique().tolist()
         for regid in regids:
             for dataset in datasets:
-                params = get_params(dataset, regid)
-                params.set_index(id_vars, inplace=True)
-                pars = params.columns.difference(df.columns)
-                df = pd.merge(df, params[pars], left_on=id_vars, right_index=True, how='left')
+                if isinstance(params, pd.DataFrame):
+                    par = params[(params.dataset==dataset)&(params.regid==regid)]
+                elif isinstance(params, dict):
+                    par = params[regid]
+                    if isinstance(par, dict):
+                        par = par[dataset]
+                else:
+                    par = get_params(dataset, regid)
+                par.set_index(id_vars, inplace=True)
+                col = par.columns.difference(df.columns)
+                df = pd.merge(df, par[col], left_on=id_vars, right_index=True, how='left')
                 df.reset_index(drop=True, inplace=True)
         return df
     elif isinstance(df, dict):

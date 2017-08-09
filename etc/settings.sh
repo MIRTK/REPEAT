@@ -18,6 +18,12 @@ csvdir="var/table"       # summary tables of average quality measures
 # recommended: on Linux, download MIRTK AppImage to "$optdir/" and "chmod +x $optdir/mirtk"
 mirtk="$optdir/mirtk"
 
+# path of directory containing ANTs installation, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/ants" with absolute path to actual installation
+#
+# Required for preprocessing: "$ants/bin/N4BiasFieldCorrection"
+ants="$optdir/ants"
+
 # path of directory containing IRTK binaries, either absolute or relative to topdir
 # recommended: create symbolic link "$optdir/irtk" with absolute path to actual installation
 irtk="$optdir/irtk"

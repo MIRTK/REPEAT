@@ -1,18 +1,20 @@
-## NIREP NA0 dataset information
+## LONI LPBA40 dataset information
 ##
 ## Download:
-## * http://www.nirep.org/downloads
+## * http://www.loni.usc.edu/atlases/Atlas_Detail.php?atlas_id=12
+##   - "LPBA40 Subjects Delineation Space: MRI and label files in delineation space"
 ##
 ## Pre-processing:
-## * Run 'bin/preprocess-nirep' script.
+## * Extract images in delineation space and set 'imgdir' below.
+## * Run 'bin/preprocess-lpba40' script.
 
 # common top level directory of dataset images
-imgdir="$HOME/Datasets/NIREP"
+imgdir="$HOME/Datasets/LPBA40/delineation_space"
 
 # list of image IDs
 imgids=()
-for i in {1..16}; do
-  imgids=(${imgids[@]} $(printf "na%02d" $i))
+for i in {1..40}; do
+  imgids=(${imgids[@]} $(printf "S%02d" $i))
 done
 
 # kind of images used for registration
@@ -51,13 +53,13 @@ arg_N4=(-c '[50x50x50,0.001]' -s 2 -b '[100,3]' -t '[0.15,0.01,200]')
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()
 {
-  if [ $1 = 't1w' ]; then
+  if [ "$1" = 't1w' ]; then
     if [ "$use_N4" = true ]; then
       echo "images/t1w-n4/"
     else
       echo "images/t1w-n3/"
     fi
-  elif [ $1 = 'seg' ]; then
+  elif [ "$1" = 'seg' ]; then
     echo "labels/"
   fi
 }
@@ -71,7 +73,7 @@ get_suffix()
 # get background value
 get_bgvalue()
 {
-  if [ $1 = 't1w' ]; then
+  if [ "$1" = 't1w' ]; then
     echo "0"
   fi
 }

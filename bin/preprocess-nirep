@@ -1,0 +1,65 @@
+#!/bin/bash
+
+## Auxiliary script used to preprocess NIREP dataset images
+##
+## Download:
+## * http://www.nirep.org/downloads
+##
+## Manual steps after download:
+## * Convert Analyze images to NIfTI .nii.gz format
+##   - Use MIRTK 'convert-image' command.
+##   - Save skull-stripped T1-weighted images to '$imgdir/images/t1w' directory.
+##   - Save segmentations to '$imgdir/labels' directory.
+##
+## Automatic pre-processing steps:
+## * N3 bias field correction with default parameters is performed.
+##   - Alternatively, use N4 with custom parameters (default made matters worse for LPBA40 images).
+## * Bias corrected images are saved by ANTs using 'float' datatype.
+
+. "$(dirname "$BASH_SOURCE")/../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
+[ -n "$ants"   ] || error "etc/settings.sh: ants not set"
+. "$topdir/$setdir/nirep.sh" || exit 1
+
+[ ${mirtk:0:1} = '/' ] || mirtk="$topdir/$mirtk"
+[ ${ants:0:1}  = '/' ] || ants="$topdir/$ants"
+
+export LD_LIBRARY_PATH="$ants/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$ants/lib:$DYLD_LIBRARY_PATH"
+
+run cd "$imgdir"
+
+makedir 'masks'
+if [ "$use_N4" = true ]; then
+  makedir 'images/t1w-n4'
+else
+  makedir 'images/t1w-n3'
+fi
+
+for i in {1..16}; do
+  imgid=$(printf na%02d $i)
+  mskimg="masks/$imgid-brain.nii.gz"
+  if [ ! -f "$mskimg" ]; then
+    echo "Creating brain mask for $imgid"
+    run "$mirtk" calculate-element-wise "images/t1w/$imgid.nii.gz" -mask 0 -set 1 -o "$mskimg" binary
+  fi
+  if [ "$use_N4" = true ]; then
+    t1wimg="images/t1w-n4/$imgid.nii.gz"
+    if [ ! -f "$t1wimg" ]; then
+      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      run "$ants/bin/N4BiasFieldCorrection" -d 3 -i "images/t1w/$imgid.nii.gz" -x "$mskimg" -o "$t1wimg" "${arg_N4[@]}"
+    fi
+  else
+    t1wimg="images/t1w-n3/$imgid.nii.gz"
+    if [ ! -f "$t1wimg" ]; then
+      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      run "$ants/bin/N3BiasFieldCorrection" 3 "images/t1w/$imgid.nii.gz" "$t1wimg"
+    fi
+  fi
+  segimg="labels/$imgid.nii.gz"
+  if [ ! -f "$segimg" ]; then
+    echo "Converting manual segmentation of $imgid"
+    run "$mirtk" convert-image "$imgid/$imgid.delineation.structure.label.hdr" "$segimg"
+  fi
+done
