@@ -33,7 +33,7 @@ run cd "$imgdir"
 makedir 'masks' 'labels'
 if [ "$use_N4" = true ]; then
   makedir 'images/t2w-n4'
-else
+elif [ "$use_N3" = true ]; then
   makedir 'images/t2w-n3'
 fi
 
@@ -44,6 +44,7 @@ for i in {1..20}; do
   if [ ! -f "$mskimg" ]; then
     echo "Creating brain mask for $imgid"
     run "$mirtk" calculate-element-wise "T2/$imgid.nii.gz" -mask 0 -set 1 -o "$mskimg" binary
+    run "$mirtk" open-image "$mskimg" "$mskimg" -connectivity 6 -iterations 1
   fi
   if [ "$use_N4" = true ]; then
     t2wimg="images/t2w-n4/$imgid.nii.gz"
@@ -54,10 +55,10 @@ for i in {1..20}; do
       run "$ants/bin/N4BiasFieldCorrection" -d 3 -i "$tmpimg" -x "$mskimg" -o "$t2wimg" "${arg_N4[@]}"
       run rm -f "$tmpimg"
     fi
-  else
+  elif [ "$use_N3" = true ]; then
     t2wimg="images/t2w-n3/$imgid.nii.gz"
     if [ ! -f "$t2wimg" ]; then
-      echo "Preprocessing skullstripped T1-weighted image of $imgid"
+      echo "Preprocessing skullstripped T2-weighted image of $imgid"
       tmpimg="images/t2w-n3/_$imgid.nii.gz"
       run "$mirtk" convert-image "T2/$imgid.nii.gz" "$tmpimg" -rescale 0 1000 -float
       run "$ants/bin/N3BiasFieldCorrection" 3 "$tmpimg" "$t2wimg"

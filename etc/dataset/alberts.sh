@@ -41,7 +41,7 @@ mods=('t2w' 'seg')
 #   affinely pre-aligned target image using the configured background
 #   value (see get_bgvalue). If image has no background, an average is
 #   computed for the entire image domain, i.e., a sum over all voxels.
-rois=('t2w' 'seg' 'cgm')
+rois=('msk' 'seg' 'cgm')
 
 # ID of image used as reference for affine pre-alignment of all images
 # when not set, use first image ID
@@ -56,30 +56,40 @@ tgtids=("${imgids[@]:0:5}")
 srcids=("${imgids[@]}")
 
 # parameters of preprocessing steps
-# (default equivalent to bias field correction of Draw-EM pipeline v1.1)
-use_N4=true
+# - default N4 parameters equivalent to Draw-EM pipeline v1.1
+# - however, no bias correction required for Draw-EM atlases
+use_N3=false
+use_N4=false
 arg_N4=(-c '[50x50x50,0.001]' -s 2 -b '[100,3]' -t '[0.15,0.01,200]')
 
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()
 {
-  if [ $1 = 't2w' ]; then
+  if [ "$1" = 't2w' ]; then
     if [ "$use_N4" = true ]; then
       echo "images/t2w-n4/ALBERT_"
-    else
+    elif [ "$use_N3" = true ]; then
       echo "images/t2w-n3/ALBERT_"
+    else
+      echo "T2/ALBERT_"
     fi
-  elif [ $1 = 'seg' ]; then
+  elif [ "$1" = 'seg' ]; then
     echo "labels/ALBERT_"
-  elif [ $1 = 'cgm' ]; then
+  elif [ "$1" = 'cgm' ]; then
     echo "gm-posteriors-v3/ALBERT_"
+  elif [ "$1" = 'msk' ]; then
+    echo "masks/"
   fi
 }
 
 # get file name suffix following the image ID including extension
 get_suffix()
 {
-  echo ".nii.gz"
+  if [ "$1" = 'msk' ]; then
+    echo "-brain.nii.gz"
+  else
+    echo ".nii.gz"
+  fi
 }
 
 # get background value
@@ -93,7 +103,11 @@ get_bgvalue()
 # whether type of image is a binary mask
 is_mask()
 {
-  echo false
+  if [ "$1" = 'msk' ]; then
+    echo true
+  else
+    echo false
+  fi
 }
 
 # whether type of image is a hard segmentation (label image)
