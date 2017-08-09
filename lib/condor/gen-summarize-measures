@@ -175,7 +175,7 @@ EOF_JOB
   jobdsc="$jobdir/average-measures.condor"
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-    if [ "$extdof" = true ]; then
+    if [ "$extdof" = true -o "$extout" = true ]; then
       roidir="$vardir/$dataset/shared/roi"
     else
       roidir="$vardir/$dataset/affine/roi"
