@@ -531,6 +531,7 @@ def set_params(df, params=None):
         id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid']).tolist()
         datasets = df.dataset.unique().tolist()
         regids = df.regid.unique().tolist()
+        result = pd.DataFrame()
         for regid in regids:
             for dataset in datasets:
                 if isinstance(params, pd.DataFrame):
@@ -543,9 +544,8 @@ def set_params(df, params=None):
                     par = get_params(dataset, regid)
                 par.set_index(id_vars, inplace=True)
                 col = par.columns.difference(df.columns)
-                df = pd.merge(df, par[col], left_on=id_vars, right_index=True, how='left')
-                df.reset_index(drop=True, inplace=True)
-        return df
+                result = pd.concat([result, pd.merge(df, par[col], left_on=id_vars, right_index=True, how='inner').reset_index(drop=True)])
+        return result
     elif isinstance(df, dict):
         for m in df:
             df[m] = set_params(df[m])
