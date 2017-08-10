@@ -142,6 +142,9 @@ for cfgid in "${cfgids[@]}"; do
       ds)
         argv=("${argv[@]}" '-sx' $arg '-sy' $arg '-sz' $arg)
         ;;
+      vel)
+        [ $arg != true ] || argv=("${argv[@]}" '-vel')
+        ;;
       *)
         argv=("${argv[@]}" "-$opt" "$arg")
         ;;

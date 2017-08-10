@@ -1,0 +1,48 @@
+#!/bin/bash
+
+## Generate command-line arguments for NiftyReg 'reg_f3d' command
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$sym,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2,$ic,$vel,$nss'
+
+# initial/constant parameter values
+set_defaults()
+{
+  sym=true
+  vel=true
+  sim='NMI'
+  bins=64
+  levels=3
+  maxit=300
+  ds=2.5
+  be=0.005
+  jl=0
+  le='0 0'
+  l2=0
+  nss=6
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1) initial exploration of weights
+set_defaults
+for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+  for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    for ic in 0 0.001 0.01 0.1 1; do
+      append_row
+    done
+  done
+done
