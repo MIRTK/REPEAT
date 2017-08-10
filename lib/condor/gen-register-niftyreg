@@ -34,8 +34,6 @@ run cd "$topdir"
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
 # registration method
-issym="$(is_sym $regid)"
-
 version="${regid/*-}"
 [ $(is_version "$version") = true ] || version=''
 
@@ -113,6 +111,7 @@ for cfgid in "${cfgids[@]}"; do
   # construct list of reg_f3d arguments
   c=0
   argv=()
+  issym=false
   [ -z "$bgvalue" ] || argv=("${argv[@]}" '-pad' "$bgvalue")
   while [ $c -lt ${#paropt[@]} ]; do
     opt="${paropt[c]}"
@@ -139,11 +138,21 @@ for cfgid in "${cfgids[@]}"; do
         fi
         argv=("${argv[@]}" '-le' ${vals[@]})
         ;;
+      levels|ln)
+        argv=("${argv[@]}" '-ln' $arg)
+        ;;
       ds)
         argv=("${argv[@]}" '-sx' $arg '-sy' $arg '-sz' $arg)
         ;;
+      sym)
+        [ $arg != true ] || argv=("${argv[@]}" '-sym')
+        issym=true
+        ;;
       vel)
         [ $arg != true ] || argv=("${argv[@]}" '-vel')
+        ;;
+      nss)
+        argv=("${argv[@]}" "-step" "$arg")
         ;;
       *)
         argv=("${argv[@]}" "-$opt" "$arg")
