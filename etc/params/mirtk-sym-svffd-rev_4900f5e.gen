@@ -78,14 +78,21 @@ done
 # 2) explore integration schemes
 be=0.001
 for im in 'RKE1' 'SS' 'FastSS'; do
-  for nbch in 0 2 3 4 5; do
+  if [ $im = 'RKE1' ]; then
+    imsteps_opts=(8 16)
+    nbch_opts=(0)
+  else
+    imsteps_opts=(8 16 32 64)
+    nbch_opts=(0 2 3 4 5)
+  fi
+  for nbch in ${nbch_opts[@]}; do
     if [ $nbch -gt 2 ]; then
       uselie_opts=(false true)
     else
       uselie_opts=(false)
     fi
     for uselie in ${uselie_opts[@]}; do
-      for imsteps in 8 16 32 64; do
+      for imsteps in ${imsteps_opts[@]}; do
         append_row
       done
     done
