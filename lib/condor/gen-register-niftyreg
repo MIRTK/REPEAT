@@ -182,7 +182,7 @@ EOF_HEADER
       if [ -n "$mskdir" ]; then
         masks=('-rmask' "'$mskdir/$tgtid$imgsuf'")
         if [ $issym = true ]; then
-          masks=('-fmask' "'$mskdir/$srcid$imgsuf'")
+          masks=("${masks[@]}" '-fmask' "'$mskdir/$srcid$imgsuf'")
         fi
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
