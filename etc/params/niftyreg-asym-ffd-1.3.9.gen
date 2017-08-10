@@ -2,32 +2,40 @@
 
 ## Generate command-line arguments for NiftyReg 'reg_f3d' command
 regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2'
 
 # initial/constant parameter values
-sim='NMI'
-bins=64
-levels=3
-maxit=300
-ds=2.5
-be=0.005
-jl=0
-le='0 0'
-l2=0
+set_defaults()
+{
+  sim='NMI'
+  bins=64
+  levels=3
+  maxit=300
+  ds=2.5
+  be=0.005
+  jl=0
+  le='0 0'
+  l2=0
+}
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of values is consistent!
-i=0
-parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,sim,bins,ln,maxit,ds,be,jl,le,l2" > "$parcsv"
-
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2" >> "$parcsv"
+  eval "echo \"$cfgrow\"" >> "$parcsv"
 }
 
-# initial parameter exploration
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1) initial exploration of weights
+set_defaults
 for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
     append_row
