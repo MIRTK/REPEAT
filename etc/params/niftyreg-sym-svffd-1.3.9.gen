@@ -6,19 +6,29 @@ parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
 cfgrow='$cfgid,$vel,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2'
+vel=true  # constant
 
 # initial/constant parameter values
 set_defaults()
 {
-  vel=true
   sim='NMI'
   bins=64
   levels=3
   maxit=300
   ds=2.5
   be=0.005
-  jl=0
-  le='0 0'
+  jl=0      # includes iterative folding correction at each step
+  le='0 0'  # second term corresponds to divergence of velocity field
+  l2=0
+}
+
+# Modat et al., "Parametric non-rigid registration using a stationary velocity field", MMBIA 2012, 145–150.
+set_modat2012_parameters()
+{
+  ds=2.5
+  be=0.001
+  jl=0.1
+  le='0 0.1'
   l2=0
 }
 
@@ -35,47 +45,66 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# 1) exploration of bending energy weight
+# 1. exploration of penalty weights
+
+# 1a) bending energy weight
 set_defaults
 for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   append_row
 done
 
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
 be_vals=() # TODO
 
-# ------------------------------------------------------------------------------
-# 2) exploration of Jacobian based penalty weight
+# 1b) add Jacobian based penalty weight
 set_defaults
 for be in ${be_vals[@]}; do
-  for jl in 0 0.00001 0.00005 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+  for jl in 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.5; do
     append_row
   done
 done
 
-jl_vals=() # TODO
-
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
+jl_vals=() # TODO
+
+# 1c) add squared divergence of SVF penalty weight
+set_defaults
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le2 in 0.001 0.005 0.01 0.05 0.1; do
+      le="0 $le2"
+      append_row
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+le2_vals=() # TODO
+
 # ------------------------------------------------------------------------------
-# 3) exploration of max. number of iterations, no. of levels
+# 2. exploration of max. number of iterations, no. of levels
 set_defaults
 default_levels=$levels
 default_maxit=$maxit
 for be in ${be_vals[@]}; do
   for jl in ${jl_vals[@]}; do
-    for levels in 3 4; do
-      for maxit in 300 500 1000; do
-        if [ $levels -ne $default_levels -o $maxit -ne $default_maxit ]; then
-          append_row
-        fi
+    for le2 in ${le2_vals[@]}; do
+      le="0 $le2"
+      for levels in 3 4; do
+        for maxit in 300 500 1000; do
+          if [ $levels -ne $default_levels -o $maxit -ne $default_maxit ]; then
+            append_row
+          fi
+        done
       done
     done
   done
