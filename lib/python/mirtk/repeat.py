@@ -48,16 +48,21 @@ def get_regid(toolkit, command=None, version=None):
     return regid
 
 
+def cfgidstr(cfgid):
+    """Convert cfgid to string."""
+    if not isinstance(cfgid, str):
+        if isinstance(cfgid, int) or np.issubdtype(cfgid, np.integer):
+            cfgid = '{:04d}'.format(cfgid)
+        else:
+            raise ValueError("cfgid must be int, np.integer, or str")
+    return cfgid
+
+
 def get_csvdir(dataset, regid, cfgid=None):
     """Get absolute path of result CSV files."""
     csvdir = os.path.join(topdir, 'var', 'table', dataset, regid)
     if cfgid:
-        if not isinstance(cfgid, str):
-            if isinstance(cfgid, int) or np.issubdtype(cfgid, np.integer):
-                cfgid = '{:04d}'.format(cfgid)
-            else:
-                raise ValueError("cfgid must be int, np.integer, or str")
-        csvdir = os.path.join(csvdir, cfgid)
+        csvdir = os.path.join(csvdir, cfgidst(cfgid))
     return csvdir
 
 
@@ -83,7 +88,7 @@ def get_tgtids(dataset, regid, cfgid=None):
     return tgtids
 
 
-def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
+def get_params(dataset, regid=None, toolkit=None, command=None, version=None, cfgid=None):
     """Get table of registration parameter sets."""
     if not dataset:
         raise ValueError("Need to specify at least one evaluation 'dataset'")
@@ -93,7 +98,7 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
     # recursion for iterable arguments
     if is_iterable(dataset):
         for arg in dataset:
-            df = pd.concat([df, get_params(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version)])
+            df = pd.concat([df, get_params(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version, cfgid=cfgid)])
         return df
     if isinstance(regid, dict):
         toolkit = list(regid.keys())
@@ -111,23 +116,23 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
         regid = None
     if is_iterable(regid):
         for arg in regid:
-            df = pd.concat([df, get_params(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version)])
+            df = pd.concat([df, get_params(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, cfgid=cfgid)])
         return df
     if is_iterable(toolkit):
         for arg in toolkit:
-            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version)])
+            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version, cfgid=cfgid)])
         return df
     if isinstance(command, dict):
         command = command[toolkit]
     if is_iterable(command):
         for arg in command:
-            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version)])
+            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, cfgid=cfgid)])
         return df
     if isinstance(version, dict):
         version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
-            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg)])
+            df = pd.concat([df, get_params(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, cfgid=cfgid)])
         return df
     # all arguments are non-iterable
     if regid:
@@ -146,10 +151,16 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None):
             parcsv = None
         if parcsv is not None:
             break
+    if isinstance(cfgid, dict):
+        cfgid = cfgid.get(regid, None)
     if parcsv is None:
         df = pd.DataFrame({'cfgid': pd.Series([1])})
     else:
         df = pd.read_csv(parcsv)
+        if is_iterable(cfgid):
+            df = df[df.cfgid.isin([int(i) for i in cfgid])].copy()
+        elif cfgid is not None:
+            df = df[df.cfgid==int(cfgid)].copy()
     df.insert(0, 'dataset', dataset)
     df.insert(1, 'regid', regid)
     df.insert(2, 'toolkit', toolkit)
