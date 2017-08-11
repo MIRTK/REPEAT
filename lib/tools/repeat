@@ -15,10 +15,11 @@
 
 nosubmit=false
 noregister=false
+memory=8
 
 print_help()
 {
-  error "usage: $(basename $BASH_SOURCE) [-q <queue>] -d <dataset> -r <regid> [-nosubmit] [-noregister] [--] [<cfgids>]"
+  error "usage: $(basename $BASH_SOURCE) [-q <queue>] -d <dataset> -r <regid> [-m <memory_in_GB>] [-nosubmit] [-noregister] [--] [<cfgids>]"
 }
 
 submit()
@@ -35,7 +36,7 @@ submit()
     else
       log="${jobdesc/\/bin\//\/log\/}"
       log="${log/.condor/.log}"
-      echo "> $libdir/tools/submit '$jobdesc' --log '$log' --backend '$backend' --queue '$queue' --job-as-array"
+      echo "> $libdir/tools/submit '$jobdesc' --log '$log' --backend '$backend' --queue '$queue' --memory '$memory' --job-as-array"
     fi
     if [ $nosubmit != true ]; then
       while [ $i -lt $n ]; do
@@ -86,6 +87,9 @@ while [ $# -gt 0 ]; do
       shift; ;;
     -r|-reg|regid)
       regid="$2"
+      shift; ;;
+    -m|-memory)
+      memory="$2"
       shift; ;;
     -nosubmit)
       nosubmit=true

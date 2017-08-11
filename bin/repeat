@@ -41,6 +41,8 @@ Options:
     Only execute non-registration jobs. These jobs may need to
     run using a specific -queue in order to keep real runtime
     measurements comparable.
+  -m, -memory <n>
+    Number of bytes in GB to request for job execution.
 EOF_HELP
 }
 
@@ -74,6 +76,9 @@ while [ $# -gt 0 ]; do
       shift; ;;
     -r|-reg|regid)
       regid="$2"
+      shift; ;;
+    -m|-memory)
+      opts=("${opts[@]}" '-memory' "$2")
       shift; ;;
     -nosubmit)
       opts=("${opts[@]}" '-nosubmit')
