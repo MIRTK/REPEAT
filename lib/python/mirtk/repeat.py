@@ -62,7 +62,7 @@ def get_csvdir(dataset, regid, cfgid=None):
     """Get absolute path of result CSV files."""
     csvdir = os.path.join(topdir, 'var', 'table', dataset, regid)
     if cfgid:
-        csvdir = os.path.join(csvdir, cfgidst(cfgid))
+        csvdir = os.path.join(csvdir, cfgidstr(cfgid))
     return csvdir
 
 
