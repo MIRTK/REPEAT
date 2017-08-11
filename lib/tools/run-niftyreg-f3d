@@ -70,14 +70,8 @@ if [ -n "$version" ]; then
   fi
 fi
 
-if [ -z "$res" -o -z "$cpp" ]; then
-  tmp="$(mktemp -d)"
-  [ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
-  [ -n "$res" ] || res="$tmp/res.nii.gz"
-  [ -n "$cpp" ] || cpp="$tmp/cpp.nii.gz"
-else
-  tmp=
-fi
+tmp="$(mktemp -d)"
+[ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
 
 run()
 {
@@ -91,5 +85,7 @@ run()
 echo "Host: $(hostname)"
 export LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH"
 export DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
-time run "$niftyreg/bin/reg_f3d" "${args[@]}" -cpp "$cpp" -res "$res"
+time run "$niftyreg/bin/reg_f3d" "${args[@]}" -cpp "$tmp/cpp.nii.gz" -res "$tmp/res.nii.gz"
+[ -z "$cpp" ] || run mv -f "$tmp/cpp.nii.gz" "$cpp"
+[ -z "$res" ] || run mv -f "$tmp/res.nii.gz" "$res"
 [ -z "$dof" ] || run "$mirtk" convert-dof "$cpp" "$dof" -input-format f3d
