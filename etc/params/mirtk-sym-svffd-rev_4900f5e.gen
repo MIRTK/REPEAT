@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Generate configuration files for MIRTK 'register' command
+## Generate parameters for MIRTK 'register' command
 ## using symmetric energy formulation and SVFFD model
 regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
@@ -59,24 +59,29 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# exploration of SVFFD parameters
+# 1) determine bending energy weight
+set_defaults
+for be in 0.1 0.05 0.01 0.005 0.001 0.0005 0.0001; do
+  append_row
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+be_vals=(0.0005 0.001 0.005)
+be_best=0.001
+
+# ------------------------------------------------------------------------------
+# 2) explore integration schemes
 #
 # Integration method       = <im>
 # No. of integration steps = <imsteps>
 # Maximum scaled velocity  = <maxsv>
 # No. of BCH terms         = <nbch>
 # Use Lie derivative       = <uselie>
-
-# 1) determine bending energy weight
 set_defaults
-tp=0
-vp=0
-for be in 0.1 0.05 0.01 0.005 0.001 0.0005 0.0001; do
-  append_row
-done
-
-# 2) explore integration schemes
-be=0.001
+be=$be_best
 for im in 'RKE1' 'SS' 'FastSS'; do
   if [ $im = 'RKE1' ]; then
     imsteps_opts=(8 16)
@@ -95,6 +100,58 @@ for im in 'RKE1' 'SS' 'FastSS'; do
       for imsteps in ${imsteps_opts[@]}; do
         append_row
       done
+    done
+  done
+done
+
+# ------------------------------------------------------------------------------
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+set_new_defaults()
+{
+  set_defaults
+  im='SS'
+  imsteps=32
+  maxsv=0
+  nbch=2
+  be=$be_best
+}
+
+# ------------------------------------------------------------------------------
+# Add penalties for non-positive (and large) Jacobian determinant values
+
+set_new_defaults
+
+# 4a) using topology preservation penalty for det(J) < gamma
+vp=0
+for be in ${be_vals[@]}; do
+  for tp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1; do
+    append_row
+  done
+done
+
+# 4b) using volume preservation penalty, i.e., sq(log(det(J)))
+tp=0
+for be in ${be_vals[@]}; do
+  for vp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+vp_vals=()  # TODO
+tp_vals=()  # TODO
+
+# 4c) using both topology and volume preservation penalties
+for be in ${be_vals[@]}; do
+  for vp in ${vp_vals[@]}; do
+    for tp in ${tp_vals[@]}; do
+      append_row
     done
   done
 done

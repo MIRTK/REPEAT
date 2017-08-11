@@ -1,7 +1,7 @@
 #!/bin/bash
 
-## Generate configuration files for MIRTK 'register' command
-## using asymmetric energy formulation and classic FFD model
+## Generate parameters for MIRTK 'register' command
+## using asymmetric energy formulation and FFD model
 regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
@@ -63,7 +63,6 @@ for be in 0 0.00001; do
   append_row
 done
 
-
 # ------------------------------------------------------------------------------
 # Explore advanced implementation specific options
 
@@ -108,17 +107,17 @@ for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
   append_row
 done
 
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 #exit 0
 
-# interim conclusion: MIRTK default settings work best; hence, restore these
-set_defaults
+# interim conclusion: MIRTK default settings work best
 be_vals=(0.0001 0.0005 0.001)
 
 # ------------------------------------------------------------------------------
 # 3) dealing with background in brain extracted images
+
+set_defaults
 for be in ${be_vals[@]}; do
   for usemsk in false true; do
     for usepad in false true; do
@@ -135,18 +134,22 @@ for be in ${be_vals[@]}; do
   done
 done
 
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
 #exit 0
 
-set_defaults
-usemsk=true
-usepad=true
-roi='Union'
+set_new_defaults()
+{
+  set_defaults
+  usemsk=true
+  usepad=true
+  roi='Union'
+}
 
 # ------------------------------------------------------------------------------
 # Add penalties for non-positive (and large) Jacobian determinant values
+
+set_new_defaults
 
 # 4a) using topology preservation penalty for det(J) < gamma
 for be in ${be_vals[@]}; do
@@ -186,19 +189,25 @@ for be in ${be_vals[@]}; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
+vp_vals=(0.001 0.01 0.1)
+tp_vals=(0.001 0.01 0.1 0.5)
+
 # 4c) using both topology and volume preservation penalties
 gamma=0.5
 jaceps=0.1
 for be in ${be_vals[@]}; do
-  for vp in 0.001 0.01 0.1; do
-    for tp in 0.001 0.01 0.1 0.5; do
+  for vp in ${vp_vals[@]}; do
+    for tp in ${tp_vals[@]}; do
       append_row
     done
   done
 done
 
 
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
 #exit 0
@@ -217,7 +226,7 @@ set_new_defaults()
 }
 
 # ------------------------------------------------------------------------------
-# Fine tuning
+# Final tests
 
 # 5. Last time, compare best result for different gradient calculations
 # 5a) Using previous background options
