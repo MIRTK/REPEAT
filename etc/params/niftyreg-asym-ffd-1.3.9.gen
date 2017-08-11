@@ -6,6 +6,7 @@ parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
 cfgrow='$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le,$l2'
+vel=false  # constant (unused)
 
 # initial/constant parameter values
 set_defaults()
@@ -34,10 +35,36 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# 1) initial exploration of weights
+# 1. exploration of penalty weights
+
+# 1a) bending energy and Jacobian based penalty
 set_defaults
 for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
   for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
     append_row
   done
 done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+be_vals=(0.001 0.005 0.01)
+jl_vals=(0.0001 0.01)
+
+# 1b) linear elasticity
+for le1 in 0 0.0001 0.001 0.01 0.1; do
+  for le2 in 0 0.0001 0.001 0.01 0.1; do
+    if [ $le1 -gt 0 -o $le2 -gt 0 ]; then
+      le="$le1 $le2"
+      append_row
+    fi
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+# 1c) combine bending energy, Jacobian based penalty, and linear elasticity penalties
+
