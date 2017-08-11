@@ -112,6 +112,7 @@ for cfgid in "${cfgids[@]}"; do
   c=0
   argv=()
   issym=false
+  isvel=false
   [ -z "$bgvalue" ] || argv=("${argv[@]}" '-pad' "$bgvalue")
   while [ $c -lt ${#paropt[@]} ]; do
     opt="${paropt[c]}"
@@ -145,11 +146,10 @@ for cfgid in "${cfgids[@]}"; do
         argv=("${argv[@]}" '-sx' $arg '-sy' $arg '-sz' $arg)
         ;;
       sym)
-        [ $arg != true ] || argv=("${argv[@]}" '-sym')
-        issym=true
+        issym=$arg
         ;;
       vel)
-        [ $arg != true ] || argv=("${argv[@]}" '-vel')
+        isvel=$arg
         ;;
       nss)
         argv=("${argv[@]}" "-step" "$arg")
@@ -160,6 +160,12 @@ for cfgid in "${cfgids[@]}"; do
     esac
     let c++
   done
+  if [ $isvel = true ]; then
+    argv=("${argv[@]}" '-vel')
+    issym=true
+  elif [ $issym = true ]; then
+    argv=("${argv[@]}" '-sym')
+  fi
   [ -z "$version" ] || argv=("${argv[@]}" '-ver' "$version")
 
   # make directories

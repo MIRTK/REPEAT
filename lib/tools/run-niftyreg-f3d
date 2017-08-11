@@ -15,6 +15,8 @@ cpp=
 dof=
 res=
 version=
+issym=false
+isvel=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -30,6 +32,12 @@ while [ $# -gt 0 ]; do
     -res)
       res="$2"
       shift; ;;
+    -sym)
+      issym=true;
+      ;;
+    -vel)
+      isvel=true;
+      ;;
     -omp)
       threads="$2"
       shift; ;;
@@ -39,6 +47,13 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+if [ $isvel = true ]; then
+  args=("${args[@]}" '-vel')
+  issym=true  # implied, *do not* add use -sym option, as it will override -vel!
+elif [ $issym = true ]; then
+  args=("${args[@]}" '-sym')
+fi
 
 if [ -z "$cpp" -a -z "$dof" ]; then
   error "Missing -cpp or -dof option argument"
