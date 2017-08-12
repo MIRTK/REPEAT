@@ -124,7 +124,7 @@ set_new_defaults()
 
 set_new_defaults
 
-# 4a) using topology preservation penalty for det(J) < gamma
+# 4a) using NegJac penalty for det(J) < gamma
 vp=0
 for be in ${be_vals[@]}; do
   for tp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1; do
@@ -132,7 +132,7 @@ for be in ${be_vals[@]}; do
   done
 done
 
-# 4b) using volume preservation penalty, i.e., sq(log(det(J)))
+# 4b) using LogJac penalty, i.e., sq(log(det(J)))
 tp=0
 for be in ${be_vals[@]}; do
   for vp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1; do
@@ -149,7 +149,7 @@ tp_vals=(0.0001 0.001 0.01)
 vp_best=0.001
 tp_best=0.001
 
-# 4c) using both topology and volume preservation penalties
+# 4c) using both NegJac and LogJac penalties
 for be in ${be_vals[@]}; do
   for vp in ${vp_vals[@]}; do
     for tp in ${tp_vals[@]}; do
