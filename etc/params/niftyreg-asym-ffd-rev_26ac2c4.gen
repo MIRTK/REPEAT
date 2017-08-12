@@ -58,7 +58,7 @@ done
 be_vals=(0.001 0.01 0.1)
 jl_vals=(0 0.0001 0.001)
 
-# 1c) add linear elasticity penalty
+# 1c) add linear energy penalty, i.e., sum of squared first order derivatives
 for be in ${be_vals[@]}; do
   for jl in ${jl_vals[@]}; do
     for le in 0.0001 0.001 0.01 0.1; do
