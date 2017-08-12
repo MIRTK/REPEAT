@@ -33,7 +33,7 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# initial exploration of weights
+# exploration of penalty weights
 
 set_defaults
 
@@ -48,5 +48,21 @@ done
 for be in 0.1 0.5 1; do
   for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
     append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+be_vals=(0.001 0.01 0.1)
+jl_vals=(0 0.0001 0.001)
+
+# 1c) add linear elasticity penalty
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in 0.0001 0.001 0.01 0.1; do
+      append_row
+    done
   done
 done
