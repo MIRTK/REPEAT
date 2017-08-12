@@ -142,10 +142,12 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
-vp_vals=()  # TODO
-tp_vals=()  # TODO
+vp_vals=(0.0001 0.001 0.01)
+tp_vals=(0.0001 0.001 0.01)
+vp_best=0.001
+tp_best=0.001
 
 # 4c) using both topology and volume preservation penalties
 for be in ${be_vals[@]}; do
