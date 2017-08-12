@@ -52,7 +52,9 @@ done
 be_vals=(0.001 0.005 0.01)
 jl_vals=(0.0001 0.01)
 
-# 1b) linear elasticity
+# 1b) linear energy, i.e., sum of squared first order derivatives
+be=0
+jl=0
 for le1 in 0 0.0001 0.001 0.01 0.1; do
   for le2 in 0 0.0001 0.001 0.01 0.1; do
     if [ "$le1" != 0 -o "$le2" != 0 ]; then
