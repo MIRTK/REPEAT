@@ -72,7 +72,7 @@ threads=8  # <0: use all available CPU cores
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=
-condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.ic.ac.uk\" && Cpus==8"
+condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.ic.ac.uk\" && Machine!=\"quercus.doc.ic.ac.uk\" && Cpus==8"
 
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
