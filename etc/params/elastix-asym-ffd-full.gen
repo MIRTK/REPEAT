@@ -2,12 +2,16 @@
 
 ## Generate command-line arguments for elastix using 'Full' ImageSampler
 regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$epsilon,$alpha,$A,$a,$ds,$be'
 
 # initial/constant parameter values
 set_defaults()
 {
   # general parameters
-  usemsk=false                       # whether to use foreground masks
+  usemsk=true                        # whether to use foreground masks
   interp='Linear'                    # Linear, BSpline
   pyramid='Recursive'                # Recursive, Smoothing, Shrinking
   optim='ConjugateGradient'          # StandardGradientDescent, ConjugateGradient, ConjugateGradientFRPR
@@ -30,30 +34,33 @@ set_defaults()
 }
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of append_row values is consistent!
-i=0
-parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,usemsk,interp,pyramid,optim,cgtype,sim,bins,levels,iters,steps,step,epsilon,alpha,A,a,ds,be" > "$parcsv"
-
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$usemsk,$interp,$pyramid,$optim,$cgtype,$sim,$bins,$levels,$iters,$steps,$step,$epsilon,$alpha,$A,$a,$ds,$be" >> "$parcsv"
+  eval "echo \"$cfgrow\"" >> "$parcsv"
 }
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
 
 # ------------------------------------------------------------------------------
 # Initial parameter exploration using conjugate gradient descent
+
+# 1) control point spacing and bending energy weight
 set_defaults
 optim='ConjugateGradient'
 iters=100
-for usemsk in false true; do
-  for ds in 2.5 5.0; do
-    for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
-      append_row
-    done
+for ds in 2.5 5.0; do
+  for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1 0.2 0.5; do
+    append_row
   done
 done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
 
 # try even larger bending energy weights
 #
@@ -63,7 +70,6 @@ done
 # Bending energy weights larger than the weight of the image similarity term appear to be not uncommon.
 # Found values being used of 0.1 (par0025: mouse brain), 0.3, 5, 20 (par0020: rat brain), and an even
 # quantitatively optimized weight of up to 50 (par0023: head/neck).
-usemsk=true
 for ds in 2.5 5.0; do
   for be in 0.8 1.0 1.2 1.4; do
     append_row
@@ -75,7 +81,6 @@ for ds in 2.5 5.0; do
   done
 done
 
-# ------------------------------------------------------------------------------
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
