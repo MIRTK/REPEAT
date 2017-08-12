@@ -66,10 +66,9 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
-# Results have been not good when using this term (Mean DSC for OASIS subset less than 0.55).
-# As this term is not mentioned in the original NiftyReg publications [1,2], keep zero weight.
+# Note: This term is not used in the original NiftyReg publications [1,2].
 # [1] Modat et al., "Fast free-form deformation using graphics processing units",
 #     Computer Methods and Programs in Biomedicine, 98(3), 278–284, 2010.
 # [2] Modat et al., "Inverse-Consistent Symmetric Free Form Deformation", WBIR 2012, LNCS(7359), 79–88.
@@ -89,7 +88,7 @@ fi
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 # ------------------------------------------------------------------------------
 # 2. exploration of max. number of iterations, no. of levels
