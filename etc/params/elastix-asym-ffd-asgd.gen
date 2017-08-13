@@ -2,42 +2,50 @@
 
 ## Generate command-line arguments for elastix using 'Full' ImageSampler
 regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$interp,$pyramid,$sim,$bins,$levels,$iters,$step,$adaptive,$auto,$alpha,$A,$a,$ds,$be'
 
 # initial/constant parameter values
-usemsk=true                        # whether to use foreground masks
-interp='Linear'                    # Linear, BSpline
-pyramid='Recursive'                # Recursive, Smoothing, Shrinking
-sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
-bins=64                            # 16, 32, 64
-levels=4                           # 3, 4
+set_defaults()
+{
+  # initial/constant parameter values
+  usemsk=true                        # whether to use foreground masks
+  interp='Linear'                    # Linear, BSpline
+  pyramid='Recursive'                # Recursive, Smoothing, Shrinking
+  sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
+  bins=64                            # 16, 32, 64
+  levels=4                           # 3, 4
 
-# optimization paramaters
-iters=500
-step='4.0 2.0 1.0 0.5'
-adaptive=true
-auto=false
-alpha=1.0
-A=20
-a=1000
+  # optimization paramaters
+  iters=500
+  step='4.0 2.0 1.0 0.5'
+  adaptive=true
+  auto=false
+  alpha=1.0
+  A=20
+  a=1000
 
-# transformation model parameters
-ds=2.5
-be=1
+  # transformation model parameters
+  ds=2.5
+  be=1
+}
 
 # auxiliary function to append row with parameter values
-# Attention: Always ensure that header and order of append_row values is consistent!
-i=0
-parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
-echo "cfgid,usemsk,interp,pyramid,sim,bins,levels,iters,step,adaptive,auto,alpha,A,a,ds,be" > "$parcsv"
-
 append_row()
 {
   let i++
   local cfgid=$(printf %04d $i)
-  echo "$cfgid,$usemsk,$interp,$pyramid,$sim,$bins,$levels,$iters,$step,$adaptive,$auto,$alpha,$A,$a,$ds,$be" >> "$parcsv"
+  eval "echo \"$cfgrow\"" >> "$parcsv"
 }
 
-# try automatic parameter selection first
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# 1) automatic parameter selection first
+set_defaults
 auto=true
 for ds in 2.5 5.0; do
   for be in 0 0.01 0.05 0.5 1 1.5 5 10 20 50; do
@@ -47,18 +55,25 @@ for ds in 2.5 5.0; do
   done
 done
 
-# manual exploration of parameters with more informed ds and be values based on previous results with auto=true
-if [ 1 -ne 1 ]; then
-  auto=false
-  for ds in 2.5 5.0; do
-    for be in 0 0.001 0.01 0.05 0.1 0.2; do
-      for A in 20 50; do
-        for a in 1000 5000 10000 50000 100000 500000; do
-          for iters in 100 300 500; do
-            append_row
-          done
-        done
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+set_defaults
+ds_vals=(2.5)
+be_vals=(0 0.01 0.05 0.5 1 1.5 5 10 20 50) # TODO
+A_vals=(30 50)
+a_vals=(1000 5000 10000 50000 100000 500000)
+iters=
+
+# 2) manual exploration of parameters with more informed ds and be values
+auto=false
+for ds in ${ds_vals[@]}; do
+  for be in ${be_vals[@]}; do
+    for A in ${A_vals[@]}; do
+      for a in ${a_vals[@]}; do
+        append_row
       done
     done
   done
-fi
+done
