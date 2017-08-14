@@ -44,15 +44,11 @@ append_row()
 echo "${cfgrow//$}" > "$parcsv"
 i=0
 
-# 1) automatic parameter selection first
+# 1) explore bending energy weight using automatic parameter selection
 set_defaults
 auto=true
-for ds in 2.5 5.0; do
-  for be in 0 0.01 0.05 0.5 1 1.5 5 10 20 50; do
-    for iters in 100 300 500; do
-      append_row
-    done
-  done
+for be in 0 0.001 0.01 0.1 1 10 20 50; do
+  append_row
 done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
@@ -64,9 +60,20 @@ ds_vals=(2.5)
 be_vals=(0 0.01 0.05 0.5 1 1.5 5 10 20 50) # TODO
 A_vals=(30 50)
 a_vals=(1000 5000 10000 50000 100000 500000)
-iters=
 
-# 2) manual exploration of parameters with more informed ds and be values
+# 2) try fewer number of iterations
+for iters in 100 200 300 400; do
+  append_row
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+set_defaults
+iters=500  # TODO
+
+# 3) manual exploration of parameters with more informed ds and be values
 auto=false
 for ds in ${ds_vals[@]}; do
   for be in ${be_vals[@]}; do
