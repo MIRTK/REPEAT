@@ -49,7 +49,7 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "<sim>" "TransformBendingEnergyPenalty")
-(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
+(NumberOfSamplesForSelfHessian 50000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins <bins>)
@@ -69,7 +69,7 @@
 (NumberOfBandStructureSamples 10)
 (NumberOfGradientMeasurements 10)
 (NumberOfJacobianMeasurements 1000 5000 10000 20000)
-(NumberOfSamplesForExactGradient 100000)
+(NumberOfSamplesForExactGradient 50000)
 (SP_alpha <alpha>)
 (SP_A <A>)
 (SP_a <a>)
@@ -80,7 +80,7 @@
 
 (ImageSampler "Random")
 (NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 1000 2000 4000 8000)
+(NumberOfSpatialSamples 500 1000 2000 4000)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)

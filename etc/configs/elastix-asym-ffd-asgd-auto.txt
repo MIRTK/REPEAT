@@ -17,8 +17,8 @@
 (ResultImageFormat "nii.gz")
 (CompressResultImage "true")
 
-(FixedInternalImagePixelType "float")
-(MovingInternalImagePixelType "float")
+(FixedInternalImagePixelType "short")
+(MovingInternalImagePixelType "short")
 (FixedImageDimension 3)
 (MovingImageDimension 3)
 (DefaultPixelValue 0)
@@ -27,7 +27,7 @@
 (ErodeMovingMask "true")
 
 (NumberOfResolutions 4)
-(ImagePyramidSchedule 8 8 8 4 4 4 2 2 2 1 1 1)
+(ImagePyramidSchedule 8 8 8  4 4 4  2 2 2  1 1 1)
 (Registration "MultiMetricMultiResolutionRegistration")
 (FixedImagePyramid "FixedRecursiveImagePyramid")
 (MovingImagePyramid "MovingRecursiveImagePyramid")
@@ -39,7 +39,8 @@
 (FinalBSplineInterpolationOrder 1)
 (Resampler "DefaultResampler")
 
-(FinalGridSpacingInPhysicalUnits 2.5)
+// elastix 4.8 requires way too much memory for smaller grid spacing
+(FinalGridSpacingInPhysicalUnits 5)
 (GridSpacingSchedule 8.0 4.0 2.0 1.0)
 (Transform "BSplineTransform")
 (BSplineTransformSplineOrder 3)
@@ -47,7 +48,7 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
-(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
+(NumberOfSamplesForSelfHessian 50000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins 64)
@@ -70,11 +71,11 @@
 (ASGDParameterEstimationMethod "Original")
 (MaximumDisplacementEstimationMethod "2sigma")
 (NumberOfGradientMeasurements 0)
-//(NumberOfJacobianMeasurements 2000 5000 10000 20000)
-(NumberOfSamplesForExactGradient 100000)
+(NumberOfJacobianMeasurements 2000 5000 10000 20000)
+(NumberOfSamplesForExactGradient 50000)
 (NoiseCompensation "true")
-(MaximumNumberOfIterations 300)
-(MaximumStepLength 0.5)
+(MaximumNumberOfIterations 200)
+(MaximumStepLength 4.0 2.0 1.0 0.5)
 (SigmoidInitialTime 0)
 (SigmoidScaleFactor 0.1)
 (MaxBandCovSize 192)
@@ -84,7 +85,7 @@
 
 (ImageSampler "Random")
 (NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 1000 2000 4000 8000)
+(NumberOfSpatialSamples 500 1000 2000 4000)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)

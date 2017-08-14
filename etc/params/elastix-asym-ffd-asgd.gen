@@ -27,7 +27,7 @@ set_defaults()
   a=1000
 
   # transformation model parameters
-  ds=2.5
+  ds=5  # elastix has quite high memory requirements for low control point spacing...
   be=1
 }
 
