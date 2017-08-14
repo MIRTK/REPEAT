@@ -19,8 +19,8 @@
 (ResultImageFormat "nii.gz")
 (CompressResultImage "true")
 
-(FixedInternalImagePixelType "float")
-(MovingInternalImagePixelType "float")
+(FixedInternalImagePixelType "short")
+(MovingInternalImagePixelType "short")
 (FixedImageDimension 3)
 (MovingImageDimension 3)
 (DefaultPixelValue <bg>)
@@ -28,7 +28,8 @@
 (ErodeFixedMask "true")
 (ErodeMovingMask "true")
 
-(NumberOfResolutions <levels>)
+(NumberOfResolutions 4)
+(ImagePyramidSchedule 8 8 8  4 4 4  2 2 2  1 1 1)
 (Registration "MultiMetricMultiResolutionRegistration")
 (FixedImagePyramid "Fixed<pyramid>ImagePyramid")
 (MovingImagePyramid "Moving<pyramid>ImagePyramid")
@@ -41,6 +42,7 @@
 (Resampler "DefaultResampler")
 
 (FinalGridSpacingInPhysicalUnits <ds>)
+(GridSpacingSchedule 8.0 4.0 2.0 1.0)
 (Transform "BSplineTransform")
 (BSplineTransformSplineOrder 3)
 (UseCyclicTransform "false")
