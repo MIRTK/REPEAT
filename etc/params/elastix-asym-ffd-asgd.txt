@@ -61,6 +61,13 @@
 
 (Optimizer "AdaptiveStochasticGradientDescent")
 (AutomaticParameterEstimation "<auto>")
+(SigmoidInitialTime 0)
+(SigmoidScaleFactor 0.1)
+(MaxBandCovSize 192)
+(NumberOfBandStructureSamples 10)
+(NumberOfGradientMeasurements 10)
+(NumberOfJacobianMeasurements 1000 5000 10000 20000)
+(NumberOfSamplesForExactGradient 100000)
 (SP_alpha <alpha>)
 (SP_A <A>)
 (SP_a <a>)
