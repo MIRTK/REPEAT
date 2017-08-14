@@ -19,8 +19,8 @@
 (ResultImageFormat "nii.gz")
 (CompressResultImage "true")
 
-(FixedInternalImagePixelType "short")
-(MovingInternalImagePixelType "short")
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
 (FixedImageDimension 3)
 (MovingImageDimension 3)
 (DefaultPixelValue <bg>)
@@ -49,7 +49,7 @@
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
 (Metric "<sim>" "TransformBendingEnergyPenalty")
-(NumberOfSamplesForSelfHessian 50000)  // TransformBendingEnergyPenalty
+(NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 (NumberOfHistogramBins <bins>)
@@ -63,13 +63,14 @@
 
 (Optimizer "AdaptiveStochasticGradientDescent")
 (AutomaticParameterEstimation "<auto>")
+(ASGDParameterEstimationMethod "Original")
 (SigmoidInitialTime 0)
 (SigmoidScaleFactor 0.1)
 (MaxBandCovSize 192)
 (NumberOfBandStructureSamples 10)
-(NumberOfGradientMeasurements 10)
+(NumberOfGradientMeasurements 0)
 (NumberOfJacobianMeasurements 1000 5000 10000 20000)
-(NumberOfSamplesForExactGradient 50000)
+(NumberOfSamplesForExactGradient 100000)
 (SP_alpha <alpha>)
 (SP_A <A>)
 (SP_a <a>)
