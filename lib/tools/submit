@@ -907,10 +907,13 @@ def run_local(jobs, deps):
 
 def run_job_slurm(job, deps=set(), threads=1, memory=8, queue='long', log='', job_as_array=False):
     """Submit SLURM job."""
+    max_threads = -1
     for cmd in job.commands():
         for i in range(len(cmd.arguments)):
             if cmd.arguments[i] == '-threads':
-                threads = max(int(cmd.arguments[i + 1]), threads)
+                max_threads = max(int(cmd.arguments[i + 1]), max_threads)
+    if max_threads >= 0:
+        threads = max_threads
     if not log:
         log = job.log
     sbatch_argv = [

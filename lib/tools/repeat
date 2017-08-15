@@ -36,14 +36,14 @@ submit()
     else
       log="${jobdesc/\/bin\//\/log\/}"
       log="${log/.condor/.log}"
-      echo "> $libdir/tools/submit '$jobdesc' --log '$log' --backend '$backend' --queue '$queue' --memory '$memory' --job-as-array"
+      echo "> $libdir/tools/submit '$jobdesc' --log '$log' --backend '$backend' --queue '$queue' --memory '$memory' --threads '$threads' --job-as-array"
     fi
     if [ $nosubmit != true ]; then
       while [ $i -lt $n ]; do
         if [ $backend = 'condor' ]; then
           condor_submit "$jobdesc"
         else
-          "$libdir/tools/submit" "$jobdesc" --log "$log" --backend "$backend" --queue "$queue" --job-as-array
+          "$libdir/tools/submit" "$jobdesc" --log "$log" --backend "$backend" --queue "$queue" --memory "$memory" --threads "$threads" --job-as-array
         fi
         [ $? -ne 0 ] || break
         let i++
@@ -70,6 +70,7 @@ submit()
 [ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$csvdir" ] || error "etc/settings.sh: csvdir not set"
+[ -n "$threads" ] || threads=1
 
 # change to top-level directory
 run cd "$topdir"
