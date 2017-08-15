@@ -49,12 +49,13 @@ imgdir="$vardir/$dataset/affine/out"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
-# create/choose foreground masks
+# create/choose foreground masks and cropped images
 bgvalue="$(get_bgvalue "$chn")"
 bgmask=false
 if [ -n "$bgvalue" ]; then
   if [ "$(is_mask "$bgvalue")" = true ]; then
-    mskdir="$vardir/$dataset/affine/out/$bgvalue"
+    imgdir="$vardir/$dataset/affine/crp"
+    mskdir="$vardir/$dataset/affine/crp/$bgvalue"
     bgmask=true
   else
     mskdir="$vardir/$dataset/affine/msk"
