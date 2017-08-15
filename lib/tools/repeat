@@ -305,10 +305,27 @@ if [ "$extdof" != true -a "$extout" != true ]; then
   fi
 
   # crop affinely aligned images
+  chns_and_msks=("${chns[@]}")
+  for chn in "${chns[@]}"; do
+    msk=$(get_bgvalue "$chn")
+    if [ $(is_mask "$msk") = true ]; then
+      append=true
+      for c in "${chns_and_msks}"; do
+        if [ "$c" = "$msk" ]; then
+          append=false
+          break
+        fi
+      done
+      if [ $append = true ]; then
+        chns_and_msks=("${chns_and_msks[@]}" "$msk")
+      fi
+    fi
+  done
+
   n=0
   nexpected=0
   outdir="$regdir/crp"
-  for chn in "${chns[@]}"; do
+  for chn in "${chns_and_msks[@]}"; do
     let nexpected="$nexpected+${#imgids[@]}"
     if [ -d "$outdir/$chn" ]; then
       for imgid in "${imgids[@]}"; do

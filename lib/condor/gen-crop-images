@@ -32,6 +32,23 @@ run cd "$topdir"
 [ ${#chns[@]}   -gt 0 ] || error "$setdir/$dataset.sh: chns not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
+chns_and_msks=("${chns[@]}")
+for chn in "${chns[@]}"; do
+  msk=$(get_bgvalue "$chn")
+  if [ $(is_mask "$msk") = true ]; then
+    append=true
+    for c in "${chns_and_msks}"; do
+      if [ "$c" = "$msk" ]; then
+        append=false
+        break
+      fi
+    done
+    if [ $append = true ]; then
+      chns_and_msks=("${chns_and_msks[@]}" "$msk")
+    fi
+  fi
+done
+
 # paths
 regid='affine'
 regdir="$vardir/$dataset/$regid"
@@ -56,7 +73,7 @@ initialdir = $topdir
 
 EOF_HEADER
 
-  for chn in "${chns[@]}"; do
+  for chn in "${chns_and_msks[@]}"; do
     makedir "$outdir/$chn"
     if [ $(is_mask "$chn") = true -o $(is_seg "$chn") = true -o $(is_prob "$chn") = true ]; then
       imgdir="$regdir/out/$chn"
