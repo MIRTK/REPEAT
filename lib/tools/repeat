@@ -304,6 +304,31 @@ if [ "$extdof" != true -a "$extout" != true ]; then
     echo "All background padding jobs are done, found $n output files"
   fi
 
+  # crop affinely aligned images
+  n=0
+  nexpected=0
+  outdir="$regdir/crp"
+  for chn in "${chns[@]}"; do
+    let nexpected="$nexpected+${#imgids[@]}"
+    if [ -d "$outdir/$chn" ]; then
+      for imgid in "${imgids[@]}"; do
+        [ ! -f "$outdir/$chn/$imgid$imgsuf" ] || let n++
+      done
+    fi
+  done
+  if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+    jobdsc="$jobdir/crop-images.condor"
+    if [ $update = true -o ! -f "$jobdsc" ]; then
+      run "$libdir/condor/gen-crop-images" "$dataset"
+    fi
+    submit "$jobdsc"
+  elif [ $n -ne $nexpected ]; then
+    echo "Seems not all image cropping jobs have finished successfully! Found $n out of $nexpected output files."
+    error "Check log files of batch jobs in '$regdir/log/crop-images' for errors, and re-run failed jobs manually."
+  else
+    echo "All image cropping jobs are done, found $n output files"
+  fi
+
 fi # extdof?
 
 # create ROI masks used to average voxel-wise quality measures
