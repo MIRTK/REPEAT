@@ -251,7 +251,14 @@ if [ "$extdof" != true -a "$extout" != true ]; then
   # transform images to affine reference space
   n=0
   nexpected=0
-  for mod in $(echo "${mods[@]} ${rois[@]}" | tr ' ' '\n' | sort -u); do
+  for chn in ${chns[@]}; do
+    chnbg=$(get_bgvalue "$chn")
+    if [ $(is_mask "$chn") = true ]; then
+      _mods=("${mods[@]}" "$chn")
+    fi
+  done
+  _mods=($(echo "${mods[@]}" | tr ' ' '\n' | sort -u))
+  for mod in "${_mods[@]}"; do
     outdir="$regdir/out/$mod"
     let nexpected="$nexpected + ${#imgids[@]}"
     if [ -d "$outdir" ]; then
@@ -292,7 +299,7 @@ if [ "$extdof" != true -a "$extout" != true ]; then
       done
     fi
   done
-  if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
+  if [ $n -eq 0 -a $nexpected -gt 0 ] || [ $update = true -a $n -lt $nexpected ]; then
     jobdsc="$jobdir/apply-image-masks.condor"
     if [ $update = true -o ! -f "$jobdsc" ]; then
       run "$libdir/condor/gen-apply-image-masks" "$dataset"
@@ -301,7 +308,7 @@ if [ "$extdof" != true -a "$extout" != true ]; then
   elif [ $n -ne $nexpected ]; then
     echo "Seems not all background padding jobs have finished successfully! Found $n out of $nexpected output files."
     error "Check log files of batch jobs in '$regdir/log/apply-image-masks' for errors, and re-run failed jobs manually."
-  else
+  elif [ $nexpected -gt 0 ]; then
     echo "All background padding jobs are done, found $n output files"
   fi
 

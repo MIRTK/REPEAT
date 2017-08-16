@@ -88,6 +88,7 @@ log       = $logdir/$imgid.log
 queue
 
 EOF_JOB
+      done
     else
       msk=$(get_bgvalue "$chn")
       if [ -n "$msk" ]; then

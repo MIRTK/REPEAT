@@ -135,7 +135,8 @@ is_ic()
 get_dofsuf()
 {
   local toolkit="$(get_toolkit "$1")"
-  if [ "$toolkit" = 'mirtk' -o \
+  if [ "$1" = 'affine' -o \
+       "$toolkit" = 'mirtk' -o \
        "$toolkit" = 'irtk' -o \
        "$toolkit" = 'niftyreg' -o \
        "$toolkit" = 'elastix' -o \
