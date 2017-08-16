@@ -1,107 +1,95 @@
 #!/bin/bash
 
-## Generate configuration files for MIRTK 'register' command
+## Generate parameters for MIRTK 'register' command
+## using symmetric energy formulation and SVFFD model
 regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
-# constants
-allsym=false
-model='SVFFD'
-mffd='None'
-sim='NMI'
-bins=64
-window=5
-tp=0
-vp=0
-logjac=0
-negjac=0
-ds=2.5
-levels=4
-maxsv=0
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps,$gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
 
-# write header and text file with long header names
-outdir="$(dirname "$BASH_SOURCE")"
+# initial/constant parameter values
+set_defaults()
+{
+  usemsk=true
+  usepad=true
+  roi='Union'
+  interp='Linear'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=true
+  ffdgrd='Analytic'
+  passdof=false
+  conjtot=true
+  levels=4
+  iters=100
+  steps=20
+  rejects=2
+  lastn=10
+  epsilon=0.0001
+  sim='NMI'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0.001
+  tp=0.0001
+  vp=0.001
+  jaceps=0.1
+  gamma=0.5
+  # SVFFD parameters
+  im='SS'
+  imsteps=32
+  maxsv=-1
+  nbch=2
+  uselie=false
+}
 
-cat > "$outdir/$regid.par" <<EOF_HEADER_TO_PARNAME
-cfgid,
-allsym,
-mffd,Multi-level transformation
-model,Transformation model
-ds,Control point spacing
-im,Integration method
-nbch,No. of BCH terms
-uselie,Use Lie derivative
-imsteps,No. of integration steps
-maxsv,Maximum scaled velocity
-levels,No. of resolution levels
-sim,Image dissimilarity measure
-bins,No. of bins
-window,Local window size
-be,Bending energy weight
-tp,Topology preservation weight
-vp,Volume preservation weight
-logjac,LogJac penalty weight
-negjac,NegJac penalty weight
-divini,Divide data terms by initial value
-EOF_HEADER_TO_PARNAME
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
 
-parcsv="$outdir/$regid.csv"
-echo "cfgid,allsym,mffd,model,ds,im,nbch,uselie,imsteps,maxsv,levels,sim,bins,window,be,tp,vp,logjac,negjac,divini" > "$parcsv"
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
 
-# write parameter values
-i=1
+# ------------------------------------------------------------------------------
+# previous result of exploration of penalty weights on OASIS dataset
 
-# initial SVFFD parameter exploration
-be=0.001
-divini='No'
-for im in 'RKE1' 'SS' 'FastSS'; do
-for nbch in 0 2 3 4 5; do
-  uselie_opts=('No' 'Yes')
-  [ $nbch -gt 2 ] || uselie_opts=('No')
-  for uselie in ${uselie_opts[@]}; do
-    imsteps_opts=(16 32 64)
-    [ $im != 'RKE1' ] || imsteps_opts=(16 32)
-    for imsteps in ${imsteps_opts[@]}; do
-      cfgid=$(printf %04d $i)
-      echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
-      let i++
-    done
-  done
-done; done
+be_vals=(0.0005 0.001 0.005)
+tp_vals=(0.0001 0.001 0.01)
+vp_vals=(0.0001 0.001 0.01)
 
-# initial SVFFD parameter exploration: increase BE weight
-uselie='No'
-divini='No'
-for be in 0.05 0.01 0.005; do
-for im in 'RKE1' 'SS' 'FastSS'; do
-  nbch_opts=(0 2 4)
-  [ $im != 'RKE1' ] || nbch_opts=(0)
-  for nbch in ${nbch_opts[@]}; do
+be_best=0.001
+tp_best=0.0001
+vp_best=0.001
+
+# ------------------------------------------------------------------------------
+# 1) compare different image dissimilarity gradient calculations
+set_defaults
+be=$be_best
+tp=$tp_best
+vp=$vp_best
+for im in 'FastSS' 'SS' 'RKE1'; do
+  if [ $im = 'RKE1' ]; then
+    ffdgrd_opts=('Analytic')
+    imsteps_opts=(8 16)
+    nbch_opts=(0)
+  else
+    ffdgrd_opts=('Analytic' 'Convolution' 'DMFFD')
     imsteps_opts=(8 16 32 64)
-    [ $im != 'RKE1' ] || imsteps_opts=(8 16 32)
-    for imsteps in ${imsteps_opts[@]}; do
-      cfgid=$(printf %04d $i)
-      echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
-      let i++
-    done
-  done
-done; done
-
-# initial SVFFD parameter exploration: divini=Yes
-if [ "off" = "true" ]; then
-  uselie='No'
-  divini='Yes'
-  for be in 0.05 0.01 0.005 0.001; do
-  for im in 'RKE1' 'SS' 'FastSS'; do
-    nbch_opts=(0 2 4)
-    [ $im != 'RKE1' ] || nbch_opts=(0)
+    nbch_opts=(0 2 3 4 5)
+  fi
+  for ffdgrd in ${ffdgrd_opts[@]}; do
     for nbch in ${nbch_opts[@]}; do
-      imsteps_opts=(8 16 32 64)
-      [ $im != 'RKE1' ] || imsteps_opts=(8 16 32)
       for imsteps in ${imsteps_opts[@]}; do
-        cfgid=$(printf %04d $i)
-        echo "$cfgid,$allsym,$mffd,$model,$ds,$im,$nbch,$uselie,$imsteps,$maxsv,$levels,$sim,$bins,$window,$be,$tp,$vp,$logjac,$negjac,$divini" >> "$parcsv"
-        let i++
+        append_row
       done
     done
-  done; done
-fi
+  done
+done
