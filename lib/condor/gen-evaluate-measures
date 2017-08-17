@@ -166,7 +166,7 @@ EOF_HEADER
         outimg="$outdir/$tgtid-$srcid.nii.gz"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-jacobian '$refdir/$refpre$tgtid$refsuf' '$outimg' '$dofdir/$tgtid-$srcid.dof.gz' $refpad -outside NaN -float -v -threads $threads"
+arguments = "evaluate-jacobian '$refdir/$refpre$tgtid$refsuf' '$outimg' '$dofdir/$tgtid-$srcid.dof.gz' $refpad -outside NaN -ss -float -v -threads $threads"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
