@@ -75,6 +75,7 @@ set_defaults
 be=$be_best
 tp=$tp_best
 vp=$vp_best
+maxsv=0
 for im in 'FastSS' 'SS' 'RKE1'; do
   if [ $im = 'RKE1' ]; then
     ffdgrd_opts=('Analytic')
