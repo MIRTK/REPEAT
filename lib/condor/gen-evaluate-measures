@@ -72,8 +72,14 @@ if [ $evlmte = true  ]; then
   fi
 fi
 
+# reference images
+if [ "$extdof" = true -o "$extout" = true ]; then
+  refdir="$imgdir"
+else
+  refdir="$vardir/$dataset/affine/out"
+fi
+
 # reference image used as evaluate-dof -target
-refdir="$imgdir"
 if [ -z "$refmod" ]; then
   for mod in "${mods[@]}"; do
     if [ $(is_seg "$mod") != true -a $(is_prob "$mod") != true ]; then
@@ -82,22 +88,14 @@ if [ -z "$refmod" ]; then
     fi
   done
 fi
-refpre="$(get_prefix "$refmod")"
-refsuf="$(get_suffix "$refmod")"
-[ -n "$refsuf" ] || refsuf=".nii.gz"
+refpre="$refmod/"
+refsuf=".nii.gz"
 
 # evaluate-dof '-padding <bgvalue>' or empty string
 refpad=''
 refbgv=$(get_bgvalue "$refmod")
 if [ -n "$refbgv" -a "$(is_mask "$refbgv")" != true ]; then
   refpad="-padding $refbgv"
-fi
-
-# reference image used for overlap evaluation
-if [ "$extdof" = true -o "$extout" = true ]; then
-  tgtdir="$imgdir"
-else
-  tgtdir="$vardir/$dataset/affine/out"
 fi
 
 # ------------------------------------------------------------------------------
@@ -325,7 +323,7 @@ EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
             outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
-            tgtimg="$tgtdir/$tgtpre$tgtid$tgtsuf"
+            tgtimg="$refdir/$refpre$tgtid$refsuf"
             srcimgs=()
             if [ $regid = 'affine' ]; then
               for srcid in "${srcids[@]}"; do
