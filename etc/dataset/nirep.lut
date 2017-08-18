@@ -1,0 +1,33 @@
+irtkSegmentTable: 32   
+1	255	255	0	1	1	L occipital lobe
+2	0	0	255	1	1	R occipital lobe
+3	255	255	255	1	1	L cingulate gyrus
+4	255	255	255	1	1	R cingulate gyrus
+5	255	255	255	1	1	L insula gyrus
+6	7	255	7	1	1	R insula gyrus
+7	255	255	7	1	1	L temporal pole
+8	7	7	255	1	1	R temporal pole
+9	255	7	255	1	1	L superior temporal gyrus
+10	7	255	255	1	1	R superior temporal gyrus
+11	248	248	248	1	1	L infero temporal region
+12	255	14	14	1	1	R infero temporal region
+13	14	255	14	1	1	L parahippocampal gyrus
+14	255	255	14	1	1	R parahippocampal gyrus
+15	255	14	255	1	1	L frontal pole
+16	14	255	255	1	1	R frontal pole
+17	241	241	241	1	1	L superior frontal gyrus
+18	255	21	21	1	1	R superior frontal gyrus
+19	21	255	21	1	1	L middle frontal gyrus
+20	255	255	21	1	1	R middle frontal gyrus
+21	21	21	255	1	1	L inferior gyrus
+22	255	21	255	1	1	R inferior gyrus
+23	21	255	255	1	1	L orbital frontal gyrus
+24	234	234	234	1	1	R orbital frontal gyrus
+25	255	28	28	1	1	L precentral gyrus
+26	28	255	28	1	1	R precentral gyrus
+27	255	255	28	1	1	L superior parietal lobule
+28	28	28	255	1	1	R superior parietal lobule
+29	255	28	255	1	1	L inferior parietal lobule
+30	28	255	255	1	1	R inferior parietal lobule
+31	255	42	42	1	1	L postcentral gyrus
+32	42	255	42	1	1	R postcentral gyrus
