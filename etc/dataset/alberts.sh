@@ -78,7 +78,7 @@ get_prefix()
   elif [ "$1" = 'cgm' ]; then
     echo "gm-posteriors-v3/ALBERT_"
   elif [ "$1" = 'msk' ]; then
-    echo "masks/"
+    echo "masks/ALBERT_"
   fi
 }
 
