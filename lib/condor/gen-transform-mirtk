@@ -45,7 +45,7 @@ for chn in ${chns[@]}; do
     mods=("${mods[@]}" "$chn")
   fi
 done
-mods=($(echo "${mods[@]}" | tr ' ' '\n' | sort -u))
+mods=($(echo "${mods[@]}" "${rois[@]}" | tr ' ' '\n' | sort -u))
 
 # affinely align images to reference
 if [ "$regid" = 'affine' ]; then

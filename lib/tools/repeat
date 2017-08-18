@@ -257,7 +257,7 @@ if [ "$extdof" != true -a "$extout" != true ]; then
       _mods=("${mods[@]}" "$chn")
     fi
   done
-  _mods=($(echo "${mods[@]}" | tr ' ' '\n' | sort -u))
+  _mods=($(echo "${mods[@]}" "${rois[@]}" | tr ' ' '\n' | sort -u))
   for mod in "${_mods[@]}"; do
     outdir="$regdir/out/$mod"
     let nexpected="$nexpected + ${#imgids[@]}"
@@ -418,23 +418,21 @@ else
   jobdir="$vardir/$dataset/affine/bin"
 fi
 for roi in "${rois[@]}"; do
-  if [ "$(is_mask "$roi")" != true -a "$(is_prob "$roi")" != true ]; then
-    nrois=0
-    if [ -d "$roidir" ]; then
-      for tgtid in "${tgtids[@]}"; do
-        let nrois="$nrois + $(find "$roidir/$roi" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
-      done
+  nrois=0
+  if [ -d "$roidir" ]; then
+    for tgtid in "${tgtids[@]}"; do
+      let nrois="$nrois + $(find "$roidir/$roi" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
+    done
+  fi
+  if [ $nrois -eq 0 ]; then
+    jobdsc="$jobdir/create-$roi-masks.condor"
+    if [ $update = true -a $gen_create_roi_masks_updated = false ] || [ ! -f "$jobdsc" ]; then
+      run "$libdir/condor/gen-create-roi-masks" "$dataset" "$regid"
+      gen_create_roi_masks_updated=true
     fi
-    if [ $nrois -eq 0 ]; then
-      jobdsc="$jobdir/create-$roi-masks.condor"
-      if [ $update = true -a $gen_create_roi_masks_updated = false ] || [ ! -f "$jobdsc" ]; then
-        run "$libdir/condor/gen-create-roi-masks" "$dataset" "$regid"
-        gen_create_roi_masks_updated=true
-      fi
-      submit "$jobdsc"
-    else
-      echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
-    fi
+    [ ! -f "$jobdsc" ] || submit "$jobdsc"
+  else
+    echo "Found $nrois $roi label mask files, assuming $roi mask creation jobs are done"
   fi
 done
 
