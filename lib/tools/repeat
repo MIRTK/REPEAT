@@ -331,6 +331,10 @@ if [ "$extdof" != true -a "$extout" != true ]; then
   elif [ $nexpected -gt 0 ]; then
     echo "All background padding jobs are done, found $n output files"
   fi
+  if [ $jobs_submitted = true ]; then
+    echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+    exit 0
+  fi
 
   # match histograms of images to histogram of reference image
   if [ "$nrmhst" = true ]; then
@@ -415,6 +419,10 @@ if [ "$extdof" != true -a "$extout" != true ]; then
   else
     echo "All image cropping jobs are done, found $n output files"
   fi
+  if [ $jobs_submitted = true ]; then
+    echo -e "\nWait for HTCondor jobs to finish, then re-run this script. Exiting for now."
+    exit 0
+  fi
 
 fi # extdof?
 
@@ -484,14 +492,17 @@ fi
 all_done=true
 for cfgid in "${cfgids[@]}"; do
 
-  jobdir="$regdir/bin"
-  jobs_submitted=false
+  regdir="$vardir/$dataset/$regid"
+  resdir="$csvdir/$dataset/$regid"
 
   if [ -n "$cfgid" ]; then
     echo -e "\nConfiguration $cfgid:"
     regdir="$regdir/$cfgid"
     resdir="$regdir/$cfgid"
   fi
+
+  jobdir="$regdir/bin"
+  jobs_submitted=false
 
   # ----------------------------------------------------------------------------
   # perform pairwise registrations
