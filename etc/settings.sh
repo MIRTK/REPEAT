@@ -44,7 +44,9 @@ dramms="$optdir/dramms"
 # registration method uses a symmetric energy function and thus the
 # output of a given source to target registration may just be inverted
 # to get the spatial mapping from the source to the target instead
-allsym=false
+#
+# set 'true' when inverse consistency error should be evaluated
+allsym=true
 
 # when 'true', evaluate mean inverse consistency error
 evlice=true
@@ -72,7 +74,7 @@ threads=8  # <0: use all available CPU cores
 # HTCondor job execution environment
 condor_getenv=true
 condor_environment=
-condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.ic.ac.uk\" && Machine!=\"quercus.doc.ic.ac.uk\" && Cpus==8"
+condor_requirements="Machine!=\"horatio.doc.ic.ac.uk\" && Machine!=\"plane.doc.ic.ac.uk\" && Machine!=\"quercus.doc.ic.ac.uk\" && Cpus==$threads"
 
 # ------------------------------------------------------------------------------
 # registration method/modality/channel specific settings
