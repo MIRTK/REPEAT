@@ -154,13 +154,19 @@ get_dofsuf()
        "$toolkit" = 'irtk' -o \
        "$toolkit" = 'niftyreg' -o \
        "$toolkit" = 'elastix' -o \
-       "$toolkit" = 'dramms' ]; then
+       "$toolkit" = 'dramms' -o \
+       "$toolkit" = 'demons' -o \
+       "$toolkit" = 'lccdemons' ]; then
     echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format using MIRTK convert-dof
   elif [ "$toolkit" = 'niftyreg' ]; then
     echo ".nii.gz"  # unused, but saved anyway
   elif [ "$toolkit" = 'elastix' ]; then
     echo ".txt"     # unused, but saved anyway
   elif [ "$toolkit" = 'dramms' ]; then
+    echo ".nii.gz"  # unused, but saved anyway
+  elif [ "$toolkit" = 'demons' ]; then
+    echo ".nii.gz"  # unused, but saved anyway
+  elif [ "$toolkit" = 'lccdemons' ]; then
     echo ".nii.gz"  # unused, but saved anyway
   elif [ "$toolkit" = 'ants' ]; then
     echo ".nii.gz"
