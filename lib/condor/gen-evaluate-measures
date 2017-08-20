@@ -323,7 +323,7 @@ EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
             outcsv="$outdir/$tgtid-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
-            tgtimg="$refdir/$refpre$tgtid$refsuf"
+            tgtimg="$refdir/$tgtpre$tgtid$tgtsuf"
             srcimgs=()
             if [ $regid = 'affine' ]; then
               for srcid in "${srcids[@]}"; do
