@@ -77,18 +77,9 @@ tp=$tp_best
 vp=$vp_best
 maxsv=0
 for im in 'FastSS' 'SS' 'RKE1'; do
-  if [ $im = 'RKE1' ]; then
-    ffdgrd_opts=('Analytic')
-    imsteps_opts=(8 16)
-    nbch_opts=(0)
-  else
-    ffdgrd_opts=('Analytic' 'Convolution' 'DMFFD')
-    imsteps_opts=(8 16 32 64)
-    nbch_opts=(0 2 3 4 5)
-  fi
-  for ffdgrd in ${ffdgrd_opts[@]}; do
-    for nbch in ${nbch_opts[@]}; do
-      for imsteps in ${imsteps_opts[@]}; do
+  for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+    for nbch in 0 2 3 5; do
+      for imsteps in 1 2 4 8 16 32; do
         append_row
       done
     done
