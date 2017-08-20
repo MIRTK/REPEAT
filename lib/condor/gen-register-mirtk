@@ -61,8 +61,7 @@ energy_indentation="                "
 
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
-imgdir="$vardir/$dataset/affine/out"
-paddir="$vardir/$dataset/affine/pad"
+imgdir="$vardir/$dataset/affine/crp"
 dofin='Id'
 imgsuf=".nii.gz"
 
@@ -151,12 +150,12 @@ for cfgid in "${cfgids[@]}"; do
     if [ -n "$bgvalue" ]; then
       if [ "$(is_mask "$bgvalue")" = true ]; then
         if [ "$usemsk" = true ]; then
-          mskdir="$vardir/$dataset/affine/out/$bgvalue"
+          mskdir="$vardir/$dataset/affine/crp/$bgvalue"
         fi
         bgvalue="$(get_padvalue "$bgvalue")"
-        [ -n "$bgvalue" ] || bgvalue=-1
+        [ -n "$bgvalue" ] || bgvalue=0
       elif [ "$usemsk" = true -a -z "$mskdir" ]; then
-        mskdir="$vardir/$dataset/affine/msk"
+        mskdir="$imgdir/$chn-msk"
         makedir "$mskdir"
         for tgtid in "${tgtids[@]}"; do
           mskimg="$mskdir/$tgtid$imgsuf"
@@ -165,7 +164,7 @@ for cfgid in "${cfgids[@]}"; do
         done
       fi
       bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
-      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"        
+      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
     fi
     n=$s
   done
@@ -208,11 +207,7 @@ EOF_HEADER
       for chn in "${chns[@]}"; do
         imgpre="$chn/"
         bgvalue="$(get_bgvalue "$chn")"
-        if [ -n "$bgvalue" -a "$(is_mask "$bgvalue")" = true ]; then
-          images=("${images[@]}" -image "'$paddir/$imgpre$tgtid$imgsuf'" "'$paddir/$imgpre$srcid$imgsuf'")      
-        else
-          images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
-        fi
+        images=("${images[@]}" -image "'$imgdir/$imgpre$tgtid$imgsuf'" "'$imgdir/$imgpre$srcid$imgsuf'")      
       done
       mask=
       if [ -n "$mskdir" ]; then
