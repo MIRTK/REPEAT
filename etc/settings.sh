@@ -40,6 +40,18 @@ elastix="$optdir/elastix"
 # recommended: create symbolic link "$optdir/dramms" with absolute path to actual installation
 dramms="$optdir/dramms"
 
+# path of "DemonsRegistration" executable, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/demons" with absolute path to built executable
+#
+# Download: http://www.insight-journal.org/browse/publication/154
+demons="$optdir/demons"
+
+# path of LCC LogDemons "rpiLCClogDemons" executable, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/lccdemons" with absolute path to built executable
+#
+# Download: https://github.com/Inria-Asclepios/LCC-LogDemons
+lccdemons="$optdir/lccdemons"
+
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
 # output of a given source to target registration may just be inverted

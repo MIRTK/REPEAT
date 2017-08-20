@@ -1,0 +1,77 @@
+#!/bin/bash
+
+## Auxiliary script to run LCC LogDemons and convert output to MIRTK .dof
+
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk executable path not set"
+[ -n "$lccdemons" ] || error "etc/settings.sh: lccdemons executable path not set"
+
+[ ${mirtk:0:1}  = / ] || mirtk="$topdir/$mirtk"
+[ ${lccdemons:0:1} = / ] || lccdemons="$topdir/$lccdemons"
+
+args=()
+dof=
+svf=
+def=
+out=
+version=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -ver|--version)
+      version="$2"
+      shift; ;;
+    -i|--output-image)
+      out="$2"
+      shift; ;;
+    -dof|--output-dof)
+      dof="$2"
+      shift; ;;
+    -t|--output-transform)
+      svf="$2"
+      shift; ;;
+    --output-displacement-field)
+      def="$2"
+      shift; ;;
+    *)
+      args=("${args[@]}" "$1")
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$svf" -a -z "$def" -a -z "$dof" -a -z "$out" ]; then
+  error "Missing output option"
+fi
+
+if [ -n "$version" ]; then
+  if [ -f "$lccdemons-$version" ]; then
+    lccdemons="$lccdemons-$version"
+  fi
+  if [ ! -x "$lccdemons" ]; then
+    error "Binary $lccdemons not found or no executable permissions set"
+  fi
+fi
+
+tmp="$(mktemp -d)"
+[ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
+[ -n "$svf" ] || svf="$tmp/svf.nii.gz"
+
+run()
+{
+  echo "> $@"
+  "$@" || {
+    [ -z "$tmp" -o "$tmp" = / ] || rm -rf "$tmp"
+    exit 1
+  }
+}
+
+[ -z "$out" ] || args=("${args[@]}" '--output-image' "$out")
+[ -z "$svf" ] || args=("${args[@]}" '--output-transform' "$svf")
+[ -z "$def" ] || args=("${args[@]}" '--output-displacement-field' "$def")
+
+echo "Host: $(hostname)"
+run cd "$tmp"  # binary writes metricvalues.csv to current working directory (-V)
+time run "$lccdemons" -V "${args[@]}"
+[ -z "$dof" ] || run "$mirtk" convert-dof "$svf" "$dof" -input-format itk_svf

@@ -1,0 +1,70 @@
+#!/bin/bash
+
+## Generate command-line arguments for LCC LogDemons
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$a,$g,$R,$r,$S,$b,$x,$l,$C,$u,$d'
+
+# initial/constant parameter values
+set_defaults()
+{
+  usemsk=true
+  a='30x99x10'  # iterations per level, coarse to fine
+  g=0           # type of gradient: 0) symmetrized, 1) fixed, 2) moving, 3) mapped moving
+  R=1           # type of regularization: 0) Gaussian convolution, 1) HE + BE
+  r=2           # similarity (update rule): 0) asymmetric SSD, 1) symmetric SSD, 2) symmetric LNCC
+  S=0.15        # trade-off between similarity and regularization: 0 (irreg) < S <= 1 (smooth)
+  b=1           # bending energy weight (divided by 1e-6)
+  x=0           # Harmonic energy weight (divided by 1e-3)
+  l=0           # maximum step length [mm]
+  C=3           # standard deviation of Gaussian smoothing of similarity [mm]
+  u=0           # standard deviation of Gaussian smoothing of update field [mm]
+  d=1.5         # standard deviation of Gaussian smoothing of velocity field [mm]
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# Symmetric LCC metric
+
+# 1a) explore different amounts of regularization using Gaussian convolution
+set_defaults
+
+R=0
+for S in 0.05 0.15 0.25; do
+  for d in 0 0.5 1 1.5 2; do
+    for u in 0 0.5 1 1.5 2; do
+      append_row
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+set_defaults
+d=1.5 # TODO
+u=0   # TODO
+
+# 1b) explore different amounts of regularization using BE + HE
+R=1
+for S in 0.05 0.15 0.25; do
+  for b in 0 0.25 0.5 0.75 1; do
+    for x in 0 0.25 0.5 0.75 1; do
+      append_row
+    done
+  done
+done
