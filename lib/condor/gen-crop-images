@@ -52,6 +52,7 @@ done
 # paths
 regid='affine'
 regdir="$vardir/$dataset/$regid"
+imgdir="$regdir/nrm"
 outdir="$regdir/crp"
 jobdir="$regdir/bin"
 logdir="$regdir/log/crop-images"
@@ -73,37 +74,25 @@ initialdir = $topdir
 
 EOF_HEADER
 
-  for chn in "${chns_and_msks[@]}"; do
-    makedir "$outdir/$chn"
+  msks_done=()
+  for chn in "${chns[@]}"; do
+    msk=''
     if [ $(is_mask "$chn") = true -o $(is_seg "$chn") = true -o $(is_prob "$chn") = true ]; then
-      imgdir="$regdir/out/$chn"
+      pad=0
+    else
+      pad=$(get_bgvalue "$chn")
+      if [ -n "$pad" -a $(is_mask "$pad") = true ]; then
+        msk=$pad
+        pad=$(get_padvalue "$pad")
+        [ -n "$pad" ] || pad=0
+      fi
+    fi
+    if [ -n "$pad" ]; then
+      makedir "$outdir/$chn"
       for imgid in "${imgids[@]}"; do
         outimg="$outdir/$chn/$imgid$imgsuf"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "extract-image-region '$imgdir/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
-error     = $logdir/$imgid.err
-output    = $logdir/$imgid.out
-log       = $logdir/$imgid.log
-queue
-
-EOF_JOB
-      done
-    else
-      msk=$(get_bgvalue "$chn")
-      if [ -n "$msk" ]; then
-        if [ $(is_mask "$msk") = true ]; then
-          imgdir="$regdir/pad/$chn"
-          pad=$(get_padvalue "$chn")
-          [ -n "$pad" ] || pad=-1
-        else
-          imgdir="$regdir/out/$chn"
-          pad="$msk"
-        fi
-        for imgid in "${imgids[@]}"; do
-          outimg="$outdir/$chn/$imgid$imgsuf"
-          [ $force = true ] || [ ! -f "$outimg" ] || continue
-          cat >> "$jobdsc" <<EOF_JOB
 arguments = "extract-image-region '$imgdir/$imgid$imgsuf' '$outimg' -crop '$pad' -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
@@ -111,15 +100,40 @@ log       = $logdir/$imgid.log
 queue
 
 EOF_JOB
-        done
-      else
-        imgdir="$regdir/out/$chn"
-        for imgid in "${imgids[@]}"; do
-          if [ ! -L "$outdir/$chn/$imgid$imgsuf" ]; then
-            run ln -s "$imgdir/$imgid$imgsuf" "$outdir/$chn/$imgid$imgsuf"
+      done
+      if [ -n "$msk" ]; then
+        skip=false
+        for m in "${msks_done[@]}"; do
+          if [ "$m" = "$msk" ]; then
+            skip=true
+            break
           fi
         done
+        if [ $skip = false ]; then
+          makedir "$outdir/$msk"
+          for imgid in "${imgids[@]}"; do
+            outimg="$outdir/$msk/$imgid$imgsuf"
+            [ $force = true ] || [ ! -f "$outimg" ] || continue
+            cat >> "$jobdsc" <<EOF_JOB
+arguments = "extract-image-region '$imgdir/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
+error     = $logdir/$imgid.err
+output    = $logdir/$imgid.out
+log       = $logdir/$imgid.log
+queue
+
+EOF_JOB
+          done
+          msks_done=("${msks_done[@]}" "$msk")
+        fi
       fi
+    else
+      makedir "$outdir/$chn"
+      reldir="$(relpath "$imgdir/$chn" "$outdir/$chn")"
+      for imgid in "${imgids[@]}"; do
+        if [ ! -f "$outdir/$chn/$imgid$imgsuf" ]; then
+          run ln -s "$reldir/$imgid$imgsuf" "$outdir/$chn/$imgid$imgsuf"
+        fi
+      done
     fi
   done
 else

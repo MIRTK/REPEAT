@@ -66,22 +66,31 @@ EOF_HEADER
 
   for chn in "${chns[@]}"; do
     msk=$(get_bgvalue "$chn")
-    pad=$(get_padvalue "$chn")
-    [ -n "$pad" ] || pad=-1
-    [ -n "$msk" -a $(is_mask "$msk") = true ] || continue
-    makedir "$outdir/$chn"
-    for imgid in "${imgids[@]}"; do
-      outimg="$outdir/$chn/$imgid$imgsuf"
-      [ $force = true ] || [ ! -f "$outimg" ] || continue
-      cat >> "$jobdsc" <<EOF_JOB
-arguments = "calculate-element-wise '$imgdir/$chn/$imgid$imgsuf' -mask '$imgdir/$msk/$imgid$imgsuf' -pad $pad -out '$outimg' -threads $threads"
+    if [ -n "$msk" -a $(is_mask "$msk") = true ]; then
+      makedir "$outdir/$chn"
+      pad=$(get_padvalue "$chn")
+      [ -n "$pad" ] || pad=0
+      for imgid in "${imgids[@]}"; do
+        outimg="$outdir/$chn/$imgid$imgsuf"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "calculate-element-wise '$imgdir/$chn/$imgid$imgsuf' -mask '$imgdir/$msk/$imgid$imgsuf' -pad '$pad' -out '$outimg' -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
 queue
 
 EOF_JOB
-    done
+      done
+    else
+      makedir "$outdir/$chn"
+      reldir="$(relpath "$imgdir/$chn" "$outdir/$chn")"
+      for imgid in "${imgids[@]}"; do
+        if [ ! -f "$outdir/$chn/$imgid$imgsuf" ]; then
+          run ln -s "$reldir/$imgid$imgsuf" "$outdir/$chn/$imgid$imgsuf"
+        fi
+      done
+    fi
   done
 else
   echo "Exists: $jobdsc"
