@@ -138,7 +138,7 @@ extdof="$(use_existing_dofs "$dataset" "$regid")"
 extout="$(use_existing_imgs "$dataset" "$regid")"
 
 # generate parameters CSV or check existence of it or preset .cfg file
-if [ "$extdof" != true -a "$extout" != true ]; then
+if [ "$regid" != 'affine' -a "$extdof" != true -a "$extout" != true ]; then
   regcfg_found=false
   for cfgpre in "$dataset/" ''; do
     if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
@@ -169,9 +169,13 @@ if [ "$extdof" != true -a "$extout" != true ]; then
 fi
 
 # IDs of parameter sets
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-issym="$(is_sym $regid)"
+if [ "$regid" = 'affine' ]; then
+  cfgids=('')
+else
+  [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  issym="$(is_sym $regid)"
+fi
 
 # registration tool specific settings
 dofsuf=$(get_dofsuf "$regid")
@@ -180,6 +184,12 @@ imgsuf=".nii.gz"
 
 # ------------------------------------------------------------------------------
 # disable evaluation measures that cannot be computed
+if [ "$regid" = 'affine' ]; then
+  evltime=false
+  evljac=false
+  evlice=false
+  evlmte=false
+fi
 if [ $evltime = true ]; then
   if [ "$extdof" = true -o "$extout" = true ]; then
     echo "Info: Skipping evaluation of runtime because transformations/deformed images were pre-computed."
@@ -444,24 +454,29 @@ fi
 
 # ----------------------------------------------------------------------------
 # expected no. of transformed images, pairwise registrations
-N=0
-for tgtid in "${tgtids[@]}"; do
-for srcid in "${srcids[@]}"; do
-  if [ "$tgtid" != "$srcid" ]; then
-    let N++
-  fi
-done; done
-
-npairs=0
-if [ "$issym" = true ] && [ $allsym != true ]; then
+if [ "$regid" = 'affine' ]; then
+  N=${#imgids[@]}
+  npairs=$N
+else
+  N=0
   for tgtid in "${tgtids[@]}"; do
   for srcid in "${srcids[@]}"; do
-    if [[ "$tgtid" < "$srcid" ]]; then
-      let npairs++
+    if [ "$tgtid" != "$srcid" ]; then
+      let N++
     fi
   done; done
-else
-  npairs=$N
+  
+  npairs=0
+  if [ "$issym" = true ] && [ $allsym != true ]; then
+    for tgtid in "${tgtids[@]}"; do
+    for srcid in "${srcids[@]}"; do
+      if [[ "$tgtid" < "$srcid" ]]; then
+        let npairs++
+      fi
+    done; done
+  else
+    npairs=$N
+  fi
 fi
 
 # ------------------------------------------------------------------------------
@@ -469,91 +484,96 @@ fi
 all_done=true
 for cfgid in "${cfgids[@]}"; do
 
-  echo -e "\nConfiguration $cfgid:"
-
+  jobdir="$regdir/bin"
   jobs_submitted=false
 
-  regdir="$vardir/$dataset/$regid/$cfgid"
-  resdir="$csvdir/$dataset/$regid/$cfgid"
-  jobdir="$regdir/bin"
+  if [ -n "$cfgid" ]; then
+    echo -e "\nConfiguration $cfgid:"
+    regdir="$regdir/$cfgid"
+    resdir="$regdir/$cfgid"
+  fi
 
   # ----------------------------------------------------------------------------
   # perform pairwise registrations
-  ndofs=0
-  outdir="$regdir/dof"
-  if [ -d "$outdir" ]; then
-    for tgtid in "${tgtids[@]}"; do
-    for srcid in "${srcids[@]}"; do
-      [ $tgtid = $srcid ] || [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
-    done; done
-  fi
-  if [ "$extdof" = true ]; then
-    if [ $ndofs -ne $npairs ]; then
-      error "Expected $npairs existing transformations matching '$outdir/*-*$dofsuf', but found only $ndofs!"
+  if [ "$regid" != 'affine' ]; then
+    ndofs=0
+    outdir="$regdir/dof"
+    if [ -d "$outdir" ]; then
+      for tgtid in "${tgtids[@]}"; do
+      for srcid in "${srcids[@]}"; do
+        [ $tgtid = $srcid ] || [ ! -f "$outdir/$tgtid-$srcid$dofsuf" ] || let ndofs++
+      done; done
     fi
-  elif [ "$extout" != true ]; then
-    if [ $ndofs -eq 0 ] || [ $update = true -a $ndofs -lt $npairs ]; then
-      if [ "$extdof" = true ]; then
-        error "Expected $npairs existing transformations matching patter: $outdir/*-*$dofsuf, but found only $ndofs!"
-      else
-        jobdsc="$jobdir/register.condor"
-        if [ $update = true -o ! -f "$jobdsc" ]; then
-          run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
-        fi
-        _nosubmit="$nosubmit"
-        [ "$noregister" != true ] || nosubmit=true
-        submit "$jobdsc"
-        nosubmit=${_nosubmit}
+    if [ "$extdof" = true ]; then
+      if [ $ndofs -ne $npairs ]; then
+        error "Expected $npairs existing transformations matching '$outdir/*-*$dofsuf', but found only $ndofs!"
       fi
-    elif [ $ndofs -ne $npairs ]; then
-      echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
-      error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
-    else
-      echo "All registration jobs are done, found $ndofs output files"
-    fi
-    if [ $jobs_submitted = true ]; then
-      all_done=false
-      continue
+    elif [ "$extout" != true ]; then
+      if [ $ndofs -eq 0 ] || [ $update = true -a $ndofs -lt $npairs ]; then
+        if [ "$extdof" = true ]; then
+          error "Expected $npairs existing transformations matching patter: $outdir/*-*$dofsuf, but found only $ndofs!"
+        else
+          jobdsc="$jobdir/register.condor"
+          if [ $update = true -o ! -f "$jobdsc" ]; then
+            run "$libdir/condor/gen-register-${regid/-*}" "$dataset" "$regid" "$cfgid"
+          fi
+          _nosubmit="$nosubmit"
+          [ "$noregister" != true ] || nosubmit=true
+          submit "$jobdsc"
+          nosubmit=${_nosubmit}
+        fi
+      elif [ $ndofs -ne $npairs ]; then
+        echo "Seems not all registration jobs have finished successfully! Found $ndofs out of $npairs output files."
+        error "Check log files of registration jobs in '$regdir/log/register' for errors, and re-run failed jobs manually."
+      else
+        echo "All registration jobs are done, found $ndofs output files"
+      fi
+      if [ $jobs_submitted = true ]; then
+        all_done=false
+        continue
+      fi
     fi
   fi
 
   # ----------------------------------------------------------------------------
   # deform source images to target images
-  if [ "$extout" != true ]; then
-    gen_transform_updated=false
-    for mod in "${mods[@]}"; do
-      n=0
-      outdir="$regdir/out/$mod"
-      if [ -d "$outdir" ]; then
-        for tgtid in "${tgtids[@]}"; do
-        for srcid in "${srcids[@]}"; do
-          [ $tgtid = $srcid ] || [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
-        done; done
-      fi
-      if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
-        jobdsc="$jobdir/transform-$mod.condor"
-        if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
-          toolkit="$(get_toolkit "$regid")"
-          if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
-            toolkit='mirtk'
-          fi
-          run "$libdir/condor/gen-transform-$toolkit" "$dataset" "$regid" "$cfgid"
-          gen_transform_updated=true
+  if [ "$regid" != 'affine' ]; then
+    if [ "$extout" != true ]; then
+      gen_transform_updated=false
+      for mod in "${mods[@]}"; do
+        n=0
+        outdir="$regdir/out/$mod"
+        if [ -d "$outdir" ]; then
+          for tgtid in "${tgtids[@]}"; do
+          for srcid in "${srcids[@]}"; do
+            [ $tgtid = $srcid ] || [ ! -f "$outdir/$srcid-$tgtid$imgsuf" ] || let n++
+          done; done
         fi
-        submit "$jobdsc"
-      elif [ $n -ne $N ]; then
-        error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
-        error "Check log files of image deformation jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
-      else
-        echo "All $mod image deformation jobs are done, found $n output files"
+        if [ $n -eq 0 ] || [ $update = true -a $n -lt $N ]; then
+          jobdsc="$jobdir/transform-$mod.condor"
+          if [ $update = true -a $gen_transform_updated = false ] || [ ! -f "$jobdsc" ]; then
+            toolkit="$(get_toolkit "$regid")"
+            if [ "$dofsuf" = '.dof' -o "$dofsuf" = '.dof.gz' ]; then
+              toolkit='mirtk'
+            fi
+            run "$libdir/condor/gen-transform-$toolkit" "$dataset" "$regid" "$cfgid"
+            gen_transform_updated=true
+          fi
+          submit "$jobdsc"
+        elif [ $n -ne $N ]; then
+          error "Seems not all $mod image deformation jobs have finished successfully! Found only $n out of $N output files."
+          error "Check log files of image deformation jobs in '$regdir/log/transform-$mod' for errors, and re-run failed jobs manually."
+        else
+          echo "All $mod image deformation jobs are done, found $n output files"
+        fi
+      done
+      if [ $jobs_submitted = true ]; then
+        all_done=false
+        continue
       fi
-    done
-    if [ $jobs_submitted = true ]; then
-      all_done=false
-      continue
+    else
+      echo "Info: Using provided already deformed images for evaluation"
     fi
-  else
-    echo "Info: Using provided already deformed images for evaluation"
   fi
 
   # ----------------------------------------------------------------------------
