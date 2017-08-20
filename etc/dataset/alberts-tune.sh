@@ -53,7 +53,7 @@ tgtids=("${imgids[@]:0:5}")
 
 # list of image IDs used as source/moving images
 # when this list is undefined or empty, use all imgids
-srcids=("${imgids[@]}")
+srcids=("${tgtids[@]}")
 
 # parameters of preprocessing steps
 # - default N4 parameters equivalent to Draw-EM pipeline v1.1
