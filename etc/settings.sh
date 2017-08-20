@@ -46,11 +46,11 @@ dramms="$optdir/dramms"
 # Download: http://www.insight-journal.org/browse/publication/154
 demons="$optdir/demons"
 
-# path of LCC LogDemons "rpiLCClogDemons" executable, either absolute or relative to topdir
-# recommended: create symbolic link "$optdir/lccdemons" with absolute path to built executable
+# path of LogDemons "rpiLCClogDemons" executable, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/logdemons" with absolute path to built executable
 #
 # Download: https://github.com/Inria-Asclepios/LCC-LogDemons
-lccdemons="$optdir/lccdemons"
+logdemons="$optdir/logdemons"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the
@@ -156,7 +156,7 @@ get_dofsuf()
        "$toolkit" = 'elastix' -o \
        "$toolkit" = 'dramms' -o \
        "$toolkit" = 'demons' -o \
-       "$toolkit" = 'lccdemons' ]; then
+       "$toolkit" = 'logdemons' ]; then
     echo ".dof.gz"  # non-[M]IRTK output files converted to .dof.gz format using MIRTK convert-dof
   elif [ "$toolkit" = 'niftyreg' ]; then
     echo ".nii.gz"  # unused, but saved anyway
@@ -166,7 +166,7 @@ get_dofsuf()
     echo ".nii.gz"  # unused, but saved anyway
   elif [ "$toolkit" = 'demons' ]; then
     echo ".nii.gz"  # unused, but saved anyway
-  elif [ "$toolkit" = 'lccdemons' ]; then
+  elif [ "$toolkit" = 'logdemons' ]; then
     echo ".nii.gz"  # unused, but saved anyway
   elif [ "$toolkit" = 'ants' ]; then
     echo ".nii.gz"

@@ -27,7 +27,7 @@ regid="$1"; shift
 [ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
-[ -n "$lccdemons" ] || error "etc/settings.sh: lccdemons not set"
+[ -n "$logdemons" ] || error "etc/settings.sh: logdemons not set"
 
 # change to top-level directory
 run cd "$topdir"
@@ -53,7 +53,7 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # affinely pre-aligned images
-imgdir="$vardir/$dataset/affine/out"
+imgdir="$vardir/$dataset/affine/crp"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
@@ -61,7 +61,7 @@ imgsuf=".nii.gz"
 bgvalue="$(get_bgvalue "$chn")"
 if [ -n "$bgvalue" ]; then
   if [ "$(is_mask "$bgvalue")" = true ]; then
-    mskdir="$vardir/$dataset/affine/out/$bgvalue"
+    mskdir="$vardir/$dataset/affine/crp/$bgvalue"
     bgvalue="$(get_padvalue "$chn")"
     [ -n "$bgvalue" ] || bgvalue=0
   else
@@ -156,7 +156,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe     = vanilla
-executable   = $topdir/$libdir/tools/run-lccdemons
+executable   = $topdir/$libdir/tools/run-logdemons
 requirements = $condor_requirements
 environment  = "$condor_environment"
 getenv       = $condor_getenv
@@ -173,7 +173,7 @@ EOF_HEADER
       [ $force = true ] || [ ! -f "$dofout" ] || continue
       mask=''
       if [ $usemsk = true -a -n "$mskdir" ]; then
-        mask=('--mask-image-fixed' "'$mskdir/$tgtid$imgsuf'" '--mask-image-moving' "'$mskdir/$srcid$imgsuf'")
+        mask="--mask-image-fixed '$mskdir/$tgtid$imgsuf' --mask-image-moving '$mskdir/$srcid$imgsuf'"
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
 arguments = "--fixed-image '$imgdir/$imgpre$tgtid$imgsuf' --moving-image '$imgdir/$imgpre$srcid$imgsuf' $mask --output-transform '$svfout' --output-dof '$dofout' --output-image '$imgout' ${argv[@]}"
