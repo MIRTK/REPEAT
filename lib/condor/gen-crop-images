@@ -32,23 +32,6 @@ run cd "$topdir"
 [ ${#chns[@]}   -gt 0 ] || error "$setdir/$dataset.sh: chns not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
-chns_and_msks=("${chns[@]}")
-for chn in "${chns[@]}"; do
-  msk=$(get_bgvalue "$chn")
-  if [ $(is_mask "$msk") = true ]; then
-    append=true
-    for c in "${chns_and_msks}"; do
-      if [ "$c" = "$msk" ]; then
-        append=false
-        break
-      fi
-    done
-    if [ $append = true ]; then
-      chns_and_msks=("${chns_and_msks[@]}" "$msk")
-    fi
-  fi
-done
-
 # paths
 regid='affine'
 regdir="$vardir/$dataset/$regid"
@@ -93,7 +76,7 @@ EOF_HEADER
         outimg="$outdir/$chn/$imgid$imgsuf"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "extract-image-region '$imgdir/$imgid$imgsuf' '$outimg' -crop '$pad' -threads $threads"
+arguments = "extract-image-region '$imgdir/$chn/$imgid$imgsuf' '$outimg' -crop '$pad' -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
@@ -115,7 +98,7 @@ EOF_JOB
             outimg="$outdir/$msk/$imgid$imgsuf"
             [ $force = true ] || [ ! -f "$outimg" ] || continue
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "extract-image-region '$imgdir/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
+arguments = "extract-image-region '$imgdir/$msk/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
@@ -130,8 +113,9 @@ EOF_JOB
       makedir "$outdir/$chn"
       reldir="$(relpath "$imgdir/$chn" "$outdir/$chn")"
       for imgid in "${imgids[@]}"; do
-        if [ ! -f "$outdir/$chn/$imgid$imgsuf" ]; then
-          run ln -s "$reldir/$imgid$imgsuf" "$outdir/$chn/$imgid$imgsuf"
+        outimg="$outdir/$chn/$imgid$imgsuf"
+        if [ ! -f "$outimg" ]; then
+          run ln -s "$reldir/$imgid$imgsuf" "$outimg"
         fi
       done
     fi

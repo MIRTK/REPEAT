@@ -27,6 +27,7 @@ run cd "$topdir"
 
 # evaluation dataset
 . "$setdir/$dataset.sh" || exit 1
+[ -n "$refid" ] || error "$setdir/$dataset.sh: refid not set"
 [ ${#chns[@]}   -gt 0 ] || error "$setdir/$dataset.sh: chns not set"
 [ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
 
@@ -66,16 +67,22 @@ EOF_HEADER
       for imgid in "${imgids[@]}"; do
         outimg="$outdir/$chn/$imgid$imgsuf"
         [ $force = true ] || [ ! -f "$outimg" ] || continue
-        opts=()
-        [ -z "$pad" ] || opts=('-Tp' "$pad" '-Sp' "$pad")
-        cat >> "$jobdsc" <<EOF_JOB
-arguments = "match-histograms '$imgdir/$chn/$imgid$imgsuf' '$outimg' ${opts[@]} -threads $threads"
+        if [ "$imgid" = "$refid" ]; then
+          if [ ! -L "$outimg" ]; then
+            run ln -s "$(relpath "$imgdir/$chn/$refid$imgsuf" "$outdir/$chn")" "$outimg"
+          fi
+        else
+          opts=()
+          [ -z "$pad" ] || opts=('-Tp' "$pad" '-Sp' "$pad")
+          cat >> "$jobdsc" <<EOF_JOB
+arguments = "match-histogram '$imgdir/$chn/$refid$imgsuf' '$imgdir/$chn/$imgid$imgsuf' '$outimg' ${opts[@]}"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
 queue
 
 EOF_JOB
+        fi
       done
     fi
   done
