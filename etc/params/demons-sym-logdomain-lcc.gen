@@ -101,10 +101,17 @@ set_new_defaults()
 # [1] Ou et al., "Comparative evaluation of registration algorithms in different brain databases
 #     with varying difficulty: Results and insights", IEEE TMI 33(10), 2039–2065, 2014.
 set_new_defaults
-a='30x20x10'
 
+a='30x20x10'
 for R in 0 1; do
   append_row
+done
+
+for R in 0 1; do
+  for steps in 20 30 40 50; do
+    a="30x99x$steps"
+    append_row
+  done
 done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
@@ -117,6 +124,7 @@ best_a='30x20x10' # TODO
 # ------------------------------------------------------------------------------
 # 3) try disabling boundary checking
 set_new_defaults
+a=$best_a
 B=false
 
 for R in 0 1; do
@@ -147,6 +155,7 @@ done
 exit 0
 
 best_C=3 # TODO
+best_R=0 # TODO
 
 
 # ------------------------------------------------------------------------------
@@ -154,6 +163,7 @@ best_C=3 # TODO
 set_new_defaults()
 {
   set_defaults
+  R=$best_R
   B=$best_B
   S=$best_S
   C=$best_C
@@ -161,7 +171,7 @@ set_new_defaults()
   u=$best_u
   b=$best_b
   x=$best_x
-  a='30x20x10'
+  a=$best_a
 }
 
 
