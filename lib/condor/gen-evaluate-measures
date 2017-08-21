@@ -399,7 +399,6 @@ EOF_JOB
             for tgtid in "${tgtids[@]}"; do
               outimg="$outdir/$tgtid.nii.gz"
               [ $force = true ] || [ ! -f "$outimg" ] || continue
-              echo "outimg=$outimg, jobdsc=$jobdsc"
               images=("'$refdir/$tgtpre$tgtid$tgtsuf'")
               for srcid in "${srcids[@]}"; do
                 [ $tgtid = $srcid ] || images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
