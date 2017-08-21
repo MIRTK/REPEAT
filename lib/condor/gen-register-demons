@@ -141,11 +141,35 @@ for cfgid in "${cfgids[@]}"; do
       usemsk)
         usemsk=$arg
         ;;
-      be)
-        argv=("${argv[@]}" '-b' "$arg")
+      b|be)
+        if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+          argv=("${argv[@]}" '-b' "$arg")
+        else
+          error "Option -$opt not supported by $regcmd"
+        fi
         ;;
-      he)
-        argv=("${argv[@]}" '-x' "$arg")
+      x|he)
+        if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+          argv=("${argv[@]}" '-x' "$arg")
+        else
+          error "Option -$opt not supported by $regcmd"
+        fi
+        ;;
+      B)
+        if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+          if [ "$arg" = false -o "$arg" = '0' ]; then
+            argv=("${argv[@]}" '-B')
+          fi
+        else
+          error "Option -B not supported by $regcmd"
+        fi
+        ;;
+      i)
+        if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+          argv=("${argv[@]}" "-a" "$arg")
+        else
+          argv=("${argv[@]}" "-i" "$arg")
+        fi
         ;;
       *)
         argv=("${argv[@]}" "-$opt" "$arg")
