@@ -40,17 +40,22 @@ elastix="$optdir/elastix"
 # recommended: create symbolic link "$optdir/dramms" with absolute path to actual installation
 dramms="$optdir/dramms"
 
-# path of "DemonsRegistration" executable, either absolute or relative to topdir
-# recommended: create symbolic link "$optdir/demons" with absolute path to built executable
+# path of directory containing Demons executables, either absolute or relative to topdir
+# recommended: create symbolic link "$optdir/demons/<command>" with absolute path to actual binaries
 #
-# Download: http://www.insight-journal.org/browse/publication/154
+#
+# Download:
+# - DemonsRegistration and LogDomainDemonsRegistration:
+#   http://www.insight-journal.org/browse/publication/154
+# - LCCLogDomainDemonsRegistration (rpiLCClogDemons):
+#   https://github.com/Inria-Asclepios/LCC-LogDemons
+#
+# Copy (or link) built binary files in the specified $demons directory:
+# - "$demons/DemonsRegistration": Diffeomorphic, additive, and composite update; output displacement field
+# - "$demons/LogDomainDemonsRegistration": Diffeomorphic; output stationary velocity field
+# - "$demons/LCCLogDomainDemonsRegistration": Use LCC and different reguliarizations
+#   - Original binary file is called "rpiLCClogDemons"
 demons="$optdir/demons"
-
-# path of LogDemons "rpiLCClogDemons" executable, either absolute or relative to topdir
-# recommended: create symbolic link "$optdir/logdemons" with absolute path to built executable
-#
-# Download: https://github.com/Inria-Asclepios/LCC-LogDemons
-logdemons="$optdir/logdemons"
 
 # when 'true', always compute all pairwise transformations even when
 # registration method uses a symmetric energy function and thus the

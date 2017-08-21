@@ -1,0 +1,158 @@
+#!/bin/bash
+
+## Auxiliary script to run LCC LogDemons and convert output to MIRTK .dof
+
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$mirtk"  ] || error "etc/settings.sh: mirtk executable path not set"
+[ -n "$demons" ] || error "etc/settings.sh: demons directory path not set"
+
+[ ${mirtk:0:1}  = / ] || mirtk="$topdir/$mirtk"
+[ ${demons:0:1} = / ] || demons="$topdir/$demons"
+
+regcmd="$1"
+shift
+
+if [ "$regcmd" != 'LCCLogDomainDemonsRegistration' -a "$regcmd" != 'LogDomainDemonsRegistration' -a "$regcmd" != 'DemonsRegistration' ]; then
+  error "First argument must be one of: [DemonsRegistration, LogDomainDemonsRegistration, LCCLogDomainDemonsRegistration]"
+fi
+
+args=()
+tgt=
+tgtmsk=
+src=
+srcmsk=
+svf=
+def=
+dof=
+out=
+version=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -ver|--version)
+      version="$2"
+      shift; ;;
+    -f|--fixed-image)
+      tgt="$2"
+      shift; ;;
+    -F|--mask-image-fixed)
+      tgtmsk="$2"
+      shift; ;;
+    -m|--moving-image)
+      src="$2"
+      shift; ;;
+    -M|--mask-image-moving)
+      srcmsk="$2"
+      shift; ;;
+    --output-image)
+      out="$2"
+      shift; ;;
+    -dof|--output-dof)
+      dof="$2"
+      shift; ;;
+    --output-svf|--output-vel|--outputVel-field)
+      svf="$2"
+      shift; ;;
+    --output-def|--outputDef-field|--output-displacement-field)
+      def="$2"
+      shift; ;;
+    --output-transform|--output-field)
+      if [ "$regid" = 'DemonsRegistration' ]; then
+        def="$2"
+      else
+        svf="$2"
+      fi
+    *)
+      args=("${args[@]}" "$1")
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$tgt" -o -z "$src" ]; then
+  error "Missing input option"
+fi
+if [ -z "$svf" -a -z "$def" -a -z "$dof" -a -z "$out" ]; then
+  error "Missing output option"
+fi
+if [ "$regcmd" != 'LCCLogDomainDemonsRegistration' ] && [ -n "$tgtmsk" -o -n "$srcmsk" ]; then
+  error "Mask images not supported by DemonsRegistration and LogDomainDemonsRegistration"
+fi
+if [ "$regcmd" = 'DemonsRegistration' ] && [ -n "$svf" ]; then
+  error "DemonsRegistration cannot write output stationary velocity field"
+fi
+
+if [ -n "$version" ]; then
+  if [ -d "$demons-$version" ]; then
+    demons="$demons-$version"
+  fi
+  if [ ! -x "$demons/$regcmd" ]; then
+    error "Binary '$demons/$regcmd' not found or no executable permissions set"
+  fi
+fi
+
+echo "Host: $(hostname)"
+tmp="$(mktemp -d)"
+[ $? -eq 0 -a -n "$tmp" ] || error "Failed to create temporary directory"
+
+run()
+{
+  echo "> $@"
+  "$@" || {
+    [ -z "$tmp" -o "$tmp" = / ] || rm -rf "$tmp"
+    exit 1
+  }
+}
+
+# need to ensure that source is sampled on same grid than target image
+run "$mirtk" transform-image "$src" "$tmp/src.nii.gz" -target "$tgt"
+src="$tmp/src.nii.gz"
+if [ -n "$srcmsk" ]; then
+  run "$mirtk" transform-image "$srcmsk" "$tmp/srcmsk.nii.gz" -target "$src"
+  srcmsk="$tmp/srcmsk.nii.gz"
+fi
+
+[ ${tgt:0:1}  = / ] || tgt="$PWD/$tgt"
+[ ${src:0:1}  = / ] || src="$PWD/$src"
+[ -z "$tgtmsk" -o "${tgtmsk:0:1}"  = / ] || tgtmsk="$PWD/$tgtmsk"
+[ -z "$srcmsk" -o "${srcmsk:0:1}"  = / ] || srcmsk="$PWD/$srcmsk"
+[ -z "$out" -o "${out:0:1}" = / ] || out="$PWD/$out"
+[ -z "$svf" -o "${svf:0:1}" = / ] || svf="$PWD/$svf"
+[ -z "$def" -o "${def:0:1}" = / ] || def="$PWD/$def"
+[ -z "$dof" -o "${dof:0:1}" = / ] || dof="$PWD/$dof"
+run cd "$tmp"  # binary writes metricvalues.csv to current working directory (-V)
+
+if [ -n "$dof" ]; then
+  if [ "$regcmd" = 'DemonsRegistration' ]; then
+    [ -n "$def" ] || def="$tmp/def.nii.gz"
+  else
+    [ -n "$svf" ] || svf="$tmp/svf.nii.gz"    
+  fi
+fi
+
+if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+  [ -z "$tgtmsk" ] || args=("${args[@]}" '--mask-image-fixed' "$tgtmsk")
+  [ -z "$srcmsk" ] || args=("${args[@]}" '--mask-image-moving' "$srcmsk")
+fi
+[ -z "$out" ] || args=("${args[@]}" '--output-image' "$out")
+if [ "$regcmd" = 'LCCLogDomainDemonsRegistration' ]; then
+  [ -z "$def" ] || args=("${args[@]}" '--output-displacement-field' "$def")
+  [ -z "$svf" ] || args=("${args[@]}" '--output-transform' "$svf")
+  args=("${args[@]}" '-V')
+elif [ "$regcmd" = 'LogDomainDemonsRegistration' ]; then
+  [ -z "$def" ] || args=("${args[@]}" '--outputDef-field' "$def")
+  [ -z "$svf" ] || args=("${args[@]}" '--outputVel-field' "$svf")
+else
+  [ -z "$def" ] || args=("${args[@]}" '--output-field' "$def")
+fi
+
+time run "$demons/$regcmd" -f "$tgt" -m "$src" "${args[@]}"
+
+if [ -n "$dof" ]; then
+  if [ -n "$svf" ]; then
+    run "$mirtk" convert-dof "$svf" "$dof" -input-format itk_svf
+  else
+    run "$mirtk" convert-dof "$def" "$dof" -input-format itk_disp
+  fi
+fi

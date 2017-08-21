@@ -53,13 +53,16 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
-set_defaults
-d=1.5 # TODO
-u=0   # TODO
+best_d=0.5
+best_u=0
 
 # 1b) explore different amounts of regularization using BE + HE
+set_defaults
+d=$best_d
+u=$best_u
+
 R=1
 for S in 0.05 0.15 0.25; do
   for b in 0 0.25 0.5 0.75 1; do

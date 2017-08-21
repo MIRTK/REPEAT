@@ -27,7 +27,7 @@ regid="$1"; shift
 [ -n "$cfgdir" ] || error "etc/settings.sh: cfgdir not set"
 [ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk not set"
-[ -n "$logdemons" ] || error "etc/settings.sh: logdemons not set"
+[ -n "$demons" ] || error "etc/settings.sh: demons not set"
 
 # change to top-level directory
 run cd "$topdir"
@@ -43,6 +43,18 @@ run cd "$topdir"
 issym="$(is_sym $regid)"
 version="${regid/*-}"
 [ $(is_version "$version") = true ] || version=''
+
+if [ $regid = 'demons-sym-logdomain-lcc' ]; then
+  regcmd='LCCLogDomainDemonsRegistration'
+elif [ $regid = 'demons-sym-logdomain' -o $regid = 'demons-asym-logdomain' ]; then
+  regcmd='LogDomainDemonsRegistration'
+elif [ $regid = 'demons-sym-diffeo'   -o $regid = 'demons-asym-diffeo' -o \
+       $regid = 'demons-sym-additive' -o $regid = 'demons-asym-additive' -o \
+       $regid = 'demons-sym-thirion'  -o $regid = 'demons-asym-thirion' ]; then
+  regcmd='DemonsRegistration'
+else
+  error "Unknown Demons variant: $regid"
+fi
 
 # images that drive the registration
 chn="${chns[0]}"
@@ -156,7 +168,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe     = vanilla
-executable   = $topdir/$libdir/tools/run-logdemons
+executable   = $topdir/$libdir/tools/run-demons
 requirements = $condor_requirements
 environment  = "$condor_environment"
 getenv       = $condor_getenv
@@ -176,7 +188,7 @@ EOF_HEADER
         mask="--mask-image-fixed '$mskdir/$tgtid$imgsuf' --mask-image-moving '$mskdir/$srcid$imgsuf'"
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
-arguments = "--fixed-image '$imgdir/$imgpre$tgtid$imgsuf' --moving-image '$imgdir/$imgpre$srcid$imgsuf' $mask --output-transform '$svfout' --output-dof '$dofout' --output-image '$imgout' ${argv[@]}"
+arguments = "'$regcmd' --fixed-image '$imgdir/$imgpre$tgtid$imgsuf' --moving-image '$imgdir/$imgpre$srcid$imgsuf' $mask --output-field '$svfout' --output-dof '$dofout' --output-image '$imgout' ${argv[@]}"
 error     = $logdir/$tgtid-$srcid.err
 output    = $logdir/$tgtid-$srcid.out
 log       = $logdir/$tgtid-$srcid.log
