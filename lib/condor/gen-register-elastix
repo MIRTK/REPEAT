@@ -45,7 +45,7 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # affinely pre-aligned images
-imgdir="$vardir/$dataset/affine/out"
+imgdir="$vardir/$dataset/affine/crp"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
@@ -58,7 +58,7 @@ if [ -n "$bgvalue" ]; then
     mskdir="$vardir/$dataset/affine/crp/$bgvalue"
     bgmask=true
   else
-    mskdir="$vardir/$dataset/affine/msk"
+    mskdir="$vardir/$dataset/affine/$chn-msk"
     makedir "$mskdir"
     for imgid in "${imgids[@]}"; do
       mskimg="$mskdir/$imgid$imgsuf"
@@ -72,7 +72,7 @@ fi
 
 # padding value for <bg> in config template
 padvalue="$(get_padvalue "$chn")"
-[ -n "$padvalue" ] || padvalue=-1
+[ -n "$padvalue" ] || padvalue=0
 
 # dataset and registration specific parameters
 if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
