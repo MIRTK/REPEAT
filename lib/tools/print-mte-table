@@ -1,0 +1,48 @@
+#!/bin/bash
+
+## Print table with statistics of mean transitivity error (MTE)
+
+print_help()
+{
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> <cfgid> <tgtid>" 1>&2
+  exit 1
+}
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+cfgid="$1"; shift
+tgtid="$1"; shift
+[ -n "$dataset" -a -n "$regid" -a -n "$cfgid" -a -n "$tgtid" ] || print_help
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+
+# change to top-level directory
+cd "$topdir" || exit 1
+
+# evaluation dataset
+. "$setdir/$dataset.sh" || exit 1
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
+[ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+# print table of MTE statistics
+mtedir="$vardir/$dataset/$regid/$cfgid/evl/dof/mte"
+echo "srcid,mean,sdev,median,pct5,pct95,pct5_mean,pct95_mean,min,max,nzero,n"
+for srcid in "${srcids[@]}"; do
+  [ $srcid != $tgtid ] || continue
+  mteimg="$mtedir/$tgtid-$srcid.nii.gz"
+  if [ -f "$mteimg" ]; then
+    echo "$srcid,$("$mirtk" calculate-element-wise "$mteimg" \
+                        -mean -sigma -median -pct 5 -pct 95 -lpctavg 5 -upctavg 95 -min -max \
+                        -threshold-gt 0.1 -set 1 -sum -reset-mask -mask NaN -set 1 -sum \
+                        -delim , -digits 9 -threads $threads)"
+    [ $? -eq 0 ] || error "Failed: calculate-element-wise '$mteimg' [...]"
+  else
+    error "Missing: $mteimg"
+  fi
+done

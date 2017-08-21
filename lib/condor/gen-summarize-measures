@@ -171,6 +171,66 @@ EOF_JOB
     fi
   fi
 
+  # calculate statistics of MICE
+  if [ "$evlice" = true ]; then
+    jobdsc="$jobdir/summarize-dof-mice.condor"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+
+      logdir="$regdir/log/summarize-dof-mice"
+      makedir "$logdir"
+
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
+universe    = vanilla
+executable  = $topdir/$libdir/tools/print-mice-table
+initialdir  = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        outcsv="$outdir/$tgtid-mice.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
+error     = $logdir/$tgtid.err
+output    = $outcsv
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+    fi
+  fi
+
+  # calculate statistics of MTE
+  if [ "$evlmte" = true ]; then
+    jobdsc="$jobdir/summarize-dof-mte.condor"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+
+      logdir="$regdir/log/summarize-dof-mte"
+      makedir "$logdir"
+
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
+universe    = vanilla
+executable  = $topdir/$libdir/tools/print-mte-table
+initialdir  = $topdir
+
+EOF_HEADER
+      for tgtid in "${tgtids[@]}"; do
+        outcsv="$outdir/$tgtid-mte.csv"
+        [ $force = true ] || [ ! -f "$outcsv" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
+error     = $logdir/$tgtid.err
+output    = $outcsv
+log       = $logdir/$tgtid.log
+queue
+
+EOF_JOB
+      done
+    fi
+  fi
+
   # average voxel-wise measures
   jobdsc="$jobdir/average-measures.condor"
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then

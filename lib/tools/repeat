@@ -732,6 +732,7 @@ for cfgid in "${cfgids[@]}"; do
 
   # ----------------------------------------------------------------------------
   # evaluate statistics of Jacobian determinant values
+  gen_summarize_measures_updated=false
   if [ "$evljac" = true ]; then
     n=0
     for tgtid in "${tgtids[@]}"; do
@@ -739,8 +740,9 @@ for cfgid in "${cfgids[@]}"; do
     done
     if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
       jobdsc="$jobdir/summarize-dof-logjac.condor"
-      if [ $update = true -o ! -f "$jobdsc" ]; then
+      if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
+        gen_summarize_measures_updated=true
       fi
       submit "$jobdsc"
     elif [ $n -ne ${#tgtids[@]} ]; then
@@ -753,6 +755,52 @@ for cfgid in "${cfgids[@]}"; do
   fi
 
   # ----------------------------------------------------------------------------
+  # evaluate statistics of mean inverse consistency error
+  if [ "$evlice" = true ]; then
+    n=0
+    for tgtid in "${tgtids[@]}"; do
+      [ ! -f "$resdir/$tgtid-mice.csv" ] || let n++
+    done
+    if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
+      jobdsc="$jobdir/summarize-dof-mice.condor"
+      if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
+        run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
+        gen_summarize_measures_updated=true
+      fi
+      submit "$jobdsc"
+    elif [ $n -ne ${#tgtids[@]} ]; then
+      logdir="$regdir/log/summarize-dof-mice"
+      echo "Seems not all MICE evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
+      error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
+    else
+      echo "All MICE evaluation jobs are done, found $n CSV files"
+    fi
+  fi
+
+  # ----------------------------------------------------------------------------
+  # evaluate statistics of mean transitivity error
+  if [ "$evlmte" = true ]; then
+    n=0
+    for tgtid in "${tgtids[@]}"; do
+      [ ! -f "$resdir/$tgtid-mte.csv" ] || let n++
+    done
+    if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
+      jobdsc="$jobdir/summarize-dof-mte.condor"
+      if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
+        run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
+        gen_summarize_measures_updated=true
+      fi
+      submit "$jobdsc"
+    elif [ $n -ne ${#tgtids[@]} ]; then
+      logdir="$regdir/log/summarize-dof-mte"
+      echo "Seems not all MTE evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
+      error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
+    else
+      echo "All MTE evaluation jobs are done, found $n CSV files"
+    fi
+  fi
+
+  # ----------------------------------------------------------------------------
   # average/summarize quality measures
   n=0
   for tgtid in "${tgtids[@]}"; do
@@ -760,8 +808,9 @@ for cfgid in "${cfgids[@]}"; do
   done
   if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
     jobdsc="$jobdir/average-measures.condor"
-    if [ $update = true -o ! -f "$jobdsc" ]; then
+    if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
       run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
+      gen_summarize_measures_updated=true
     fi
     submit "$jobdsc"
   elif [ $n -ne ${#tgtids[@]} ]; then
