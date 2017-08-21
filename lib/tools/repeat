@@ -498,7 +498,7 @@ for cfgid in "${cfgids[@]}"; do
   if [ -n "$cfgid" ]; then
     echo -e "\nConfiguration $cfgid:"
     regdir="$regdir/$cfgid"
-    resdir="$regdir/$cfgid"
+    resdir="$resdir/$cfgid"
   fi
 
   jobdir="$regdir/bin"
