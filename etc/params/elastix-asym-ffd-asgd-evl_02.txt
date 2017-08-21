@@ -25,8 +25,8 @@
 (MovingImageDimension 3)
 (DefaultPixelValue <bg>)
 
-(ErodeFixedMask "true")
-(ErodeMovingMask "true")
+(ErodeFixedMask "false")
+(ErodeMovingMask "false")
 
 (NumberOfResolutions 4)
 (ImagePyramidSchedule 8 8 8  4 4 4  2 2 2  1 1 1)
