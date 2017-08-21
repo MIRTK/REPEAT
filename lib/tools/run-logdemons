@@ -5,10 +5,10 @@
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
 [ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
 [ -n "$mirtk"  ] || error "etc/settings.sh: mirtk executable path not set"
-[ -n "$lccdemons" ] || error "etc/settings.sh: lccdemons executable path not set"
+[ -n "$logdemons" ] || error "etc/settings.sh: logdemons executable path not set"
 
 [ ${mirtk:0:1}  = / ] || mirtk="$topdir/$mirtk"
-[ ${lccdemons:0:1} = / ] || lccdemons="$topdir/$lccdemons"
+[ ${logdemons:0:1} = / ] || logdemons="$topdir/$logdemons"
 
 args=()
 tgt=
@@ -65,11 +65,11 @@ if [ -z "$svf" -a -z "$def" -a -z "$dof" -a -z "$out" ]; then
 fi
 
 if [ -n "$version" ]; then
-  if [ -f "$lccdemons-$version" ]; then
-    lccdemons="$lccdemons-$version"
+  if [ -f "$logdemons-$version" ]; then
+    logdemons="$logdemons-$version"
   fi
-  if [ ! -x "$lccdemons" ]; then
-    error "Binary $lccdemons not found or no executable permissions set"
+  if [ ! -x "$logdemons" ]; then
+    error "Binary $logdemons not found or no executable permissions set"
   fi
 fi
 
@@ -111,5 +111,5 @@ run cd "$tmp"  # binary writes metricvalues.csv to current working directory (-V
 [ -z "$svf" ] || args=("${args[@]}" '--output-transform' "$svf")
 [ -z "$def" ] || args=("${args[@]}" '--output-displacement-field' "$def")
 
-time run "$lccdemons" -V -f "$tgt" -m "$src" "${args[@]}"
+time run "$logdemons" -V -f "$tgt" -m "$src" "${args[@]}"
 [ -z "$dof" ] || run "$mirtk" convert-dof "$svf" "$dof" -input-format itk_svf
