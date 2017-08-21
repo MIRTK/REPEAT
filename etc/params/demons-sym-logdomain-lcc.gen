@@ -54,15 +54,15 @@ done
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 #exit 0
 
-best_d=0.5
+best_d=1
 best_u=0
 
 
 # ------------------------------------------------------------------------------
 # 1b) explore different amounts of regularization using BE + HE
 set_defaults
-d=$best_d
-u=$best_u
+d=0.5
+u=0
 
 R=1
 for S in 0.05 0.15 0.25; do
