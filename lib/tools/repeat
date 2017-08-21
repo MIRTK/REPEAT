@@ -758,22 +758,20 @@ for cfgid in "${cfgids[@]}"; do
   # evaluate statistics of mean inverse consistency error
   if [ "$evlice" = true ]; then
     n=0
-    for tgtid in "${tgtids[@]}"; do
-      [ ! -f "$resdir/$tgtid-mice.csv" ] || let n++
-    done
-    if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
+    [ ! -f "$resdir/mice.csv" ] || let n++
+    if [ $n -eq 0 ] || [ $update = true -a $n -ne 1 ]; then
       jobdsc="$jobdir/summarize-dof-mice.condor"
       if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
         gen_summarize_measures_updated=true
       fi
       submit "$jobdsc"
-    elif [ $n -ne ${#tgtids[@]} ]; then
+    elif [ $n -ne 1 ]; then
       logdir="$regdir/log/summarize-dof-mice"
-      echo "Seems not all MICE evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
-      error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
+      echo "Seems not all MICE evaluation jobs have finished successfully! Could not find CSV file."
+      error "Check '$regdir/log/summarize-dof-mice.err' for errors, and re-run failed jobs manually."
     else
-      echo "All MICE evaluation jobs are done, found $n CSV files"
+      echo "All MICE evaluation jobs are done, found $n CSV file"
     fi
   fi
 
@@ -781,22 +779,20 @@ for cfgid in "${cfgids[@]}"; do
   # evaluate statistics of mean transitivity error
   if [ "$evlmte" = true ]; then
     n=0
-    for tgtid in "${tgtids[@]}"; do
-      [ ! -f "$resdir/$tgtid-mte.csv" ] || let n++
-    done
-    if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
+    [ ! -f "$resdir/mte.csv" ] || let n++
+    if [ $n -eq 0 ] || [ $update = true -a $n -ne 1 ]; then
       jobdsc="$jobdir/summarize-dof-mte.condor"
       if [ $update = true -a $gen_summarize_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-summarize-measures" "$dataset" "$regid" "$cfgid"
         gen_summarize_measures_updated=true
       fi
       submit "$jobdsc"
-    elif [ $n -ne ${#tgtids[@]} ]; then
+    elif [ $n -ne 1 ]; then
       logdir="$regdir/log/summarize-dof-mte"
-      echo "Seems not all MTE evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} CSV files."
-      error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
+      echo "Seems not all MTE evaluation jobs have finished successfully! Could not find CSV file."
+      error "Check '$regdir/log/summarize-dof-mte.err' for errors, and re-run failed jobs manually."
     else
-      echo "All MTE evaluation jobs are done, found $n CSV files"
+      echo "All MTE evaluation jobs are done, found $n CSV file"
     fi
   fi
 

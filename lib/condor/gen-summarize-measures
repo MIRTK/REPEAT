@@ -176,7 +176,7 @@ EOF_JOB
     jobdsc="$jobdir/summarize-dof-mice.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-      logdir="$regdir/log/summarize-dof-mice"
+      logdir="$regdir/log"
       makedir "$logdir"
 
       echo "Update: $jobdsc"
@@ -186,18 +186,16 @@ executable  = $topdir/$libdir/tools/print-mice-table
 initialdir  = $topdir
 
 EOF_HEADER
-      for tgtid in "${tgtids[@]}"; do
-        outcsv="$outdir/$tgtid-mice.csv"
-        [ $force = true ] || [ ! -f "$outcsv" ] || continue
-        cat >> "$jobdsc" <<EOF_JOB
-arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
-error     = $logdir/$tgtid.err
+      outcsv="$outdir/mice.csv"
+      [ $force = true ] || [ ! -f "$outcsv" ] || continue
+      cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid'"
+error     = $logdir/summarize-dof-mice.err
 output    = $outcsv
-log       = $logdir/$tgtid.log
+log       = $logdir/summarize-dof-mice.log
 queue
 
 EOF_JOB
-      done
     fi
   fi
 
@@ -206,7 +204,7 @@ EOF_JOB
     jobdsc="$jobdir/summarize-dof-mte.condor"
     if [ $update = true ] || [ ! -f "$jobdsc" ]; then
 
-      logdir="$regdir/log/summarize-dof-mte"
+      logdir="$regdir/log"
       makedir "$logdir"
 
       echo "Update: $jobdsc"
@@ -216,18 +214,16 @@ executable  = $topdir/$libdir/tools/print-mte-table
 initialdir  = $topdir
 
 EOF_HEADER
-      for tgtid in "${tgtids[@]}"; do
-        outcsv="$outdir/$tgtid-mte.csv"
-        [ $force = true ] || [ ! -f "$outcsv" ] || continue
-        cat >> "$jobdsc" <<EOF_JOB
-arguments = "'$dataset' '$regid' '$cfgid' '$tgtid'"
-error     = $logdir/$tgtid.err
+      outcsv="$outdir/mte.csv"
+      [ $force = true ] || [ ! -f "$outcsv" ] || continue
+      cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$dataset' '$regid' '$cfgid'"
+error     = $logdir/summarize-dof-mte.err
 output    = $outcsv
-log       = $logdir/$tgtid.log
+log       = $logdir/summarize-dof-mte.log
 queue
 
 EOF_JOB
-      done
     fi
   fi
 
