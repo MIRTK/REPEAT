@@ -1,0 +1,87 @@
+#!/bin/bash
+
+## Generate command-line arguments for elastix using ASGD
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$interp,$pyramid,$sim,$bins,$iters,$step,$adaptive,$auto,$alpha,$A,$a,$ds,$be'
+
+# initial/constant parameter values
+set_defaults()
+{
+  # initial/constant parameter values
+  usemsk=true                        # whether to use foreground masks
+  interp='Linear'                    # Linear, BSpline
+  pyramid='Recursive'                # Recursive, Smoothing, Shrinking
+  sim='NormalizedMutualInformation'  # NormalizedMutualInformation, AdvancedMattesMutualInformation
+  bins=64                            # 16, 32, 64
+
+  # optimization paramaters
+  iters=500
+  step='4.0 2.0 1.0 0.5'
+  adaptive=true
+  auto=false
+  alpha=1.0
+  A=20
+  a=1000
+
+  # transformation model parameters
+  ds=5  # elastix requires too much memory for lower spacing
+  be=1
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# 1) explore bending energy weight using automatic parameter selection
+set_defaults
+auto=true
+for ds in 5.0 2.5; do
+  for be in 0 0.001 0.01 0.1 1 2; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+set_defaults
+ds_vals=(2.5)
+be_vals=(0 0.01 0.1)
+A_vals=(20 30 50)
+a_vals=(1000 5000 10000 50000 100000 300000)
+
+# 2) try fewer number of iterations
+for iters in 100 200 300 400; do
+  append_row
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+set_defaults
+iters=500  # TODO
+
+# 3) manual exploration of parameters with more informed ds and be values
+auto=false
+for ds in ${ds_vals[@]}; do
+  for be in ${be_vals[@]}; do
+    for A in ${A_vals[@]}; do
+      for a in ${a_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
