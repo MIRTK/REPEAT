@@ -54,7 +54,11 @@ echo "srcid,real,user,sys"
 for srcid in "${srcids[@]}"; do
   log="$logdir/$tgtid-$srcid.err"
   [ -f "$log" ] || continue
-  vals=($(tail -n3 "$log" | reformat_runtime 'real' | reformat_runtime 'user' | reformat_runtime 'sys'))
+  if [ $(tail -n1 "$log") = 'DONE' ]; then
+    vals=($(tail -n5 "$log" | head -n3 | reformat_runtime 'real' | reformat_runtime 'user' | reformat_runtime 'sys'))
+  else
+    vals=($(tail -n3 "$log" | reformat_runtime 'real' | reformat_runtime 'user' | reformat_runtime 'sys'))
+  fi
   [ $? -eq 0 -a ${#vals[@]} -eq 6 ] || continue
   echo -n "$srcid,"
   print_runtime ${vals[0]} ${vals[1]}
