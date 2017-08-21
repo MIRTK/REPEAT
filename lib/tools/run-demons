@@ -63,6 +63,7 @@ while [ $# -gt 0 ]; do
       else
         svf="$2"
       fi
+      shift; ;;
     *)
       args=("${args[@]}" "$1")
       ;;
