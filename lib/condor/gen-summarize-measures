@@ -187,8 +187,8 @@ initialdir  = $topdir
 
 EOF_HEADER
       outcsv="$outdir/mice.csv"
-      [ $force = true ] || [ ! -f "$outcsv" ] || continue
-      cat >> "$jobdsc" <<EOF_JOB
+      if [ $force = true ] || [ ! -f "$outcsv" ]; then
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "'$dataset' '$regid' '$cfgid'"
 error     = $logdir/summarize-dof-mice.err
 output    = $outcsv
@@ -196,6 +196,7 @@ log       = $logdir/summarize-dof-mice.log
 queue
 
 EOF_JOB
+      fi
     fi
   fi
 
@@ -215,8 +216,8 @@ initialdir  = $topdir
 
 EOF_HEADER
       outcsv="$outdir/mte.csv"
-      [ $force = true ] || [ ! -f "$outcsv" ] || continue
-      cat >> "$jobdsc" <<EOF_JOB
+      if [ $force = true ] || [ ! -f "$outcsv" ]; then
+        cat >> "$jobdsc" <<EOF_JOB
 arguments = "'$dataset' '$regid' '$cfgid'"
 error     = $logdir/summarize-dof-mte.err
 output    = $outcsv
@@ -224,6 +225,7 @@ log       = $logdir/summarize-dof-mte.log
 queue
 
 EOF_JOB
+      fi
     fi
   fi
 
