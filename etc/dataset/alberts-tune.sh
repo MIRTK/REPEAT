@@ -30,7 +30,7 @@ done
 chns=('t2w')
 
 # list of image modalities/channels/contrasts used for evaluation
-mods=('t2w' 'seg')
+mods=('t2w' 'msk' 'seg' 'cgm')
 
 # list of ROI masks used to average voxel-wise measures
 #

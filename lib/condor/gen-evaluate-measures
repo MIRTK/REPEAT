@@ -284,8 +284,10 @@ EOF_JOB
       tgtsuf=".nii.gz"
     fi
 
-    if [ $(is_seg "$mod") = true ]; then
-      kind="-labels"
+    if [ $(is_mask "$mod") = true ]; then
+      kind="-label 0"
+    elif [ $(is_seg "$mod") = true ]; then
+      kind="-label 0 -labels"
     elif [ $(is_prob "$mod") = true ]; then
       kind="-probs"
     else
@@ -307,7 +309,7 @@ EOF_JOB
         if [ $(is_overlap_measure $measure) = true ]; then
 
           if [ -z "$kind" ]; then
-            error "Cannot evaluate $measure of $mod image! Modify is_seg()/is_prob() if needed."
+            error "Cannot evaluate $measure of $mod image! Modify is_mask, is_seg, or is_prob in $setdir/$dataset.sh"
           fi
 
           outdir="$csvdir/$dataset/$regid"
@@ -321,7 +323,7 @@ initialdir = $topdir
 
 EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
-            outcsv="$outdir/$tgtid-$measure.csv"
+            outcsv="$outdir/$tgtid-$mod-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
             tgtimg="$refdir/$tgtpre$tgtid$tgtsuf"
             srcimgs=()

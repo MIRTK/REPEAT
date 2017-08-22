@@ -181,10 +181,12 @@ get_dofsuf()
 get_measures()
 {
   local mod="$1"
-  if [ "$mod" = 't1w' -o "$mod" = 't2w' ]; then
-    echo "sdev entropy"
-  elif [ "$mod" = 'seg' ]; then
+  if [ "$(is_seg "$mod")" = true ]; then
     echo "dsc entropy"
+  elif [ "$(is_prob "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+    echo "dsc"
+  else
+    echo "sdev entropy"
   fi
 }
 
