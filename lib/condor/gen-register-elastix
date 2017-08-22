@@ -121,10 +121,13 @@ for cfgid in "${cfgids[@]}"; do
     else
       usemsk=false
     fi
+    srcmsk=false
     parcfg="${config}"
     while [ $c -lt ${#paropt[@]} ]; do
       if [ "${paropt[c]}" = 'usemsk' ]; then
         usemsk=${parval[c]}
+      elif [ "${paropt[c]}" = 'srcmsk' ]; then
+        srcmsk=${parval[c]}
       elif [ -n "${paropt[c]}" ]; then
         parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
       fi
@@ -160,7 +163,12 @@ EOF_HEADER
       [ $allsym = true ] || [ $issym != true ] || [[ $tgtid < $srcid ]] || continue
       args=()
       if [ "$usemsk" = true ]; then
-        args=("${args[@]}" -fMask "'$mskdir/$tgtid$imgsuf'" -mMask "'$mskdir/$srcid$imgsuf'")
+        args=("${args[@]}" -fMask "'$mskdir/$tgtid$imgsuf'")
+        # Stefan Klein suggests not to use a source image mask:
+        # http://lists.bigr.nl/pipermail/elastix/2014-February/001370.html
+        if [ "$srcmsk" = true ]; then
+          args=("${args[@]}" -mMask "'$mskdir/$srcid$imgsuf'")
+        fi
       fi
       cat >> "$jobdsc" <<EOF_QUEUE
 arguments = "-f '$imgdir/$imgpre$tgtid$imgsuf' -m '$imgdir/$imgpre$srcid$imgsuf' -p '$regcfg' -o '$dofout' ${args[@]}"

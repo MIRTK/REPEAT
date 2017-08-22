@@ -122,21 +122,6 @@ get_cfgids()
   fi
 }
 
-# get background value of intensity image
-get_bgvalue()
-{
-  if [ "$1" = 't1w' ] || [ "$1" = 't2w' ]; then
-    echo 0
-  fi
-}
-
-# get padded value in foreground extracted intensity image
-# used when get_bgvalue returns an image mask instead of a value
-get_padvalue()
-{
-  echo -1
-}
-
 # whether (background) value is a number
 is_number()
 {
@@ -180,7 +165,11 @@ is_seg()
 # whether type of image is a probabilistic segmentation
 is_prob()
 {
-  echo false
+  if [ "$1" = 'cgm' -o "$1" = 'dgm' -o "$1" = 'gm' -o "$1" = 'wm' -o "$1" = 'csf' ]; then
+    echo true
+  else
+    echo false
+  fi
 }
 
 # whether a given evaluation measure is a segmentation overlap measure
@@ -194,4 +183,19 @@ is_overlap_measure()
   else
     echo false
   fi
+}
+
+# get background value of intensity image
+get_bgvalue()
+{
+  if [ "$(is_mask "$1")" != true -a "$(is_seg "$1")" != true -a "$(is_prob "$1")" != true ]; then
+    echo 0
+  fi
+}
+
+# get padded value in foreground extracted intensity image
+# used when get_bgvalue returns an image mask instead of a value
+get_padvalue()
+{
+  echo 0
 }

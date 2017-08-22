@@ -25,6 +25,8 @@
 (MovingImageDimension 3)
 (DefaultPixelValue <bg>)
 
+// Eroding brain masks, especially moving mask, may lead to "too many samples outside" error
+// See also http://lists.bigr.nl/pipermail/elastix/2014-February/001370.html
 (ErodeFixedMask "false")
 (ErodeMovingMask "false")
 

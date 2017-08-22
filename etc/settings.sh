@@ -180,10 +180,9 @@ get_dofsuf()
 # get evaluation measures for given modality/channel/contrast
 get_measures()
 {
-  local mod="$1"
-  if [ "$(is_seg "$mod")" = true ]; then
+  if [ "$(is_seg "$1")" = true ]; then
     echo "dsc entropy"
-  elif [ "$(is_prob "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+  elif [ "$(is_prob "$1")" = true -o "$(is_mask "$1")" = true ]; then
     echo "dsc"
   else
     echo "sdev entropy"
