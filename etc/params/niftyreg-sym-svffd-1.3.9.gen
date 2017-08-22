@@ -74,21 +74,27 @@ done
 jl_vals=(0 0.001 0.1)
 
 # 1c) add squared divergence of SVF penalty weight
-set_defaults
-for be in ${be_vals[@]}; do
-  for jl in ${jl_vals[@]}; do
-    for le2 in 0.001 0.005 0.01 0.05 0.1; do
-      le="0 $le2"
-      append_row
+#
+# SKIP: This step is skipped because reg_f3d version 1.3.9 crashes with an error when
+#       using this penalty term with the -vel option:
+#       Error in `opt/niftyreg-1.3.9/bin/reg_f3d': double free or corruption
+if [ 0 -eq 1 ]; then
+  set_defaults
+  for be in ${be_vals[@]}; do
+    for jl in ${jl_vals[@]}; do
+      for le2 in 0.001 0.005 0.01 0.05 0.1; do
+        le="0 $le2"
+        append_row
+      done
     done
   done
-done
 
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+  # Comment following line when previous tests are done, and the results have been analyzed.
+  # Adjust parameters for following tests to more narrow ranges found to perform well.
+  exit 0
+fi
 
-le2_vals=() # TODO
+le2_vals=(0)
 
 # ------------------------------------------------------------------------------
 # 2. exploration of max. number of iterations, no. of levels
