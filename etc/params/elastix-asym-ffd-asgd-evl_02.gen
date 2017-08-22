@@ -61,13 +61,13 @@ done
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 #exit 0
 
-ds_vals=(2.5 5.0) # 5 mm gave consistently better results
-be_vals=(0 0.1) # FFDs were diffeomorphic with ds=5 and be=1 for alberts-tune dataset
+ds_vals=(2.5)
+be_vals=(0 0.01 0.1)
 
-# for alberts-tune dataset, these settings resulted in 0% non-positive Jacobians
-# also good with lower StDev: ds=2.5, be=0.1 (0.25% non-positive Jacobians)
-best_ds=5
-best_be=0
+# for alberts-tune dataset, these settings resulted in 0.25% non-positive Jacobians
+# also good, but with higher StDev: ds=5, be=0 (0% non-positive Jacobians)
+best_ds=2.5
+best_be=0.1
 
 set_new_defaults1()
 {
@@ -83,6 +83,17 @@ set_new_defaults1()
 
 set_new_defaults1
 auto=true
+
+ds=5
+be=0
+for A in 10 20 30 50; do
+  for step in '0.5' '4.0 2.0 1.0 0.5' '1.0'; do
+    append_row
+  done
+done
+
+ds=2.5
+be=0.1
 for A in 10 20 30 50; do
   for step in '0.5' '4.0 2.0 1.0 0.5' '1.0'; do
     append_row
@@ -96,11 +107,15 @@ exit 0
 A_vals=(20 30 50)           # A=20 has been used for automatic method
 a_vals=(10000 50000 100000) # within magnitude selected by automatic method
 
-best_A=20 # TODO
+best_ds=2.5 # TODO
+best_be=0.1 # TODO
+best_A=20   # TODO
 
 set_new_defaults2()
 {
   set_new_defaults1
+  ds=$best_ds
+  be=$best_be
   A=$best_A
   step='4.0 2.0 1.0 0.5' # TODO
 }
