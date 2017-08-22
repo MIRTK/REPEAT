@@ -321,6 +321,8 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
         toolkit, command, version = split_regid(regid)
     else:
         regid = get_regid(toolkit=toolkit, command=command, version=version)
+    if measure == 'dsc':
+        measure = 'seg-dsc'
     csv_path = os.path.join(get_csvdir(dataset, regid, cfgid=cfgid), tgtid + '-' + measure + '.csv')
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
