@@ -5,7 +5,8 @@ regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
-cfgrow='$cfgid,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le'
+cfgrow='$cfgid,$vel,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le'
+vel=false # constant
 
 # initial/constant parameter values
 set_defaults()
