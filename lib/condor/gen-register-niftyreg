@@ -46,7 +46,7 @@ cfgids=("$@")
 [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
 
 # affinely pre-aligned images
-imgdir="$vardir/$dataset/affine/out"
+imgdir="$vardir/$dataset/affine/crp"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
@@ -54,10 +54,10 @@ imgsuf=".nii.gz"
 bgvalue="$(get_bgvalue "$chn")"
 if [ -n "$bgvalue" ]; then
   if [ "$(is_mask "$bgvalue")" = true ]; then
-    mskdir="$vardir/$dataset/affine/out/$bgvalue"
+    mskdir="$vardir/$dataset/affine/crp/$bgvalue"
     bgvalue="$(get_padvalue "$chn")"
   else
-    mskdir="$vardir/$dataset/affine/msk"
+    mskdir="$vardir/$dataset/affine/crp/$chn-msk"
     makedir "$mskdir"
     for imgid in "${imgids[@]}"; do
       mskimg="$mskdir/$imgid$imgsuf"
