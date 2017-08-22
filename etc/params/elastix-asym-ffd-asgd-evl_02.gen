@@ -74,7 +74,7 @@ for ds in ${ds_vals[@]}; do
   for be in ${be_vals[@]}; do
     for A in ${A_vals[@]}; do
       for a in ${a_vals[@]}; do
-        for iters in 100 300 500 1000;
+        for iters in 100 300 500 1000; do
           append_row
         done
       done
