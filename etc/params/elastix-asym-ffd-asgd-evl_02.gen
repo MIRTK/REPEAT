@@ -27,8 +27,8 @@ set_defaults()
   a=1000
 
   # transformation model parameters
-  ds=5  # elastix requires too much memory for lower spacing
-  be=1
+  ds=5
+  be=0.1
 }
 
 # auxiliary function to append row with parameter values
@@ -43,6 +43,7 @@ append_row()
 echo "${cfgrow//$}" > "$parcsv"
 i=0
 
+# ------------------------------------------------------------------------------
 # 1) explore bending energy weight using automatic parameter selection
 set_defaults
 auto=true
@@ -54,33 +55,28 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
 set_defaults
-ds_vals=(2.5)
-be_vals=(0 0.01 0.1)
-A_vals=(20 30 50)
-a_vals=(1000 5000 10000 50000 100000 300000)
+ds_vals=(2.5 5.0)           # 5 mm gave consistently better results
+be_vals=(0 0.1 1)           # FFDs were diffeomorphic with ds=5 and be=1 for alberts-tune dataset
+A_vals=(20 30 50)           # A=20 has been used for automatic method
+a_vals=(10000 50000 100000) # within magnitude selected by automatic method
 
-# 2) try fewer number of iterations
-for iters in 100 200 300 400; do
-  append_row
-done
+best_ds=5
+best_be=0.1
 
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
 
-set_defaults
-iters=500  # TODO
-
-# 3) manual exploration of parameters with more informed ds and be values
+# ------------------------------------------------------------------------------
+# 2) manual exploration of parameters with more informed ds, be, and a values
 auto=false
 for ds in ${ds_vals[@]}; do
   for be in ${be_vals[@]}; do
     for A in ${A_vals[@]}; do
       for a in ${a_vals[@]}; do
-        append_row
+        for iters in 100 300 500 1000;
+          append_row
+        done
       done
     done
   done
