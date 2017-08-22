@@ -486,6 +486,8 @@ def average_overlap(dfs, measure=None):
                     sub = df[df.dataset==dataset]
                     col = sub.label.map(lambda l: int(l) in label2group)
                     df.loc[df.dataset==dataset, 'ingroup'] = col
+                else:
+                    sys.stderr.write('Missing: {}'.format(csv_path))
             id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid', 'tgtid', 'srcid', 'ingroup']).tolist()
             g = df.groupby(id_vars)
             df = g.mean()  #.assign(count=g.size())
@@ -526,6 +528,8 @@ def average_group_overlap(dfs, measure=None):
                     sub = df[df.dataset==dataset]
                     col = sub.label.map(lambda l: label2group[int(l)] if int(l) in label2group else None)
                     df.loc[df.dataset==dataset, 'group'] = col
+                else:
+                    sys.stderr.write('Missing: {}'.format(csv_path))
             id_vars = df.columns.intersection(['dataset', 'regid', 'cfgid', 'tgtid', 'srcid', 'group']).tolist()
             g = df.groupby(id_vars)
             df = g.mean()  #.assign(count=g.size())
