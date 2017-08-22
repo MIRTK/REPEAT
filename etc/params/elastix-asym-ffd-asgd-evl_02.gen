@@ -61,20 +61,17 @@ done
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 #exit 0
 
-ds_vals=(2.5)
+ds_vals=(2.5 5.0)
 be_vals=(0 0.01 0.1)
 
 # for alberts-tune dataset, these settings resulted in 0.25% non-positive Jacobians
 # also good, but with higher StDev: ds=5, be=0 (0% non-positive Jacobians)
-best_ds=2.5
-best_be=0.1
-
 set_new_defaults1()
 {
   set_defaults
   srcmsk=true # made no difference, using it very slightly better
-  ds=$best_ds
-  be=$best_be
+  ds=2.5
+  be=0.1
 }
 
 
@@ -102,37 +99,27 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
-
-A_vals=(20 30 50)           # A=20 has been used for automatic method
-a_vals=(10000 50000 100000) # within magnitude selected by automatic method
-
-best_ds=2.5 # TODO
-best_be=0.1 # TODO
-best_A=20   # TODO
+#exit 0
 
 set_new_defaults2()
 {
   set_new_defaults1
-  ds=$best_ds
-  be=$best_be
-  A=$best_A
-  step='4.0 2.0 1.0 0.5' # TODO
+  ds=2.5
+  be=0.1
+  A=50
+  a='50000 100000 200000 500000'
+  step=0.5  # step=1 better for ds=5
 }
 
 # ------------------------------------------------------------------------------
-# 3) manual exploration of parameters with more informed ds, be, and a values
+# 3) manual exploration of parameters with more informed ds, be, A, and a values
 
 set_new_defaults2
 auto=false
 for ds in ${ds_vals[@]}; do
   for be in ${be_vals[@]}; do
-    for A in ${A_vals[@]}; do
-      for a in ${a_vals[@]}; do
-        for iters in 100 300 500 1000; do
-          append_row
-        done
-      done
+    for iters in 100 300 500 1000; do
+      append_row
     done
   done
 done
