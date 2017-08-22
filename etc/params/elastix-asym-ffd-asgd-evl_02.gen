@@ -128,3 +128,16 @@ for ds in ${ds_vals[@]}; do
     done
   done
 done
+
+for ds in ${ds_vals[@]}; do
+  if [ "$ds" = '5.0' ]; then
+    step=1 # better for ds=5
+  else
+    step=0.5
+  fi
+  for be in ${be_vals[@]}; do
+    for iters in 1500 2000 2500; do
+      append_row
+    done
+  done
+done
