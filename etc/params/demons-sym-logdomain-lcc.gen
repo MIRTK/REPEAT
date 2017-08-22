@@ -126,7 +126,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
 best_a='30x40x50'
 
