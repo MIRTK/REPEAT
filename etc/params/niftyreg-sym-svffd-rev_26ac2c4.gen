@@ -71,15 +71,15 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
-jl_vals=(0 0.001 0.1)
+jl_vals=(0 0.0001 0.01)
 
 # 1c) add squared divergence of SVF penalty weight
 set_defaults
 for be in ${be_vals[@]}; do
   for jl in ${jl_vals[@]}; do
-    for le in 0.001 0.005 0.01 0.05 0.1; do
+    for le in 0.0001 0.0005 0.001 0.005 0.01 0.05 0.1; do
       append_row
     done
   done
