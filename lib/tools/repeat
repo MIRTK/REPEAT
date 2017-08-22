@@ -677,7 +677,7 @@ for cfgid in "${cfgids[@]}"; do
     [ $measure != 'overlap' ] || measure='dsc'
     if [ $(is_overlap_measure $measure) = true ]; then
       for tgtid in "${tgtids[@]}"; do
-        [ ! -f "$resdir/$tgtid-$measure.csv" ] || let n++
+        [ ! -f "$resdir/$tgtid-$mod-$measure.csv" ] || let n++
       done
     else
       outdir="$regdir/evl/$mod/$measure"
