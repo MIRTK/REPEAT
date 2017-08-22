@@ -96,12 +96,11 @@ set_new_defaults()
 }
 
 # ------------------------------------------------------------------------------
-# 2) reduce number of iterations on intermediate level ([1] used 30x20x10)
-#
-# [1] Ou et al., "Comparative evaluation of registration algorithms in different brain databases
-#     with varying difficulty: Results and insights", IEEE TMI 33(10), 2039–2065, 2014.
+# 2) try different number of iterations on finer levels
 set_new_defaults
 
+# Ou et al., "Comparative evaluation of registration algorithms in different brain databases
+# with varying difficulty: Results and insights", IEEE TMI 33(10), 2039–2065, 2014.
 a='30x20x10'
 for R in 0 1; do
   append_row
@@ -116,9 +115,20 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+for R in 0 1; do
+  for steps in 10 20 30 40 50 60 70 80 90 100; do
+    a="30x40x$steps"
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
-best_a='30x20x10' # TODO
+best_a='30x40x50'
 
 
 # ------------------------------------------------------------------------------
