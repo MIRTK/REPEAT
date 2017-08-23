@@ -165,3 +165,9 @@ for ds in ${ds_vals[@]}; do
     done
   done
 done
+
+set_new_defaults4()
+{
+  set_new_defaults2
+  iters=1000
+}
