@@ -20,6 +20,7 @@ set_defaults()
   bins=64                            # 16, 32, 64
 
   # optimization paramaters
+  samples='500 1000 2000 4000'
   iters=500
   step='4.0 2.0 1.0 0.5'
   adaptive=true
@@ -112,7 +113,7 @@ set_new_defaults2()
 }
 
 # ------------------------------------------------------------------------------
-# 3) manual exploration of parameters with more informed ds, be, A, and a values
+# 3) manual exploration of parameters with now better informed ds, be, A, and a values
 
 set_new_defaults2
 auto=false
@@ -137,6 +138,29 @@ for ds in ${ds_vals[@]}; do
   fi
   for be in ${be_vals[@]}; do
     for iters in 1500 2000 2500; do
+      append_row
+    done
+  done
+done
+
+
+# ------------------------------------------------------------------------------
+# 4) try different numbers of random samples
+
+set_new_defaults2
+auto=false
+samples='1000 2000 4000 8000'
+
+for ds in ${ds_vals[@]}; do
+  if [ "$ds" = '5.0' ]; then
+    step=1 # better for ds=5
+    iters_vals=(100 300 500 1000 1500 2000)
+  else
+    step=0.5
+    iters_vals=(100 300 500 1000)
+  fi
+  for be in ${be_vals[@]}; do
+    for iters in ${iters_vals[@]}; do
       append_row
     done
   done

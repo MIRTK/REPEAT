@@ -83,7 +83,7 @@
 
 (ImageSampler "Random")
 (NewSamplesEveryIteration "true")
-(NumberOfSpatialSamples 500 1000 2000 4000)
+(NumberOfSpatialSamples <samples>)
 (CheckNumberOfSamples "true")
 (UseRandomSampleRegion "false")
 (MaximumNumberOfSamplingAttempts 3)
