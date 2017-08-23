@@ -79,8 +79,8 @@ done
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 #exit 0
 
-be_vals=(0.001 0.005 0.01)
-jl_vals=(0 0.00001 0.0001)
+be_vals=(0.001 0.005)
+jl_vals=(0 0.00001)
 le_vals=(0 0.01)
 
 
