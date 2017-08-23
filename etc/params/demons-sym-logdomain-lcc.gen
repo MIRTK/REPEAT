@@ -160,6 +160,12 @@ for R in 0 1; do
   done
 done
 
+for R in 0 1; do
+  for C in 0.5 1; do
+    append_row
+  done
+done
+
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
