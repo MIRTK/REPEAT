@@ -111,21 +111,18 @@ set_defaults2
 # 4a) using topology preservation penalty for det(J) < gamma
 vp=0
 for be in ${be_vals[@]}; do
-  for gamma in 0.3 0.5; do
-    for jaceps in 0.0000001 0.001 0.01 0.1; do
-      for tp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1 2; do
-        append_row
-      done
+  for jaceps in 0.0000001 0.01 0.1; do
+    for tp in 0.00001 0.0001 0.001 0.01 0.1; do
+      append_row
     done
   done
 done
 
 # 4b) using volume preservation penalty, i.e., sq(log(det(J)))
 tp=0
-gamma=0.5
 for be in ${be_vals[@]}; do
-  for jaceps in 0.0000001 0.001 0.01 0.1; do
-    for vp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1 2; do
+  for jaceps in 0.0000001 0.01 0.1; do
+    for vp in 0.00001 0.0001 0.001 0.01 0.1; do
       append_row
     done
   done
