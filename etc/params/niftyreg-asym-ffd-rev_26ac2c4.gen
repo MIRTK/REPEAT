@@ -34,7 +34,7 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# exploration of penalty weights
+# 1. exploration of penalty weights
 
 set_defaults
 
@@ -75,3 +75,48 @@ for be in ${be_vals[@]}; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+be_vals=(0.001 0.005 0.01)
+jl_vals=(0 0.00001 0.0001)
+le_vals=(0 0.01)
+
+
+# ------------------------------------------------------------------------------
+# 2. exploration of max. number of iterations, no. of levels
+set_defaults
+default_levels=$levels
+default_maxit=$maxit
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in ${le_vals[@]}; do
+      for levels in 3 4; do
+        for maxit in 300 500 750 1000; do
+          if [ $levels -ne $default_levels -o $maxit -ne $default_maxit ]; then
+            append_row
+          fi
+        done
+      done
+    done
+  done
+done
+
+
+# ------------------------------------------------------------------------------
+# 3. larger control point spacing
+set_defaults
+ds=5
+levels=3
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in ${le_vals[@]}; do
+      for levels in 3 4; do
+        for maxit in 300 500 750 1000; do
+          append_row
+        done
+      done
+    done
+  done
+done
