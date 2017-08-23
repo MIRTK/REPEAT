@@ -141,7 +141,7 @@ extout="$(use_existing_imgs "$dataset" "$regid")"
 if [ "$regid" != 'affine' -a "$extdof" != true -a "$extout" != true ]; then
   regcfg_found=false
   for cfgpre in "$dataset/" ''; do
-    if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" ]; then
+    if [ -f "$cfgdir/$cfgpre$regid.csv" -o -f "$cfgdir/$cfgpre$regid.cfg" -o -f "$cfgdir/$cfgpre$regid.txt" ]; then
       regcfg_found=true
       break
     fi
@@ -152,7 +152,7 @@ if [ "$regid" != 'affine' -a "$extdof" != true -a "$extout" != true ]; then
     fi
     if [ -n "$version" ]; then
       _regid=${regid%-*}
-      if [ -f "$cfgdir/$cfgpre${_regid}.csv" -o -f "$cfgdir/$cfgpre${_regid}.cfg" ]; then
+      if [ -f "$cfgdir/$cfgpre${_regid}.csv" -o -f "$cfgdir/$cfgpre${_regid}.cfg" -o -f "$cfgdir/$cfgpre${_regid}.txt" ]; then
         regcfg_found=true
         break
       fi
@@ -164,7 +164,7 @@ if [ "$regid" != 'affine' -a "$extdof" != true -a "$extout" != true ]; then
     fi
   done
   if [ $regcfg_found = false ]; then
-    error "Require either one of '$cfgdir/[$dataset/]$regid.{csv,cfg,gen}'"
+    error "Require either one of '$cfgdir/[$dataset/]$regid.{gen,csv,cfg,txt}'"
   fi
 fi
 
