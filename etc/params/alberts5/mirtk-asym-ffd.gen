@@ -63,56 +63,30 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
 
 # ------------------------------------------------------------------------------
-# Explore advanced implementation specific options
+# 2) advanced options
 
-# 2a) default MIRTK gradient calculation vs. NiftyReg-like convolution
-iters=100
-for passdof in false true; do
-  for conjtot in false true; do
-    for ffdgrd in 'Analytic' 'Convolution'; do
-      for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
-        append_row
-      done
-    done
-  done
-done
-
-# 2b) a few more tests where also other settings reflect NiftyReg implementation more closely
-usemsk=true
-usepad=false
-srcgrd=false
-epsilon=0
-roi='Overlap'
-padbins=true
-levels=3
 iters=100
 steps=12
 rejects=12
 lastn=0
+epsilon=0
 for passdof in false true; do
   for conjtot in false true; do
-    for ffdgrd in 'Analytic' 'Convolution'; do
-      for be in 0.0001 0.0005 0.001; do
+    for ffdgrd in 'Analytic' 'DMFFD' 'Convolution'; do
+      for be in 0.0005 0.001 0.002 0.003 0.005; do
         append_row
       done
     done
   done
 done
 
-# 2c) ANTs-like gradient calcuation, i.e., directly manipulated free-form deformation
-set_defaults
-ffdgrd='DMFFD'
-for be in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01; do
-  append_row
-done
-
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 # interim conclusion: MIRTK default settings work best
 be_vals=(0.0001 0.0005 0.001)
