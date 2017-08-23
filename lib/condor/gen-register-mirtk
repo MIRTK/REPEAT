@@ -47,14 +47,24 @@ if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"
   config="$(cat "$cfgdir/$dataset/$regid.txt")"
   [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$dataset/$regid.txt"
+elif [ -f "$cfgdir/$dataset/$regid.cfg" ]; then
+  regcsv=''
+  config="$cfgdir/$dataset/$regid.cfg"
 elif [ -f "$cfgdir/$regid.csv" ]; then
   regcsv="$cfgdir/$regid.csv"
   config="$(cat "$cfgdir/$regid.txt")"
   [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$regid.txt"
+elif [ -f "$cfgdir/$regid.cfg" ]; then
+  regcsv=''
+  config="$cfgdir/$regid.cfg"
 else
   error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
 fi
-paropt=($(head -n1 "$regcsv" | tr , '\n'))
+if [ -n "$regcsv" ]; then
+  paropt=($(head -n1 "$regcsv" | tr , '\n'))
+else
+  paropt=()
+fi
 
 #                   Energy function =
 energy_indentation="                "
@@ -75,85 +85,117 @@ for cfgid in "${cfgids[@]}"; do
   logdir="$regdir/$cfgid/log/register"
   pardir="$regdir/$cfgid/etc"
 
-  # extract parameter values from CSV file
-  if [ ${BASH_VERSION/.*} -lt 4 ]; then
-    parval=()
-    while IFS='\n' read line; do
-      parval=("${parval[@]}" "$line")
-    done < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
-  else
-    readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
-  fi
-  [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
-  [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
-
-  # substitute values in template configuration
-  c=0
-  usemsk=false
-  usepad=true
-  interp='Linear'
-  parcfg="${config}"
-  while [ $c -lt ${#paropt[@]} ]; do
-    arg="${parval[c]}"
-    case "${paropt[c]}" in
-      allsym)
-        allsym="$arg"
-        ;;
-      usemsk)
-        usemsk="$arg"
-        ;;
-      usepad)
-        usepad="$arg"
-        ;;
-      interp)
-        interp="$arg"
-        ;;
-      *)
-        parcfg="${parcfg//<${paropt[c]}>/$arg}"
-        ;;
-    esac
-    let c++
-  done
-
-  # interpolation mode
-  if [ "$usepad" = true ]; then
-    interp="$interp with padding"
-  fi
-  parcfg="${parcfg//<interp>/$interp}"
-  parcfg="${parcfg//<usepad>/$usepad}"
-
-  # assemble data terms of energy function
-  m=0
-  n=0
-  bgpars=''
-  energy=''
-  mskdir=''
-  for chn in "${chns[@]}"; do
-    [ -z "$energy" ] || energy="${energy}...\n${energy_indentation}+ "
-    if [ "$(is_seg "$chn")" = true ] || [ "$(is_prob "$chn")" = true ]; then
-      term="SSD"
+  if [ -n "$regcsv" ]; then
+    # extract parameter values from CSV file
+    if [ ${BASH_VERSION/.*} -lt 4 ]; then
+      parval=()
+      while IFS='\n' read line; do
+        parval=("${parval[@]}" "$line")
+      done < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
     else
-      term="SIM"
+      readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
     fi
-    let m++
-    let t=$n+1
-    let s=$n+2
-    if [ "$issym" = true ]; then
-      energy="${energy}${term}[Dissimilarity $m](I($t) o T^-0.5, I($s) o T^0.5)"
-    elif [ "$isic" = true ]; then
-      energy="${energy}${term}[Dissimilarity ${m}a](I($t) o T^-1, I($s))"
-      energy="${energy}${term}[Dissimilarity ${m}b](I($t), I($s) o T)"
-    else
-      energy="${energy}${term}[Dissimilarity $m](I($t), I($s) o T)"
+    [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
+    [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+
+    # substitute values in template configuration
+    c=0
+    usemsk=false
+    usepad=true
+    interp='Linear'
+    parcfg="${config}"
+    while [ $c -lt ${#paropt[@]} ]; do
+      arg="${parval[c]}"
+      case "${paropt[c]}" in
+        allsym)
+          allsym="$arg"
+          ;;
+        usemsk)
+          usemsk="$arg"
+          ;;
+        usepad)
+          usepad="$arg"
+          ;;
+        interp)
+          interp="$arg"
+          ;;
+        *)
+          parcfg="${parcfg//<${paropt[c]}>/$arg}"
+          ;;
+      esac
+      let c++
+    done
+
+    # interpolation mode
+    if [ "$usepad" = true ]; then
+      interp="$interp with padding"
     fi
-    bgvalue="$(get_bgvalue "$chn")"
-    if [ -n "$bgvalue" ]; then
-      if [ "$(is_mask "$bgvalue")" = true ]; then
-        if [ "$usemsk" = true ]; then
-          mskdir="$vardir/$dataset/affine/crp/$bgvalue"
+    parcfg="${parcfg//<interp>/$interp}"
+    parcfg="${parcfg//<usepad>/$usepad}"
+
+    # assemble data terms of energy function
+    m=0
+    n=0
+    bgpars=''
+    energy=''
+    mskdir=''
+    for chn in "${chns[@]}"; do
+      [ -z "$energy" ] || energy="${energy}...\n${energy_indentation}+ "
+      if [ "$(is_seg "$chn")" = true ] || [ "$(is_prob "$chn")" = true ]; then
+        term="SSD"
+      else
+        term="SIM"
+      fi
+      let m++
+      let t=$n+1
+      let s=$n+2
+      if [ "$issym" = true ]; then
+        energy="${energy}${term}[Dissimilarity $m](I($t) o T^-0.5, I($s) o T^0.5)"
+      elif [ "$isic" = true ]; then
+        energy="${energy}${term}[Dissimilarity ${m}a](I($t) o T^-1, I($s))"
+        energy="${energy}${term}[Dissimilarity ${m}b](I($t), I($s) o T)"
+      else
+        energy="${energy}${term}[Dissimilarity $m](I($t), I($s) o T)"
+      fi
+      bgvalue="$(get_bgvalue "$chn")"
+      if [ -n "$bgvalue" ]; then
+        if [ "$(is_mask "$bgvalue")" = true ]; then
+          if [ "$usemsk" = true ]; then
+            mskdir="$vardir/$dataset/affine/crp/$bgvalue"
+          fi
+          bgvalue="$(get_padvalue "$bgvalue")"
+          [ -n "$bgvalue" ] || bgvalue=0
+        elif [ "$usemsk" = true -a -z "$mskdir" ]; then
+          mskdir="$imgdir/$chn-msk"
+          makedir "$mskdir"
+          for tgtid in "${tgtids[@]}"; do
+            mskimg="$mskdir/$tgtid$imgsuf"
+            [ ! -f "$mskimg" ] || continue
+            run "$mirtk" calculate-element-wise "$imgdir/$chn/$tgtid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
+          done
         fi
-        bgvalue="$(get_padvalue "$bgvalue")"
-        [ -n "$bgvalue" ] || bgvalue=0
+        bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
+        bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
+      fi
+      n=$s
+    done
+    energy="${energy}...\n${energy_indentation}+ 0 BE[Bending energy](T)"
+    energy="${energy}...\n${energy_indentation}+ 0 TP[Topology preservation](T)"
+    energy="${energy}...\n${energy_indentation}+ 0 VP[Volume preservation](T)"
+    energy="${energy}...\n${energy_indentation}+ 0 LogJac[LogJac penalty](T)"
+    energy="${energy}...\n${energy_indentation}+ 0 NegJac[NegJac penalty](T)"
+
+    # write configuration to file
+    makedir "$pardir"
+    parin="$pardir/register.cfg"
+    echo -e "Energy function = $energy\n$bgpars\n\n$parcfg" > "$parin"
+
+  else
+    parin="$config"
+    for chn in "${chns[@]}"; do
+      bgvalue="$(get_bgvalue "$chn")"
+      if [ "$(is_mask "$bgvalue")" = true ]; then
+        mskdir="$vardir/$dataset/affine/crp/$bgvalue"
       elif [ "$usemsk" = true -a -z "$mskdir" ]; then
         mskdir="$imgdir/$chn-msk"
         makedir "$mskdir"
@@ -163,26 +205,13 @@ for cfgid in "${cfgids[@]}"; do
           run "$mirtk" calculate-element-wise "$imgdir/$chn/$tgtid$imgsuf" -mask "$bgvalue" -set 1 -pad 0 -o "$mskimg" binary
         done
       fi
-      bgpars="${bgpars}\nBackground value of image $t = $bgvalue"
-      bgpars="${bgpars}\nBackground value of image $s = $bgvalue"
-    fi
-    n=$s
-  done
-  energy="${energy}...\n${energy_indentation}+ 0 BE[Bending energy](T)"
-  energy="${energy}...\n${energy_indentation}+ 0 TP[Topology preservation](T)"
-  energy="${energy}...\n${energy_indentation}+ 0 VP[Volume preservation](T)"
-  energy="${energy}...\n${energy_indentation}+ 0 LogJac[LogJac penalty](T)"
-  energy="${energy}...\n${energy_indentation}+ 0 NegJac[NegJac penalty](T)"
+    done
+  fi
 
   # make directories
-  makedir "$pardir"
   makedir "$dofdir"
   makedir "$logdir"
   makedir "$jobdir"
-
-  # write configuration to file
-  parin="$pardir/register.cfg"
-  echo -e "Energy function = $energy\n$bgpars\n\n$parcfg" > "$parin"
 
   # write job description
   jobdsc="$jobdir/register.condor"
