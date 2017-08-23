@@ -169,6 +169,10 @@ def get_params(dataset, regid=None, toolkit=None, command=None, version=None, cf
     return df
 
 
+def read_params(dataset, regid=None, toolkit=None, command=None, version=None, cfgid=None):
+    return get_params(dataset, regid, toolkit, command, version, cfgid)
+
+
 def read_average_measures(dataset, regid=None, toolkit=None, command=None, version=None, tgtid=None, cfgid=None):
     """Auxiliary function to read output tables of MIRTK 'average-measures' command."""
     if not dataset:
