@@ -170,8 +170,8 @@ done
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
-best_C=3 # TODO
-best_R=0 # TODO
+best_C=1
+best_R=0
 
 
 # ------------------------------------------------------------------------------
@@ -195,7 +195,16 @@ set_new_defaults()
 # 5a) fine tuning: try few different regularization parameters with new LNCC window size
 
 set_new_defaults
-# TODO
+R=0
+for C in 1 2; do
+  for S in 0.05 0.1 0.15 0.2 0.25; do
+    for d in 0.5 1 1.5; do
+      for u in 0 0.5 1; do
+        append_row
+      done
+    done
+  done
+done
 
 
 # ------------------------------------------------------------------------------
