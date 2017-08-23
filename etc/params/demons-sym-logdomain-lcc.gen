@@ -192,7 +192,7 @@ set_new_defaults()
 
 
 # ------------------------------------------------------------------------------
-# 5a) fine tuning: try few different regularization parameters with new LNCC window size
+# 5) fine tuning: try few different regularization parameters with new LNCC window size
 
 set_new_defaults
 R=0
@@ -205,11 +205,3 @@ for C in 1 2; do
     done
   done
 done
-
-
-# ------------------------------------------------------------------------------
-# 5b) fine tuning: try restricting maximum step length
-
-set_new_defaults
-# TODO
-
