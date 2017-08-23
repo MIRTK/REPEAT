@@ -86,64 +86,37 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
-
-# interim conclusion: MIRTK default settings work best
-be_vals=(0.0001 0.0005 0.001)
-
-# ------------------------------------------------------------------------------
-# 3) dealing with background in brain extracted images
-
-set_defaults
-for be in ${be_vals[@]}; do
-  for usemsk in false true; do
-    for usepad in false true; do
-      for roi in 'Overlap' 'Union' 'Target' 'Domain'; do
-        if [ $roi != 'Domain' -a $usemsk = false -a $usepad = false ]; then
-          continue  # background not used, i.e., Overlap=Union=Target=Domain
-        fi
-        if [ $roi = 'Domain' -a $usemsk = true ]; then
-          continue  # mask not used
-        fi
-        append_row
-      done
-    done
-  done
-done
-
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests according to previous results.
 #exit 0
 
-set_new_defaults()
+set_defaults2()
 {
   set_defaults
-  usemsk=true
-  usepad=true
-  roi='Union'
+  iters=100
+  steps=12
+  rejects=12
+  lastn=0
+  epsilon=0
+  passdof=true
+  conjtot=true
+  ffdgrd='DMFFD'
 }
+
+be_vals=(0.001 0.002 0.003 0.005)
 
 # ------------------------------------------------------------------------------
 # Add penalties for non-positive (and large) Jacobian determinant values
 
-set_new_defaults
+set_defaults2
 
 # 4a) using topology preservation penalty for det(J) < gamma
+vp=0
 for be in ${be_vals[@]}; do
   for gamma in 0.3 0.5; do
     for jaceps in 0.0000001 0.001 0.01 0.1; do
-      for tp in 0.00001 0.0001 0.001 0.01; do
+      for tp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1 2; do
         append_row
       done
     done
-  done
-done
-
-gamma=0.5
-jaceps=0.1
-for be in ${be_vals[@]}; do
-  for tp in 0.1 0.5 1 2; do
-    append_row
   done
 done
 
@@ -152,23 +125,15 @@ tp=0
 gamma=0.5
 for be in ${be_vals[@]}; do
   for jaceps in 0.0000001 0.001 0.01 0.1; do
-    for vp in 0.00001 0.0001 0.001 0.01; do
+    for vp in 0.00001 0.0001 0.001 0.01 0.1 0.5 1 2; do
       append_row
     done
   done
 done
 
-gamma=0.5
-jaceps=0.1
-for be in ${be_vals[@]}; do
-  for vp in 0.1 0.5 1 2; do
-    append_row
-  done
-done
-
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
-#exit 0
+exit 0
 
 vp_vals=(0.001 0.01 0.1)
 tp_vals=(0.001 0.01 0.1 0.5)
