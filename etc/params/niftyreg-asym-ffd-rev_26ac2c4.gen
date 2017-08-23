@@ -67,3 +67,11 @@ for be in ${be_vals[@]}; do
     done
   done
 done
+
+jl=0.00001
+for be in ${be_vals[@]}; do
+  for le in 0.0001 0.001 0.01 0.1; do
+    append_row
+  done
+done
+
