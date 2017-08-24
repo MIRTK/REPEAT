@@ -77,7 +77,7 @@ def get_cfgids(dataset, regid):
 def get_tgtids(dataset, regid, cfgid=None):
     """Get list of target image IDs."""
     tgtids = set()
-    re_tgtid = re.compile(r'^(.+)-[a-zA-Z0-9]+\.csv$')
+    re_tgtid = re.compile(r'^([^-]+)-[a-zA-Z0-9]+\.csv$')
     csvdir = get_csvdir(dataset, regid, cfgid=cfgid)
     for d in os.listdir(csvdir):
         m = re_tgtid.match(d)
@@ -325,9 +325,10 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
         toolkit, command, version = split_regid(regid)
     else:
         regid = get_regid(toolkit=toolkit, command=command, version=version)
-    if measure == 'dsc':
-        measure = 'seg-dsc'
-    csv_path = os.path.join(get_csvdir(dataset, regid, cfgid=cfgid), tgtid + '-' + measure + '.csv')
+    csvdir = get_csvdir(dataset, regid, cfgid=cfgid)
+    csv_path = os.path.join(csvdir, tgtid + '-seg-' + measure + '.csv')
+    if measure == 'dsc' and not os.path.isfile(csv_path):
+        csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
         if measure == 'time':
