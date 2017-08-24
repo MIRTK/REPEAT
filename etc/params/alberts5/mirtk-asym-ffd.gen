@@ -108,7 +108,7 @@ be_vals=(0.001 0.002 0.003 0.005)
 
 set_defaults2
 
-# 4a) using topology preservation penalty for det(J) < gamma
+# 3a) using topology preservation penalty for det(J) < gamma
 vp=0
 for be in ${be_vals[@]}; do
   for jaceps in 0.0000001 0.01 0.1; do
@@ -118,7 +118,7 @@ for be in ${be_vals[@]}; do
   done
 done
 
-# 4b) using volume preservation penalty, i.e., sq(log(det(J)))
+# 3b) using volume preservation penalty, i.e., sq(log(det(J)))
 tp=0
 for be in ${be_vals[@]}; do
   for jaceps in 0.0000001 0.01 0.1; do
@@ -130,13 +130,12 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
-exit 0
+#exit 0
 
-vp_vals=(0.001 0.01 0.1)
-tp_vals=(0.001 0.01 0.1 0.5)
+vp_vals=(0.00001 0.0001 0.001 0.1)
+tp_vals=(0.0001 0.001 0.01)
 
-# 4c) using both topology and volume preservation penalties
-gamma=0.5
+# 3c) using both topology and volume preservation penalties
 jaceps=0.1
 for be in ${be_vals[@]}; do
   for vp in ${vp_vals[@]}; do
@@ -149,7 +148,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests according to previous results.
-#exit 0
+exit 0
 
 set_new_defaults()
 {
