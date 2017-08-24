@@ -87,9 +87,9 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
-le_vals=() # TODO
+le_vals=(0)
 
 # ------------------------------------------------------------------------------
 # 2. exploration of max. number of iterations, no. of levels
@@ -100,7 +100,7 @@ for be in ${be_vals[@]}; do
   for jl in ${jl_vals[@]}; do
     for le in ${le_vals[@]}; do
       for levels in 3 4; do
-        for maxit in 300 500 1000; do
+        for maxit in 300 500 750 1000; do
           if [ $levels -ne $default_levels -o $maxit -ne $default_maxit ]; then
             append_row
           fi
