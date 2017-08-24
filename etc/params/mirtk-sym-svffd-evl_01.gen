@@ -61,10 +61,6 @@ i=0
 # ------------------------------------------------------------------------------
 # previous result of exploration of penalty weights on OASIS dataset
 
-be_vals=(0.0005 0.001 0.005)
-tp_vals=(0.0001 0.001 0.01)
-vp_vals=(0.0001 0.001 0.01)
-
 be_best=0.001
 tp_best=0.0001
 vp_best=0.001
@@ -81,6 +77,34 @@ for im in 'FastSS' 'SS' 'RKE1'; do
     for nbch in 0 2 3 5; do
       for imsteps in 1 2 4 8 16 32; do
         append_row
+      done
+    done
+  done
+done
+
+
+# ------------------------------------------------------------------------------
+# 2) vary regularization weights
+
+be_vals=(0.001 0.002 0.003)
+tp_vals=(0 0.0001 0.001)
+vp_vals=(0 0.0001 0.001)
+
+set_defaults
+maxsv=0
+for nbch in 0 2; do
+  im_vals=('FastSS' 'SS')
+  [ $nbch -eq 0 ] || im_vals=(${im_vals[@]} 'RKE1')
+  for im in ${im_vals[@]}; do
+    for imsteps in 4 8 16 32; do
+      for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+        for be in ${be_vals[@]}; do
+          for vp in ${vp_vals[@]}; do
+            for tp in ${tp_vals[@]}; do
+              append_row
+            done
+          done
+        done
       done
     done
   done
