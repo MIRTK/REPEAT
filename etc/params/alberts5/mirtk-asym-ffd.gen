@@ -204,3 +204,28 @@ for ffdgrd in 'Analytic' 'DMFFD'
     done
   done
 done
+
+
+# 4d) Line search options to reduce runtime
+set_defaults3
+usepad=true
+passdof=true
+srcgrd=false
+ffdgrd='DMFFD'
+steps=12
+lastn=0
+for epsilon in 0 -0.00001 0.00001; do
+  if [ $epsilon = '0' ]; then
+    lastn_vals=(0)
+  else
+    lastn_vals=(0 10)
+  fi
+  for lastn in ${lastn_vals[@]}; do
+    for rejects in 2 3 $steps; do
+      for iters 50 75 100; do
+        append_row
+      done
+    done
+  done
+done
+
