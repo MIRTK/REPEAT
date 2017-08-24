@@ -173,11 +173,34 @@ for be in ${be_vals[@]}; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
+
 # 4b) Whether to constrain passive CPs
+set_defaults3
 srcgrd=false
 ffdgrd='DMFFD'
 for passdof in false true; do
   for be in ${be_vals[@]}; do
     append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
+
+# 4c) Whether to use padding value
+set_defaults3
+passdof=true
+srcgrd=false
+for ffdgrd in 'Analytic' 'DMFFD'
+  for usepad in false true; do
+    for be in ${be_vals[@]}; do
+      append_row
+    done
   done
 done
