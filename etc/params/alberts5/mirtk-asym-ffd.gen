@@ -197,7 +197,7 @@ done
 set_defaults3
 passdof=true
 srcgrd=false
-for ffdgrd in 'Analytic' 'DMFFD'
+for ffdgrd in 'Analytic' 'DMFFD'; do
   for usepad in false true; do
     for be in ${be_vals[@]}; do
       append_row
