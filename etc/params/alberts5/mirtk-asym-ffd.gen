@@ -205,6 +205,10 @@ for ffdgrd in 'Analytic' 'DMFFD'
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
 
 # 4d) Line search options to reduce runtime
 set_defaults3
@@ -229,3 +233,64 @@ for epsilon in 0 -0.00001 0.00001; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests according to previous results.
+#exit 0
+
+set_defaults4d()
+{
+  set_defaults3
+  usepad=true
+  passdof=true
+  srcgrd=false
+  ffdgrd='DMFFD'
+  iters=80
+  steps=12
+  rejects=2
+  epsilon=0
+  lastn=0
+}
+
+
+# 4e) No. of levels, whether to divide SIM value by value before first gradient step
+set_defaults4d
+for levels in 3 4; do
+  for divini in false true; do
+    for be in ${be_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+
+# ------------------------------------------------------------------------------
+set_new_defaults()
+{
+  usemsk=true
+  usepad=true
+  roi='Union'
+  interp='Linear'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=false
+  ffdgrd='Analytic'
+  passdof=true
+  conjtot=true
+  levels=3
+  iters=80
+  steps=12
+  rejects=2
+  lastn=0
+  epsilon=0
+  sim='NMI'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0.003
+  vp=0.0001
+  tp=0.0001
+  gamma=0.5
+  jaceps=0.1
+}
