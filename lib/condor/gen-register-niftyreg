@@ -179,7 +179,7 @@ for cfgid in "${cfgids[@]}"; do
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
 universe     = vanilla
-executable   = $topdir/$libdir/tools/run-niftyreg-f3d
+executable   = $topdir/$libdir/tools/run-niftyreg
 requirements = $condor_requirements
 environment  = "$condor_environment"
 getenv       = $condor_getenv
