@@ -62,6 +62,9 @@ use_N3=false
 use_N4=false
 arg_N4=(-c '[50x50x50,0.001]' -s 2 -b '[100,3]' -t '[0.15,0.01,200]')
 
+# match histogram of reference image
+nrmhst=true
+
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()
 {
