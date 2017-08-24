@@ -163,12 +163,21 @@ set_defaults3()
 # ------------------------------------------------------------------------------
 # Final tests
 
-# 4) Compare best result for different gradient calculations
+# 4a) Compare best result for different gradient calculations
 set_defaults3
 for be in ${be_vals[@]}; do
   for srcgrd in false true; do
     for ffdgrd in 'Analytic' 'DMFFD' 'Convolution'; do
       append_row
     done
+  done
+done
+
+# 4b) Whether to constrain passive CPs
+srcgrd=false
+ffdgrd='DMFFD'
+for passdof in false true; do
+  for be in ${be_vals[@]}; do
+    append_row
   done
 done
