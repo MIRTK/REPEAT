@@ -71,7 +71,7 @@ fi
 
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
-imgdir="$vardir/$dataset/affine/out"
+imgdir="$vardir/$dataset/affine/crp"
 imgpre="$chn/"
 imgsuf=".nii.gz"
 
