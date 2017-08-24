@@ -50,14 +50,24 @@ if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"
   config="$(cat "$cfgdir/$dataset/$regid.txt")"
   [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$dataset/$regid.txt"
+elif [ -f "$cfgdir/$dataset/$regid.txt" ]; then
+  regcsv=''
+  config="$cfgdir/$dataset/$regid.txt"
 elif [ -f "$cfgdir/$regid.csv" ]; then
   regcsv="$cfgdir/$regid.csv"
   config="$(cat "$cfgdir/$regid.txt")"
   [ -n "$config" ] || error "Missing configuration template file: $cfgdir/$regid.txt"
+elif [ -f "$cfgdir/$regid.txt" ]; then
+  regcsv=''
+  config="$cfgdir/$regid.txt"
 else
-  error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
+  error "Missing $regid.{txt,csv} parameters file in $cfgdir[/$dataset]"
 fi
-paropt=($(head -n1 "$regcsv" | tr , '\n'))
+if [ -n "$regcsv" ]; then
+  paropt=($(head -n1 "$regcsv" | tr , '\n'))
+else
+  paropt=()
+fi
 
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
@@ -86,38 +96,44 @@ for cfgid in "${cfgids[@]}"; do
     logdir="$regdir/$cfgid/log/register"
     pardir="$regdir/$cfgid/etc"
 
-    # extract parameter values from CSV file
-    if [ ${BASH_VERSION/.*} -lt 4 ]; then
-      parval=()
-      while IFS='\n' read line; do
-        parval=("${parval[@]}" "$line")
-      done < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
-    else
-      readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
-    fi
-    [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
-    [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+    if [ -n "$regcsv" ]; then
 
-    # substitute values in template configuration
-    c=0
-    parcfg="${config}"
-    while [ $c -lt ${#paropt[@]} ]; do
-      if [ -n "${paropt[c]}" ]; then
-        parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
+      # extract parameter values from CSV file
+      if [ ${BASH_VERSION/.*} -lt 4 ]; then
+        parval=()
+        while IFS='\n' read line; do
+          parval=("${parval[@]}" "$line")
+        done < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
+      else
+        readarray -t parval < <(egrep "^$cfgid," "$regcsv" | tr , '\n')
       fi
-      let c++
-    done
-    parcfg="${parcfg/<bg>/$bgvalue}"
+      [ -n "$parval" ] || error "$regcsv: Missing row '$cfgid,...'"
+      [ ${#parval[@]} -eq ${#paropt[@]} ] || error "$regcsv: Expected ${#paropt[@]} columns for cfgid=$cfgid, got ${#parval[@]}"
+
+      # substitute values in template configuration
+      c=0
+      parcfg="${config}"
+      while [ $c -lt ${#paropt[@]} ]; do
+        if [ -n "${paropt[c]}" ]; then
+          parcfg="${parcfg//<${paropt[c]}>/${parval[c]}}"
+        fi
+        let c++
+      done
+      parcfg="${parcfg/<bg>/$bgvalue}"
+
+      # write configuration to file
+      makedir "$pardir"
+      regcfg="$pardir/register.cfg"
+      echo -e "$parcfg" > "$regcfg"
+
+    else
+      regcfg="$config"
+    fi
 
     # make directories
-    makedir "$pardir"
     makedir "$dofdir"
     makedir "$logdir"
     makedir "$jobdir"
-
-    # write configuration to file
-    regcfg="$pardir/register.cfg"
-    echo -e "$parcfg" > "$regcfg"
 
     # write job description
     cat > "$jobdsc" <<EOF_HEADER

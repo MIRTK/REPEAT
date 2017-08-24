@@ -49,7 +49,7 @@ refid="${imgids[0]}"
 
 # list of image IDs used as targets
 # when this list is undefined or empty, use all imgids
-tgtids=("${imgids[@]:0:5}")
+tgtids=("${imgids[@]}")
 
 # list of image IDs used as source/moving images
 # when this list is undefined or empty, use all imgids
