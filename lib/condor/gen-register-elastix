@@ -74,6 +74,14 @@ fi
 padvalue="$(get_padvalue "$chn")"
 [ -n "$padvalue" ] || padvalue=0
 
+if [ -n "$condor_requirements" ]; then
+  condor_requirements="$condor_requirements && "
+fi
+if [ -n "$threads" -a $threads -ge 0 ]; then
+  [ $threads -gt 0 ] || threads=1
+  condor_requirements="${condor_requirements}Cpus==$threads"
+fi
+
 # dataset and registration specific parameters
 if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"

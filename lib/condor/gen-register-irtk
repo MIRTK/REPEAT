@@ -40,11 +40,6 @@ chn="${chns[0]}"
 issym="$(is_sym $regid)"
 regcmd=${regid/*-}
 
-# IDs of parameter sets
-cfgids=("$@")
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-
 # dataset and registration specific parameters
 if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"
@@ -69,6 +64,16 @@ else
   paropt=()
 fi
 
+# IDs of parameter sets
+cfgids=("$@")
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+if [ ${#cfgids} -eq 0 ]; then
+  if [ -n "$regcsv" ]; then
+    error "etc/settings.sh: get_cfgids is empty for $regid"
+  fi
+  cfgids=('')
+fi
+
 # generate job description for each configuration
 regdir="$vardir/$dataset/$regid"
 imgdir="$vardir/$dataset/affine/crp"
@@ -86,15 +91,25 @@ else
 fi
 
 for cfgid in "${cfgids[@]}"; do
-  jobdir="$regdir/$cfgid/bin"
+  if [ -n "$cfgid" ]; then
+    jobdir="$regdir/$cfgid/bin"
+  else
+    jobdir="$regdir/bin"
+  fi
   jobdsc="$jobdir/register.condor"
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then
     echo "Update: $jobdsc"
 
     # paths
-    dofdir="$regdir/$cfgid/dof"
-    logdir="$regdir/$cfgid/log/register"
-    pardir="$regdir/$cfgid/etc"
+    if [ -n "$cfgid" ]; then
+      dofdir="$regdir/$cfgid/dof"
+      logdir="$regdir/$cfgid/log/register"
+      pardir="$regdir/$cfgid/etc"
+    else
+      dofdir="$regdir/dof"
+      logdir="$regdir/log/register"
+      pardir="$regdir/etc"
+    fi
 
     if [ -n "$regcsv" ]; then
 

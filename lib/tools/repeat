@@ -173,7 +173,7 @@ if [ "$regid" = 'affine' ]; then
   cfgids=('')
 else
   [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  [ ${#cfgids} -gt 0 ] || cfgids=('')
   issym="$(is_sym $regid)"
 fi
 
