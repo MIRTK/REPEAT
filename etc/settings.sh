@@ -154,7 +154,11 @@ is_ic()
 get_dofsuf()
 {
   local toolkit="$(get_toolkit "$1")"
-  if [ "$1" = 'affine' -o \
+  if [ "${1:0:18}" = 'niftyreg-sym-svffd' ]; then
+    # deformed images slightly differ when using reg_resample or convert-dof output file
+    # hence, use reg_resample for now to apply the output SVFFD of NiftyReg
+    echo ".nii.gz"
+  elif [ "$1" = 'affine' -o \
        "$toolkit" = 'mirtk' -o \
        "$toolkit" = 'irtk' -o \
        "$toolkit" = 'niftyreg' -o \

@@ -97,7 +97,7 @@ else
 
   cfgids=("$@")
   [ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  [ ${#cfgids} -gt 0 ] || cfgids=('')
   issym="$(is_sym $regid)"
 
   regdir="$vardir/$dataset/$regid"
@@ -105,8 +105,14 @@ else
   imgsuf='.nii.gz'
 
   for cfgid in "${cfgids[@]}"; do
-    dofdir="$regdir/$cfgid/dof"
-    jobdir="$regdir/$cfgid/bin"
+
+    if [ -n "$cfgid" ]; then
+      dofdir="$regdir/$cfgid/dof"
+      jobdir="$regdir/$cfgid/bin"
+    else
+      dofdir="$regdir/dof"
+      jobdir="$regdir/bin"
+    fi
   
     makedir "$dofdir"
     makedir "$jobdir"
@@ -114,8 +120,13 @@ else
     for mod in "${mods[@]}"; do
 
       imgpre="$mod/"
-      outdir="$regdir/$cfgid/out/$mod"
-      logdir="$regdir/$cfgid/log/transform-$mod"
+      if [ -n "$cfgid" ]; then
+        outdir="$regdir/$cfgid/out/$mod"
+        logdir="$regdir/$cfgid/log/transform-$mod"
+      else
+        outdir="$regdir/out/$mod"
+        logdir="$regdir/log/transform-$mod"
+      fi
 
       makedir "$outdir"
       makedir "$logdir"
