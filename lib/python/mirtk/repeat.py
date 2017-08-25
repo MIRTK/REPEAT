@@ -326,8 +326,11 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
     else:
         regid = get_regid(toolkit=toolkit, command=command, version=version)
     csvdir = get_csvdir(dataset, regid, cfgid=cfgid)
-    csv_path = os.path.join(csvdir, tgtid + '-seg-' + measure + '.csv')
-    if measure == 'dsc' and not os.path.isfile(csv_path):
+    if measure == 'dsc':
+        csv_path = os.path.join(csvdir, tgtid + '-seg-' + measure + '.csv')
+        if not os.path.isfile(csv_path):
+            csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
+    else:
         csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
