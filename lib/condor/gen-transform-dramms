@@ -1,0 +1,113 @@
+#!/bin/bash
+
+## Generate HTCondor job description file to transform images using DRAMMS
+
+print_help()
+{
+  echo "usage: $(basename $BASH_SOURCE) <dataset> <regid> [<cfgid>...]" 1>&2
+  exit 1
+}
+
+# arguments
+dataset="$1"; shift
+regid="$1"; shift
+
+[ -n "$dataset" -a -n "$regid" ] || print_help
+
+# load settings and auxiliary functions
+. "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
+[ -n "$topdir" ] || error "etc/settings.sh: topdir not set"
+[ -n "$etcdir" ] || error "etc/settings.sh: etcdir not set"
+[ -n "$setdir" ] || error "etc/settings.sh: setdir not set"
+[ -n "$vardir" ] || error "etc/settings.sh: vardir not set"
+[ -n "$dramms" ] || error "etc/settings.sh: dramms not set"
+[ ${dramms:0:1} = / ] || dramms="$topdir/$dramms"
+
+# change to top-level directory
+run cd "$topdir"
+
+# evaluation dataset
+. "$setdir/$dataset.sh" || exit 1
+[ ${#mods[@]}   -gt 0 ] || error "$setdir/$dataset.sh: mods not set"
+[ ${#imgids[@]} -gt 0 ] || error "$setdir/$dataset.sh: imgids not set"
+[ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
+[ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
+
+# registration method
+dofsuf=$(get_dofsuf "$regid")
+issym="$(is_sym $regid)"
+
+version="${regid/*-}"
+if [ $(is_version "$version") = true ]; then
+  if [ -d "$dramms-$version" ]; then
+    dramms="$dramms-$version"
+  elif [ -d "$dramms/$version" ]; then
+    dramms="$dramms/$version"
+  fi
+  if [ ! -f "$dramms/bin/dramms-warp" ]; then
+    error "Binary 'dramms-warp' of DRAMMS version $version not found in '$dramms/bin'"
+  fi
+else
+  version=''
+fi
+
+# parameter sets
+cfgids=("$@")
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+
+# deform images to each respective target image
+regdir="$vardir/$dataset/$regid"
+imgdir="$vardir/$dataset/affine/out"
+imgsuf='.nii.gz'
+
+for cfgid in "${cfgids[@]}"; do
+  dofdir="$regdir/$cfgid/dof"
+  jobdir="$regdir/$cfgid/bin"
+
+  makedir "$dofdir"
+  makedir "$jobdir"
+
+  for mod in "${mods[@]}"; do
+
+    imgpre="$mod/"
+    outdir="$regdir/$cfgid/out/$mod"
+    logdir="$regdir/$cfgid/log/transform-$mod"
+
+    makedir "$outdir"
+    makedir "$logdir"
+
+    jobdsc="$jobdir/transform-$mod.condor"
+    if [ $update = true ] || [ ! -f "$jobdsc" ]; then
+      echo "Update: $jobdsc"
+      cat > "$jobdsc" <<EOF_HEADER
+universe   = vanilla
+executable = $dramms/bin/dramms-warp
+initialdir = $topdir
+
+EOF_HEADER
+
+      opts=()
+      if [ "$(is_seg "$mod")" = true -o "$(is_mask "$mod")" = true ]; then
+        opts=(${opts[@]} '-n')
+      fi
+
+      for tgtid in "${tgtids[@]}"; do
+      for srcid in "${srcids[@]}"; do
+        [ $tgtid != $srcid ] || continue
+        outimg="$outdir/$srcid-$tgtid.nii.gz"
+        [ $force = true ] || [ ! -f "$outimg" ] || continue
+        cat >> "$jobdsc" <<EOF_JOB
+arguments = "'$imgdir/$imgpre$srcid$imgsuf' '$dofdir/$tgtid-$srcid$dofsuf' '$outimg' ${opts[@]}"
+error     = $logdir/$srcid-$tgtid.err
+output    = $logdir/$srcid-$tgtid.out
+log       = $logdir/$srcid-$tgtid.log
+queue
+
+EOF_JOB
+      done; done
+    else
+      echo "Exists: $jobdsc"
+    fi
+  done
+done
