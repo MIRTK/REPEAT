@@ -40,7 +40,7 @@ refid="${imgids[0]}"
 
 # list of image IDs used as targets/fixed images
 # when this list is undefined or empty, all imgids are used
-tgtids=("${imgids[@]:0:4}")
+tgtids=("${imgids[@]}")
 
 # list of image IDs used as source/moving images
 # when this list is undefined or empty, all imgids are used
@@ -52,7 +52,6 @@ srcids=("${imgids[@]}")
 # files provided by challenge participant Christian Ledig.
 # - Andreas Schuh
 if [ "$regid" = 'ants-syn-2012' ]; then
-  #tgtids=("${imgids[@]}")
   srcids=(1000 1001 1002 1006 1007 1008 1009 1010 1011 1012 1013 1014 1015 1017 1036)
 fi
 
@@ -72,6 +71,9 @@ mods=('t1w' 'seg')
 #   value (see get_bgvalue). If image has no background, an average is
 #   computed for the entire image domain, i.e., a sum over all voxels.
 rois=('msk' 'seg')
+
+# match histogram of reference image
+nrmhst=true
 
 # get file name prefix preceeding the image ID including subdirectories
 get_prefix()
