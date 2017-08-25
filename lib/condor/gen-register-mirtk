@@ -37,11 +37,6 @@ run cd "$topdir"
 issym="$(is_sym $regid)"
 isic="$(is_ic $regid)"
 
-# IDs of parameter sets
-cfgids=("$@")
-[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-[ ${#cfgids} -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
-
 # dataset and registration specific parameters
 if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
   regcsv="$cfgdir/$dataset/$regid.csv"
@@ -50,6 +45,9 @@ if [ -f "$cfgdir/$dataset/$regid.csv" ]; then
 elif [ -f "$cfgdir/$dataset/$regid.cfg" ]; then
   regcsv=''
   config="$cfgdir/$dataset/$regid.cfg"
+elif [ -f "$cfgdir/$dataset/$regid.txt" ]; then
+  regcsv=''
+  config="$cfgdir/$dataset/$regid.txt"
 elif [ -f "$cfgdir/$regid.csv" ]; then
   regcsv="$cfgdir/$regid.csv"
   config="$(cat "$cfgdir/$regid.txt")"
@@ -57,6 +55,9 @@ elif [ -f "$cfgdir/$regid.csv" ]; then
 elif [ -f "$cfgdir/$regid.cfg" ]; then
   regcsv=''
   config="$cfgdir/$regid.cfg"
+elif [ -f "$cfgdir/$regid.txt" ]; then
+  regcsv=''
+  config="$cfgdir/$regid.txt"
 else
   error "Missing $regid.csv parameters file in $cfgdir[/$dataset]"
 fi
@@ -64,6 +65,16 @@ if [ -n "$regcsv" ]; then
   paropt=($(head -n1 "$regcsv" | tr , '\n'))
 else
   paropt=()
+fi
+
+# IDs of parameter sets
+cfgids=("$@")
+[ ${#cfgids} -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
+if [ ${#cfgids} -eq 0 ]; then
+  if [ -n "$regcsv" ]; then
+    error "etc/settings.sh: get_cfgids is empty for $regid"
+  fi
+  cfgids=('')
 fi
 
 #                   Energy function =
@@ -80,10 +91,17 @@ for cfgid in "${cfgids[@]}"; do
   echo "Write HTCondor job description for MIRTK register configuration $cfgid"
 
   # paths
-  jobdir="$regdir/$cfgid/bin"
-  dofdir="$regdir/$cfgid/dof"
-  logdir="$regdir/$cfgid/log/register"
-  pardir="$regdir/$cfgid/etc"
+  if [ -n "$cfgid" ]; then
+    jobdir="$regdir/$cfgid/bin"
+    dofdir="$regdir/$cfgid/dof"
+    logdir="$regdir/$cfgid/log/register"
+    pardir="$regdir/$cfgid/etc"
+  else
+    jobdir="$regdir/bin"
+    dofdir="$regdir/dof"
+    logdir="$regdir/log/register"
+    pardir="$regdir/etc"
+  fi
 
   if [ -n "$regcsv" ]; then
     # extract parameter values from CSV file
