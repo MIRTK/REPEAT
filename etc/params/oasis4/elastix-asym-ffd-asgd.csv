@@ -1,0 +1,17 @@
+cfgid,usemsk,interp,pyramid,sim,bins,iters,step,adaptive,auto,alpha,A,a,ds,be
+0001,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,0
+0002,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,0.001
+0003,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,0.01
+0004,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,0.1
+0005,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,1
+0006,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,10
+0007,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,20
+0008,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,5.0,50
+0009,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,0
+0010,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,0.001
+0011,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,0.01
+0012,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,0.1
+0013,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,1
+0014,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,10
+0015,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,20
+0016,true,Linear,Recursive,NormalizedMutualInformation,64,500,4.0 2.0 1.0 0.5,true,true,1.0,20,1000,2.5,50

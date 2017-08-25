@@ -1,0 +1,126 @@
+#!/bin/bash
+
+## Generate command-line arguments for NiftyReg 'reg_f3d' command
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$vel,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le'
+vel=false # constant
+
+# initial/constant parameter values
+set_defaults()
+{
+  sim='NMI'
+  bins=64
+  levels=3
+  maxit=300
+  ds=2.5
+  be=0.005
+  jl=0
+  le=0
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1. exploration of penalty weights
+
+set_defaults
+
+# 1a) same weights as tried first with version 1.3.9
+for be in 0 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+  for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    append_row
+  done
+done
+
+# 1b) try higher bending energy weight for this new version
+for be in 0.1 0.5 1; do
+  for jl in 0 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+be_vals=(0.001 0.01 0.005) # TODO
+jl_vals=(0 0.0001 0.001)   # TODO
+
+# 1c) add linear energy penalty, i.e., sum of squared first order derivatives
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in 0.0001 0.001 0.01 0.1; do
+      append_row
+    done
+  done
+done
+
+jl=0.00001
+for be in ${be_vals[@]}; do
+  for le in 0.0001 0.001 0.01 0.1; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+be_vals=(0.001 0.005)
+jl_vals=(0 0.00001)
+le_vals=(0 0.01)
+
+
+# ------------------------------------------------------------------------------
+# 2. exploration of max. number of iterations, no. of levels
+set_defaults
+default_levels=$levels
+default_maxit=$maxit
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in ${le_vals[@]}; do
+      for levels in 3 4; do
+        for maxit in 300 500 750 1000; do
+          if [ $levels -ne $default_levels -o $maxit -ne $default_maxit ]; then
+            append_row
+          fi
+        done
+      done
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+
+# ------------------------------------------------------------------------------
+# 3. larger control point spacing
+set_defaults
+ds=5
+levels=3
+for be in ${be_vals[@]}; do
+  for jl in ${jl_vals[@]}; do
+    for le in ${le_vals[@]}; do
+      for levels in 3 4; do
+        for maxit in 300 500 750 1000; do
+          append_row
+        done
+      done
+    done
+  done
+done
