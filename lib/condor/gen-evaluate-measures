@@ -115,7 +115,7 @@ else
 
   cfgids=("$@")
   [ ${#cfgids}    -gt 0 ] || cfgids=($(get_cfgids "$dataset" "$regid"))
-  [ ${#cfgids}    -gt 0 ] || error "etc/settings.sh: get_cfgids is empty for $regid"
+  [ ${#cfgids}    -gt 0 ] || cfgids=('')
   [ ${#tgtids[@]} -gt 0 ] || tgtids=("${imgids[@]}")
   [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
