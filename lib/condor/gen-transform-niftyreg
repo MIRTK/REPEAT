@@ -23,6 +23,20 @@ regid="$1"; shift
 [ -n "$niftyreg"  ] || error "etc/settings.sh: niftyreg not set"
 [ ${niftyreg:0:1} = / ] || niftyreg="$topdir/$niftyreg"
 
+args=()
+version="${regid/*-}"
+[ $(is_version "$version") = true ] || version=''
+if [ -n "$version" ]; then
+  niftyreg="$niftyreg-$version"
+  [ -f "$niftyreg/bin/reg_resample" ] || error "NiftyReg version $version not found in '$niftyreg'"
+  if [ "$version" != '1.3.9' ]; then
+    if [ -n "$threads" -a $threads -ge 0 ]; then
+      [ $threads -gt 0 ] || threads=1
+      args=("${args[@]}" -omp "$threads")
+    fi
+  fi
+fi
+
 # change to top-level directory
 run cd "$topdir"
 
@@ -49,9 +63,10 @@ if [ "$regid" = 'affine' ]; then
   if [ $update = true ] || [ ! -f "$jobdsc" ]; then
     echo "Update: $jobdsc"
     cat > "$jobdsc" <<EOF_HEADER
-universe   = vanilla
-executable = $mirtk
-initialdir = $topdir
+universe    = vanilla
+environment = LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH" DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
+executable  = $niftyreg/bin/reg_resample
+initialdir  = $topdir
 
 EOF_HEADER
     for mod in "${mods[@]}"; do
@@ -76,7 +91,7 @@ EOF_HEADER
           run "$mirtk" convert-dof "$dofdir/$imgid.dof.gz" "$dofdir/$imgid.txt" -output-format 'aladin'
         fi
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "-flo '$imgdir/$imgpre$imgid$imgsuf' -res '$outimg' -ref '$imgdir/$imgpre$refid$imgsuf' -aff '$dofdir/$imgid.txt' $interp"
+arguments = "-flo '$imgdir/$imgpre$imgid$imgsuf' -res '$outimg' -ref '$imgdir/$imgpre$refid$imgsuf' -aff '$dofdir/$imgid.txt' $interp ${args[@]}"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
@@ -135,9 +150,10 @@ else
       if [ $update = true ] || [ ! -f "$jobdsc" ]; then
         echo "Update: $jobdsc"
         cat > "$jobdsc" <<EOF_HEADER
-universe   = vanilla
-executable = $niftyreg
-initialdir = $topdir
+universe    = vanilla
+environment = LD_LIBRARY_PATH="$niftyreg/lib:$LD_LIBRARY_PATH" DYLD_LIBRARY_PATH="$niftyreg/lib:$DYLD_LIBRARY_PATH"
+executable  = $niftyreg/bin/reg_resample
+initialdir  = $topdir
 
 EOF_HEADER
 
@@ -153,7 +169,7 @@ EOF_HEADER
           outimg="$outdir/$srcid-$tgtid.nii.gz"
           [ $force = true ] || [ ! -f "$outimg" ] || continue
           cat >> "$jobdsc" <<EOF_JOB
-arguments = "-flo '$imgdir/$imgpre$srcid$imgsuf' -res '$outimg' -ref '$imgdir/$imgpre$tgtid$imgsuf' -cpp '$dofdir/$tgtid-$srcid$dofsuf' $interp"
+arguments = "-flo '$imgdir/$imgpre$srcid$imgsuf' -res '$outimg' -ref '$imgdir/$imgpre$tgtid$imgsuf' -cpp '$dofdir/$tgtid-$srcid$dofsuf' $interp ${args[@]}"
 error     = $logdir/$srcid-$tgtid.err
 output    = $logdir/$srcid-$tgtid.out
 log       = $logdir/$srcid-$tgtid.log
