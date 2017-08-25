@@ -50,7 +50,7 @@
 (UseCyclicTransform "false")
 (HowToCombineTransforms "Add") // IRTK model, see Rueckert et al. (1999)
 
-(Metric "<sim>" "TransformBendingEnergyPenalty")
+(Metric "NormalizedMutualInformation" "TransformBendingEnergyPenalty")
 (NumberOfSamplesForSelfHessian 100000)  // TransformBendingEnergyPenalty
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
