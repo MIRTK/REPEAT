@@ -109,3 +109,15 @@ for be in ${be_vals[@]}; do
     done
   done
 done
+
+for be in 0.0005; do
+  for jl in 0 0.0001; do
+    for le in 0; do
+      for levels in 3 4; do
+        for maxit in 300 500 750 1000; do
+          append_row
+        done
+      done
+    done
+  done
+done
