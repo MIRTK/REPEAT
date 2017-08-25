@@ -53,7 +53,7 @@ if [ -n "$bgvalue" ]; then
     mskdir="$vardir/$dataset/affine/crp/$bgvalue"
     bgmask=true
   else
-    mskdir="$vardir/$dataset/affine/$chn-msk"
+    mskdir="$vardir/$dataset/affine/crp/$chn-msk"
     makedir "$mskdir"
     for imgid in "${imgids[@]}"; do
       mskimg="$mskdir/$imgid$imgsuf"
