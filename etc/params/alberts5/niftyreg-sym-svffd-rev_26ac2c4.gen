@@ -1,6 +1,17 @@
 #!/bin/bash
 
 ## Generate command-line arguments for NiftyReg 'reg_f3d' command (version >= 1.5)
+##
+## Revision 26ac2c4 of NiftyReg with the following fix of reg_resampleGradient function:
+##
+## // Reorientation matrix is assessed in order to remove the rigid component
+## -    mat33 reorient=nifti_mat33_inverse(nifti_mat33_polar(reg_mat44_to_mat33(&deformationField->sto_xyz)));
+## +    mat44 *def_voxel_to_mm = &deformationField->qto_xyz;
+## +    if(deformationField->sform_code>0)
+## +    {
+## +        def_voxel_to_mm = &deformationField->sto_xyz;
+## +    }
+## +    mat33 reorient=nifti_mat33_inverse(nifti_mat33_polar(reg_mat44_to_mat33(def_voxel_to_mm)));
 regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
