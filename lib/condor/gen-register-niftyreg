@@ -151,6 +151,9 @@ for cfgid in "${cfgids[@]}"; do
       vel)
         isvel=$arg
         ;;
+      gce)
+        [ "$arg" = true ] || argv=("${argv[@]}" '-nogce')
+        ;;
       nss)
         argv=("${argv[@]}" "-step" "$arg")
         ;;

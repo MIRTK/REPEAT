@@ -5,12 +5,13 @@ regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
-cfgrow='$cfgid,$vel,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le'
+cfgrow='$cfgid,$vel,$gce,$sim,$bins,$levels,$maxit,$ds,$be,$jl,$le'
 vel=true  # constant
 
 # initial/constant parameter values
 set_defaults()
 {
+  gce=true  # true: SS-based gradient, false: zeroth order BCH approximation
   sim='NMI'
   bins=64
   levels=3
@@ -24,6 +25,7 @@ set_defaults()
 # Modat et al., "Parametric non-rigid registration using a stationary velocity field", MMBIA 2012, 145–150.
 set_modat2012_parameters()
 {
+  gce=true
   ds=2.5
   be=0.001
   jl=0.1
@@ -56,7 +58,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 be_vals=(0.001 0.005 0.01)
 
@@ -71,7 +73,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 jl_vals=(0 0.0001 0.01)
 
@@ -87,7 +89,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 le_vals=(0)
 
@@ -109,6 +111,10 @@ for be in ${be_vals[@]}; do
     done
   done
 done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
 
 for be in 0.0005; do
   for jl in 0 0.0001; do
