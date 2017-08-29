@@ -69,7 +69,7 @@ allsym=true
 evlice=true
 
 # when 'true', evaluate mean transitivity error
-evlmte=true
+evlmte=false
 
 # when 'true', evaluate Jacobian determinants
 evljac=true
