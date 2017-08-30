@@ -63,10 +63,10 @@ initialdir   = $topdir
 EOF_HEADER
   for imgid in "${imgids[@]}"; do
     if [ $imgid = $refid ]; then
-      if [ ! -f "$dofdir/$imgid.dof.gz" ]; then
+      if [ "$force" = true ] || [ ! -f "$dofdir/$imgid.dof.gz" ]; then
         run mirtk init-dof "$dofdir/$imgid.dof.gz"
       fi
-    else
+    elif [ "$force" = true ] || [ ! -f "$dofdir/$imgid.dof.gz" ]; then
       images=()
       for chn in "${chns[@]}"; do
         imgpre="$(get_prefix "$chn")"

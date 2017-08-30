@@ -438,9 +438,15 @@ fi
 for roi in "${rois[@]}"; do
   nrois=0
   if [ -d "$roidir" ]; then
-    for tgtid in "${tgtids[@]}"; do
-      let nrois="$nrois + $(find "$roidir/$roi" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
-    done
+    if [ $(is_seg "$roi") = true ]; then
+      for tgtid in "${tgtids[@]}"; do
+        let nrois="$nrois + $(find "$roidir/$roi" -type f -name "${tgtid}-l*$imgsuf" | wc -l)"
+      done
+    else
+      for tgtid in "${tgtids[@]}"; do
+        [ ! -f "$roidir/$roi/$tgtid$imgsuf" ] || let nrois++
+      done
+    fi
   fi
   if [ $nrois -eq 0 ]; then
     jobdsc="$jobdir/create-$roi-masks.condor"
