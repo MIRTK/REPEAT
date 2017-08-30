@@ -1,0 +1,4 @@
+cfgid,vel,gce,sim,bins,levels,maxit,ds,be,jl,le
+0001,true,true,NMI,64,3,500,2.5,0.001,0,0
+0002,true,true,NMI,64,3,500,2.5,0.001,0,0.01
+0003,true,true,NMI,64,3,500,2.5,0.001,0.00001,0.01
