@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pandas as pd
 import re
+import sys
 
 
 topdir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
@@ -333,7 +334,11 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
     else:
         csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
     if os.path.isfile(csv_path):
-        df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
+        try:
+            df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
+        except Exception as e:
+            sys.stderr.write("Failed to read CSV file: {}\n".format(csv_path))
+            raise e
         if measure == 'time':
             replacements = {}
             if 'cpu_time' in df:
