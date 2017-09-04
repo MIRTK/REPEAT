@@ -30,14 +30,15 @@ regid="$1"; shift
 
 # parameter set
 cfgid="$1"; shift
-[ -n "$cfgid" ] || print_help
 
 # target image
 tgtid="$1"; shift
 [ -n "$tgtid" ] || print_help
 
 # directory with log files
-logdir="$vardir/$dataset/$regid/$cfgid/log/register"
+regdir="$vardir/$dataset/$regid"
+[ -z "$cfgid" ] || regdir="$regdir/$cfgid"
+logdir="$regdir/log/register"
 
 # collect runtime measurements in table format [min]
 reformat_runtime()

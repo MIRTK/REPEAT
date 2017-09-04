@@ -17,7 +17,7 @@ dataset="$1"; shift
 regid="$1"; shift
 cfgid="$1"; shift
 tgtid="$1"; shift
-[ -n "$dataset" -a -n "$regid" -a -n "$cfgid" -a -n "$tgtid" ] || print_help
+[ -n "$dataset" -a -n "$regid" -a -n "$tgtid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -35,7 +35,9 @@ cd "$topdir" || exit 1
 [ ${#srcids[@]} -gt 0 ] || srcids=("${imgids[@]}")
 
 # print table of Jacobian determinants statistics
-jacdir="$vardir/$dataset/$regid/$cfgid/evl/dof/jac"
+regdir="$vardir/$dataset/$regid"
+[ -z "$cfgid" ] || regdir="$regdir/$cfgid"
+jacdir="$regdir/evl/dof/jac"
 echo "srcid,mean,sdev,median,pct5,pct95,pct5_mean,pct95_mean,min,max,n,nexcl"
 for srcid in "${srcids[@]}"; do
   [ $srcid != $tgtid ] || continue
