@@ -12,7 +12,7 @@ print_help()
 dataset="$1"; shift
 regid="$1"; shift
 cfgid="$1"; shift
-[ -n "$dataset" -a -n "$regid" -a -n "$cfgid" ] || print_help
+[ -n "$dataset" -a -n "$regid" ] || print_help
 
 # load settings and auxiliary functions
 . "$(dirname "$BASH_SOURCE")/../../etc/settings.sh" || exit 1
@@ -31,7 +31,9 @@ cd "$topdir" || exit 1
 [ $# -eq 0 ] || tgtids=("$@")
 
 # print table of MICE statistics
-icedir="$vardir/$dataset/$regid/$cfgid/evl/dof/mice"
+regdir="$vardir/$dataset/$regid"
+[ -z "$cfgid" ] || regdir="$regdir/$cfgid"
+icedir="$regdir/evl/dof/mice"
 echo "tgtid,mean,sdev,median,pct5,pct95,pct5_mean,pct95_mean,min,max,nzero,n"
 for tgtid in ${tgtids[@]}; do
   iceimg="$icedir/$tgtid.nii.gz"
