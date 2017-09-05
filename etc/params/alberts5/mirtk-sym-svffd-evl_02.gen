@@ -97,12 +97,23 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
-
+#exit 0
 
 tp_vals=(0.0001 0.001 0.01)
 
-be_best=0.001
+for be in ${be_vals[@]}; do
+  for vp in ${vp_vals[@]}; do
+    for tp in ${tp_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+be_best=0.005
 tp_best=0.0001
 vp_best=0.001
 
