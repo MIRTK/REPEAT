@@ -83,12 +83,24 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+vp_vals=(0.0001 0.001)
+
+# 1c) NegJac penalty
+vp=0
+for be in ${be_vals[@]}; do
+  for tp in 0.00001 0.0001 0.0005 0.001 0.005 0.01 0.05; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
 
-
 tp_vals=(0.0001 0.001 0.01)
-vp_vals=(0.0001 0.001 0.01)
 
 be_best=0.001
 tp_best=0.0001
