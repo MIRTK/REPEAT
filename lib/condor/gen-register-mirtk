@@ -198,6 +198,7 @@ for cfgid in "${cfgids[@]}"; do
       n=$s
     done
     energy="${energy}...\n${energy_indentation}+ 0 BE[Bending energy](T)"
+    energy="${energy}...\n${energy_indentation}+ 0 LE[Linear energy](T)"
     energy="${energy}...\n${energy_indentation}+ 0 TP[Topology preservation](T)"
     energy="${energy}...\n${energy_indentation}+ 0 VP[Volume preservation](T)"
     energy="${energy}...\n${energy_indentation}+ 0 LogJac[LogJac penalty](T)"
