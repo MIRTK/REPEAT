@@ -6,7 +6,7 @@ regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
-cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps,$gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$lj,$nj,$jaceps,$gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
 
 # initial/constant parameter values
 set_defaults()
@@ -18,12 +18,12 @@ set_defaults()
   optim='ConjugateGradientDescent'
   linesearch='Adaptive'
   divini=false
-  srcgrd=true
-  ffdgrd='Analytic'
+  srcgrd=false
+  ffdgrd='Convolution'
   passdof=false
   conjtot=true
   levels=4
-  iters=100
+  iters=200
   steps=12
   rejects=12
   lastn=0
@@ -33,15 +33,16 @@ set_defaults()
   padbins=false
   window=5
   ds=2.5
-  be=0.001
-  tp=0.0001
-  vp=0.001
+  be=0.008
+  le=0.01
+  lj=0
+  nj=0
   jaceps=0.1
   gamma=0.5
   # SVFFD parameters
   im='SS'
-  imsteps=64
-  maxsv=-1
+  imsteps=32
+  maxsv=0
   nbch=0
   uselie=false
 }
@@ -61,16 +62,16 @@ i=0
 # ------------------------------------------------------------------------------
 # 1) determine optimal weights of penalty terms
 
-# 1a) bending energy
 set_defaults
-iters=200
-for be in 0 0.00001 0.0001 0.0005 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 0.009 0.01; do
+
+# 1a) bending energy
+for be in 0 0.001 0.005 0.006 0.007 0.008 0.009 0.01 0.02 0.03 0.04 0.05; do
   append_row
 done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 be_vals=(0.001 0.002 0.005)
 
