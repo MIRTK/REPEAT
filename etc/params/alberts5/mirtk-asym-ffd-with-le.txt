@@ -33,10 +33,11 @@ Topology preservation weight    = <tp>
 Topology preservation threshold = <gamma>
 Jacobian determinant epsilon    = <jaceps>
 
-Linear energy weight   = <le>
-Linear energy mu       = <le_mu>
-Linear energy lambda   = <le_lambda>
-Linear energy rotation = <le_rot>
+Linear energy weight       = <le>
+Linear energy mu           = <le_mu>
+Linear energy lambda       = <le_lambda>
+Linear energy rotation     = <le_rot>
+Linear energy w.r.t. world = <le_world>
 
 
 ## Optimization

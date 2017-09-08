@@ -6,7 +6,7 @@ regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
-cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$tp,$vp,$jaceps,$gamma'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$le_world,$tp,$vp,$jaceps,$gamma'
 
 # initial/constant parameter values
 set_defaults()
@@ -34,6 +34,11 @@ set_defaults()
   window=5
   ds=2.5
   be=0
+  le=0
+  le_mu=1
+  le_lambda=0
+  le_rot=true
+  le_world=false
   tp=0
   vp=0
   jaceps=0.1
@@ -54,10 +59,9 @@ i=0
 
 # ------------------------------------------------------------------------------
 
-
 be_vals=(0.001 0.005)
 vp_vals=(0 0.001 0.01)
-tp_vals=(0 0.0001 0.001)
+tp_vals=(0)
 le_mu_vals=(0 0.001 0.01 0.1)
 le_lambda_vals=(0 0.001 0.01 0.1)
 
@@ -67,25 +71,33 @@ epsilon=0
 for be in ${be_vals[@]}; do
   for vp in ${vp_vals[@]}; do
     for tp in ${tp_vals[@]}; do
-      for le_rot in true false; do
-        le_lambda=0
-        for le_mu in ${le_mu_vals[@]}; do
-          if [ "$le_mu" = '0' -a "$le_lambda" = '0' ]; then
-            le=0
-          else
-            le=1
-          fi
+      le_lambda=0
+      for le_mu in ${le_mu_vals[@]}; do
+        if [ "$le_mu" = '0' -a "$le_lambda" = '0' ]; then
+          le=0
+          le_rot=true
           append_row
-        done
-        le_mu=0
-        for le_lambda in ${le_lambda_vals[@]}; do
-          if [ "$le_mu" = '0' -a "$le_lambda" = '0' ]; then
-            le=0
-          else
-            le=1
-          fi
+        else
+          le=1
+          for le_rot in true false; do
+          for le_world in true false; do
+            append_row
+          done; done
+        fi
+      done
+      le_mu=0
+      for le_lambda in ${le_lambda_vals[@]}; do
+        if [ "$le_mu" = '0' -a "$le_lambda" = '0' ]; then
+          le=0
+          le_rot=true
           append_row
-        done
+        else
+          le=1
+          for le_rot in true false; do
+          for le_world in true false; do
+            append_row
+          done; done
+        fi
       done
     done
   done
