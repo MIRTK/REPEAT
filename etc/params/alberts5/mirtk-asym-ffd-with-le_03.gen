@@ -129,10 +129,29 @@ for be in 0.008 0.009 0.01 0.02 0.03 0.04 0.05; do
             append_row
           done
         else
+          le=0
           append_row
+          echo "Redo: $i"
         fi
       done
     done
+  done
+done
+
+# ------------------------------------------------------------------------------
+# 3) linear energy (le_rot)
+
+be=0.008
+lj=0.01
+nj=0
+le=1
+for le_mu in 0 0.005 0.01 0.05; do
+  for le_lambda in 0 0.005 0.01; do
+    if [ $le_mu != 0 -o $le_lambda != 0 ]; then
+      for le_rot in true false; do
+        append_row
+      done
+    fi
   done
 done
 
