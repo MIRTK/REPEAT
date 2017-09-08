@@ -121,11 +121,11 @@ best_le_lambda=0.005
 ffdgrd='Convolution'
 for be in 0.008 0.009 0.01 0.02 0.03 0.04 0.05; do
   for lj in 0 0.01 0.03 0.05 0.07; do
-    for nj in 0 0.01 0.02 0.03; do
+    for nj in 0 0.005 0.05; do
       for le_mu in 0 0.01; do
         if [ $le_mu != 0 ]; then
           le=1
-          for le_lambda in 0 0.005 0.01; do
+          for le_lambda in 0 0.005; do
             append_row
           done
         else
