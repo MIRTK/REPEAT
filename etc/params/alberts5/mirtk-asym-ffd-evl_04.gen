@@ -1,0 +1,77 @@
+#!/bin/bash
+
+## Generate parameters for MIRTK 'register' command
+## using asymmetric energy formulation and FFD model
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$nj,$lj,$jaceps,$gamma'
+
+# initial/constant parameter values
+set_defaults()
+{
+  usemsk=true
+  usepad=true
+  roi='Union'
+  interp='Linear'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=true
+  ffdgrd='Analytic'
+  passdof=false
+  conjtot=true
+  levels=3
+  iters=100
+  steps=12
+  rejects=2
+  lastn=10
+  epsilon=0.0001
+  sim='NMI'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0
+  le=0
+  le_mu=1
+  le_lambda=0
+  le_rot=true
+  nj=0
+  lj=0
+  jaceps=0.1
+  gamma=0.5
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1) explore weights of penalty terms
+
+set_defaults
+iters=300
+rejects=$steps
+lastn=0
+epsilon=0
+
+for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+  for be in 0.000 0.004 0.006 0.008 0.010 0.030 0.050; do
+    for le in 0.000 0.005 0.010 0.020; do
+      for lj in 0.000 0.001 0.010 0.050 0.100; do
+        append_row
+      done
+    done
+  done
+done
+

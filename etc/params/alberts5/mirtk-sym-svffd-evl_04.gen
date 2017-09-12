@@ -1,0 +1,83 @@
+#!/bin/bash
+
+## Generate parameters for MIRTK 'register' command
+## using symmetric energy formulation and SVFFD model
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$lj,$nj,$jaceps,$gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
+
+# initial/constant parameter values
+set_defaults()
+{
+  usemsk=true
+  usepad=true
+  roi='Union'
+  interp='Linear'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=true
+  ffdgrd='Analytic'
+  passdof=false
+  conjtot=true
+  levels=4
+  iters=200
+  steps=12
+  rejects=12
+  lastn=0
+  epsilon=0.00001
+  sim='NMI'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0
+  le=0
+  lj=0
+  nj=0
+  jaceps=0.1
+  gamma=0.5
+  # SVFFD parameters
+  im='SS'
+  imsteps=64
+  maxsv=-1
+  nbch=0
+  uselie=false
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1) determine optimal weights of penalty terms
+
+set_defaults
+epsilon=0
+
+for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+  for nbch in 0 2; do
+    for be in 0.000 0.001 0.005 0.010 0.050 0.100 0.500; do
+      for le in 0.000 0.005 0.010 0.050; do
+        for lj in 0.000 0.010 0.050 0.100; do
+          append_row
+        done
+      done
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+

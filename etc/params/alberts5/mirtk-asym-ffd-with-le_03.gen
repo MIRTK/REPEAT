@@ -131,7 +131,7 @@ for be in 0.008 0.009 0.01 0.02 0.03 0.04 0.05; do
         else
           le=0
           append_row
-          echo "Redo: $i"
+          printf '%04d\n' "$i"
         fi
       done
     done

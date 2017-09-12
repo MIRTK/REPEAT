@@ -1,0 +1,13 @@
+cfgid,usemsk,usepad,roi,interp,optim,linesearch,divini,srcgrd,ffdgrd,passdof,conjtot,levels,iters,steps,rejects,lastn,epsilon,sim,bins,padbins,window,ds,be,le,lj,nj,jaceps,gamma,im,imsteps,maxsv,nbch,uselie
+0001,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0002,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.001,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0003,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.005,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0004,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.006,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0005,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.007,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0006,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.008,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0007,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.009,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0008,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.01,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0009,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.02,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0010,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.03,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0011,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.04,0.01,0,0,0.1,0.5,SS,32,0,0,false
+0012,true,true,Union,Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,4,200,12,12,0,0.00001,NMI,64,false,5,2.5,0.05,0.01,0,0,0.1,0.5,SS,32,0,0,false
