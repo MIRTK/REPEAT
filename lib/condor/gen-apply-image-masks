@@ -42,7 +42,7 @@ run cd "$topdir"
 # paths
 regid='affine'
 regdir="$vardir/$dataset/$regid"
-imgdir="$regdir/out"
+imgdir="$regdir/flp"
 outdir="$regdir/pad"
 jobdir="$regdir/bin"
 logdir="$regdir/log/apply-image-masks"

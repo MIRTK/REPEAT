@@ -294,6 +294,47 @@ if [ "$extdof" != true -a "$extout" != true ]; then
     exit 0
   fi
 
+  # flip image data such that orientation matrix is the identity
+  outdir="$regdir/out"
+  flpdir="$regdir/flp"
+  for chn in "${chns[@]}"; do
+    makedir "$flpdir/$chn"
+    for imgid in "${imgids[@]}"; do
+      outimg="$outdir/$chn/$imgid$imgsuf"
+      flpimg="$flpdir/$chn/$imgid$imgsuf"
+      if [ -n "$deorient" ]; then
+        [ ! -L "$flpimg" ] || run unlink "$flpimg"
+        if [ "$dataset" = 'oasis' ]; then
+          [ -f "$flpimg" ] || run "$mirtk" flip-image "$outimg" "$flpimg" -axes on -origin on $deorient
+        else
+          error "No deorientation step implemented for dataset $dataset! See $BASH_SOURCE."
+        fi
+      elif [ ! -L "$flpimg" ]; then
+        [ ! -f "$outimg" ] || run rm -f "$outimg"
+        run ln -s "../../out/$chn/$imgid$imgsuf" "$flpimg"
+      fi
+    done
+    msk=$(get_bgvalue "$chn")
+    if [ -n "$msk" -a $(is_mask "$msk") = true ]; then
+      makedir "$flpdir/$msk"
+      for imgid in "${imgids[@]}"; do
+        outmsk="$outdir/$msk/$imgid$imgsuf"
+        flpmsk="$flpdir/$msk/$imgid$imgsuf"
+        if [ -n "$deorient" ]; then
+          [ ! -L "$flpmsk" ] || run unlink "$flpmsk"
+          if [ "$dataset" = 'oasis' ]; then
+            [ -f "$flpmsk" ] || run "$mirtk" flip-image "$outmsk" "$flpmsk" -axes on -origin on $deorient
+          else
+            error "No deorientation step implemented for dataset $dataset! See $BASH_SOURCE."
+          fi
+        elif [ ! -L "$flpmsk" ]; then
+          [ ! -f "$outmsk" ] || run rm -f "$outmsk"
+          run ln -s "../../out/$msk/$imgid$imgsuf" "$flpmsk"
+        fi
+      done
+    fi
+  done
+
   # pad affinely aligned images using foreground masks
   n=0
   nexpected=0

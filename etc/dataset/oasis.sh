@@ -72,6 +72,24 @@ mods=('t1w' 'seg')
 #   computed for the entire image domain, i.e., a sum over all voxels.
 rois=('msk' 'seg')
 
+# change image data such that orientation matrix is the identity
+#
+# Results may differ for some tools when coordinate axes are swapped.
+# This is the case for NiftyReg and MIRTK, for example. In case of MIRTK,
+# the reoriented transformed source image gradient leads to slight
+# differences in the numerical optimization. This can be avoided by
+# changing the image data and header information before registration.
+# Eventually, this should be addressed in the respective toolkits.
+#
+# The 'deorient' variable must be set to either an empty string to disable
+# this step and use the original image data, or a string of arguments
+# for the MIRTK flip-image command to perform the necessary operations.
+#
+# Note that the image header is updated accordingly. Therefore, a
+# resulting transformation for world coordinates is the same with or
+# without this deorientation step.
+deorient="-x -y -yz"
+
 # match histogram of reference image
 nrmhst=true
 
