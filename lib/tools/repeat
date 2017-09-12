@@ -310,7 +310,7 @@ if [ "$extdof" != true -a "$extout" != true ]; then
           error "No deorientation step implemented for dataset $dataset! See $BASH_SOURCE."
         fi
       elif [ ! -L "$flpimg" ]; then
-        [ ! -f "$outimg" ] || run rm -f "$outimg"
+        [ ! -f "$flpimg" ] || run rm -f "$flpimg"
         run ln -s "../../out/$chn/$imgid$imgsuf" "$flpimg"
       fi
     done
@@ -328,7 +328,7 @@ if [ "$extdof" != true -a "$extout" != true ]; then
             error "No deorientation step implemented for dataset $dataset! See $BASH_SOURCE."
           fi
         elif [ ! -L "$flpmsk" ]; then
-          [ ! -f "$outmsk" ] || run rm -f "$outmsk"
+          [ ! -f "$flpmsk" ] || run rm -f "$flpmsk"
           run ln -s "../../out/$msk/$imgid$imgsuf" "$flpmsk"
         fi
       done
