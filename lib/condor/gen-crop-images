@@ -35,6 +35,7 @@ run cd "$topdir"
 # paths
 regid='affine'
 regdir="$vardir/$dataset/$regid"
+mskdir="$regdir/flp"
 imgdir="$regdir/nrm"
 outdir="$regdir/crp"
 jobdir="$regdir/bin"
@@ -98,7 +99,7 @@ EOF_JOB
             outimg="$outdir/$msk/$imgid$imgsuf"
             [ $force = true ] || [ ! -f "$outimg" ] || continue
             cat >> "$jobdsc" <<EOF_JOB
-arguments = "extract-image-region '$imgdir/$msk/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
+arguments = "extract-image-region '$mskdir/$msk/$imgid$imgsuf' '$outimg' -crop 0 -threads $threads"
 error     = $logdir/$imgid.err
 output    = $logdir/$imgid.out
 log       = $logdir/$imgid.log
