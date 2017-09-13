@@ -34,8 +34,8 @@ Pad Parzen window estimation   = <padbins>
 
 Bending energy weight        = <be>
 Linear energy weight         = <le>
-LogJac penalty weight        = <vp>
-NegJac penalty weight        = <tp>
+LogJac penalty weight        = <lj>
+NegJac penalty weight        = <nj>
 NegJac penalty threshold     = <gamma>
 Jacobian determinant epsilon = <jaceps>
 
