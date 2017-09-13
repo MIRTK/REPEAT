@@ -721,27 +721,31 @@ for cfgid in "${cfgids[@]}"; do
   for mod in "${mods[@]}"; do
   for measure in $(get_measures "$mod"); do
     n=0
+    nexpected=${#tgtids[@]}
     [ $measure != 'overlap' ] || measure='dsc'
     if [ $(is_overlap_measure $measure) = true ]; then
       for tgtid in "${tgtids[@]}"; do
         [ ! -f "$resdir/$tgtid-$mod-$measure.csv" ] || let n++
       done
+    elif [ "$regid" = 'affine' ]; then
+      nexpected=1
+      [ ! -f "$regdir/evl/$mod/$measure.nii.gz" ] || let n++
     else
       outdir="$regdir/evl/$mod/$measure"
       for tgtid in "${tgtids[@]}"; do
         [ ! -f "$outdir/$tgtid$imgsuf" ] || let n++
       done
     fi
-    if [ $n -eq 0 ] || [ $update = true -a $n -lt ${#tgtids[@]} ]; then
+    if [ $n -eq 0 ] || [ $update = true -a $n -lt $nexpected ]; then
       jobdsc="$jobdir/evaluate-$mod-$measure.condor"
       if [ $update = true -a $gen_evaluate_measures_updated = false ] || [ ! -f "$jobdsc" ]; then
         run "$libdir/condor/gen-evaluate-measures" "$dataset" "$regid" "$cfgid"
         gen_evaluate_measures_updated=true
       fi
       submit "$jobdsc"
-    elif [ $n -ne ${#tgtids[@]} ]; then
+    elif [ $n -ne $nexpected ]; then
       logdir="$regdir/log/evaluate-$mod-$measure"
-      echo "Seems not all $mod $measure evaluation jobs have finished successfully! Found only $n out of ${#tgtids[@]} output files."
+      echo "Seems not all $mod $measure evaluation jobs have finished successfully! Found only $n out of $nexpected output files."
       error "Check log files of jobs in '$logdir' for errors, and re-run failed jobs manually."
     else
       echo "All $mod $measure evaluation jobs are done, found $n output files"
