@@ -123,8 +123,36 @@ for nbch in 0 2; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+# 1f) higher LogJac penalty
+lj_vals=(0.0060 0.0070 0.0080 0.0090 0.0100)
+
+set_defaults
+for nbch in 0 2; do
+  for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+    for lj in ${lj_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# 1g) lower NegJac penalty
+nj_vals=(0.000001 0.00001 0.00005 0.0001 0.0005)
+
+set_defaults
+for nbch in 0 2; do
+  for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+  done
+done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
+
 
