@@ -1,12 +1,12 @@
 #!/bin/bash
 
 ## Generate parameters for MIRTK 'register' command
-## using asymmetric energy formulation and FFD model
+## using symmetric energy formulation and SVFFD model
 regid="$(basename "${BASH_SOURCE/.gen}")"
 parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 
 # attention: must be in single quotes; each column entry must be '$name'
-cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$lj,$lj_eps,$nj,$nj_eps,$nj_gamma'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$lj,$lj_eps,$nj,$nj_eps,$nj_gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
 
 # default parameter values
 set_defaults()
@@ -36,13 +36,19 @@ set_defaults()
   be=0
   le=0
   le_mu=1
-  le_lambda=1.5
+  le_lambda=0.0
   le_rot=true
   lj=0
   lj_eps=0.005
   nj=0
   nj_eps=0.01
   nj_gamma=0.5
+  # SVFFD parameters
+  im='SS'
+  imsteps=64
+  maxsv=0
+  nbch=0
+  uselie=false
 }
 
 # auxiliary function to append row with parameter values
@@ -79,26 +85,17 @@ for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   done
 done
 
-# 1c) elastic energy with lambda=0
-set_defaults
-le_lambda=0
-for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
-  for le in ${le_vals[@]}; do
-    append_row
-  done
-done
-
-# 1d) elastic energy with lambda>0
+# 1c) elastic energy with lambda>0
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   for le in ${le_vals[@]}; do
-    for le_lambda in 1.0 1.5; do
+    for le_lambda in 0.0 1.0 1.5; do
       append_row
     done
   done
 done
 
-# 1e) LogJac penalty
+# 1d) LogJac penalty
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   for lj_eps in 0.0001 0.0010 0.0050 0.0100 0.1000; do
@@ -108,7 +105,7 @@ for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   done
 done
 
-# 1f) NegJac penalty
+# 1e) NegJac penalty
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   for nj_eps in 0.0001 0.0050 0.0100 0.0500 0.1000; do
@@ -121,7 +118,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
+exit 0
 
 # ------------------------------------------------------------------------------
 # 2) combine regularization terms
