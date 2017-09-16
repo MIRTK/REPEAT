@@ -9,6 +9,7 @@ parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$lj,$lj_eps,$nj,$nj_eps,$nj_gamma,$im,$imsteps,$maxsv,$nbch,$uselie'
 
 # default parameter values
+# set based on initial pairwise registration tests using 'alberts2' subset
 set_defaults()
 {
   usemsk=false # MUST be false for inverse consistency!
@@ -39,7 +40,7 @@ set_defaults()
   le_lambda=0.0
   le_rot=true
   lj=0
-  lj_eps=0.005
+  lj_eps=0.01
   nj=0
   nj_eps=0.01
   nj_gamma=0.5
@@ -66,10 +67,10 @@ i=0
 # ------------------------------------------------------------------------------
 # 1) explore weights of penalty terms individually, only one constraint at a time
 
-be_vals=(0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0090 0.0100 0.0200 0.0300 0.0400 0.0500)
-le_vals=(0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0090 0.0100 0.0200 0.0300 0.0400 0.0500)
-lj_vals=(0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0090 0.0100 0.0200 0.0300 0.0400 0.0500)
-nj_vals=(0.0001 0.0003 0.0007 0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0090 0.0100 0.0200)
+be_vals=(0.0010 0.0030 0.0050 0.0070 0.0090 0.0200 0.0300 0.0500)
+le_vals=(0.0010 0.0030 0.0050 0.0070 0.0090 0.0200 0.0300 0.0500 0.0700 0.1000)
+lj_vals=(0.0010 0.0050 0.0100 0.0300 0.0500 0.0700 0.100)
+nj_vals=(0.0001 0.0010 0.0050 0.0100 0.0200 0.0300 0.0400 0.0500)
 
 # 1a) no constraints
 set_defaults
@@ -89,7 +90,7 @@ done
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
   for le in ${le_vals[@]}; do
-    for le_lambda in 0.0 1.0 1.5; do
+    for le_lambda in 1.0 1.5; do
       append_row
     done
   done
@@ -98,24 +99,56 @@ done
 # 1d) LogJac penalty
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
-  for lj_eps in 0.0001 0.0010 0.0050 0.0100 0.1000; do
-    for lj in ${lj_vals[@]}; do
-      append_row
-    done
+  for lj in ${lj_vals[@]}; do
+    append_row
   done
 done
 
 # 1e) NegJac penalty
 set_defaults
 for ffdgrd in 'Analytic' 'Convolution' 'DMFFD'; do
-  for nj_eps in 0.0001 0.0050 0.0100 0.0500 0.1000; do
+  for nj_eps in 0.0010 0.0100 0.0500 0.1000; do
     for nj in ${nj_vals[@]}; do
       append_row
     done
   done
 done
 
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
 # ------------------------------------------------------------------------------
-# 2) try fewer values that worked well with 'alberts5' subset
-#    (see etc/params/alberts5/mirtk-sym-svffd-evl_07.gen)
+# 2) combine regularization terms
+
+set_new_defaults()
+{
+  set_defaults
+  ffdgrd='Convolution'
+  le_lambda=1.0
+  lj_eps=0.01
+  nj_eps=0.1
+}
+
+# 2a) try combinations of values found to work well individually
+be_vals=(0.0000 0.0050 0.0070 0.0100)
+le_vals=(0.0050 0.0070 0.0100)
+lj_vals=(0.0000 0.0050 0.0100 0.0400)
+nj_vals=(0.0000 0.0100)
+
+set_new_defaults
+for nj in ${nj_vals[@]}; do
+  for lj in ${lj_vals[@]}; do
+    for be in ${be_vals[@]}; do
+      for le in ${le_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
 
