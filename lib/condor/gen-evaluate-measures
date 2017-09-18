@@ -209,7 +209,7 @@ EOF_HEADER
         done
         echo -e "$dofs" > "$pardir/dofs-ic-$tgtid.txt"
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$tgtid$refsuf' $refpad -output '$outimg' -threads $threads"
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-ic-$tgtid.txt' -target '$refdir/$refpre$tgtid$refsuf' $refpad -outside NaN -output '$outimg' -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
@@ -256,7 +256,7 @@ EOF_HEADER
         done
         echo -e "$dofs" > "$pardir/dofs-te-$tgtid.txt"
         cat >> "$jobdsc" <<EOF_JOB
-arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$tgtid$refsuf' $refpad -output '$outimg' -threads $threads"
+arguments = "evaluate-dof -squared -$measure -dofs '$pardir/dofs-te-$tgtid.txt' -target '$refdir/$refpre$tgtid$refsuf' $refpad -outside NaN -output '$outimg' -threads $threads"
 error     = $logdir/$tgtid.err
 output    = $logdir/$tgtid.out
 log       = $logdir/$tgtid.log
