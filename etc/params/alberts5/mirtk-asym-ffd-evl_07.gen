@@ -146,5 +146,65 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
+
+lj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
+nj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
+
+# 2b) further combinations
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    for lj in ${lj_vals[@]}; do
+      for nj in ${nj_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
+
+# 2c) using bending energy and Jacobian penalties
+set_new_defaults
+le=0.0000
+for be in 0.00001 0.00005 0.0001; do
+  # + LogJac
+  nj=0.0000
+  for lj in ${lj_vals[@]}; do
+    append_row
+  done
+  # + NegJac
+  lj=0.0000
+  for nj in ${nj_vals[@]}; do
+    append_row
+  done
+  # + LogJac + NegJac
+  for lj in ${lj_vals[@]}; do
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# 2d) using linear elasticity and Jacobian penalties
+set_new_defaults
+be=0.0000
+for le_lambda in 1.0 1.5; do
+  for le in 0.0001 0.0005 0.0010; do
+    # + LogJac
+    nj=0.0000
+    for lj in ${lj_vals[@]}; do
+      append_row
+    done
+    # + NegJac
+    lj=0.0000
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+    # + LogJac + NegJac
+    for lj in ${lj_vals[@]}; do
+      for nj in ${nj_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
 
