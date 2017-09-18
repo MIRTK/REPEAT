@@ -315,12 +315,13 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
                 df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=version, tgtid=tgtid, cfgid=arg)])
             return df
     # all but tgtid non-iterable
-    if not tgtid:
-        tgtid = get_tgtids(dataset, regid, cfgid)
-    if is_iterable(tgtid):
-        for arg in tgtid:
-            df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=version, tgtid=arg, cfgid=cfgid)])
-        return df
+    if measure != 'mice' and measure != 'mte':
+        if not tgtid:
+            tgtid = get_tgtids(dataset, regid, cfgid)
+        if is_iterable(tgtid):
+            for arg in tgtid:
+                df = pd.concat([df, read_measurements(measure=measure, dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=version, tgtid=arg, cfgid=cfgid)])
+            return df
     # all arguments are non-iterable
     if regid:
         toolkit, command, version = split_regid(regid)
@@ -331,11 +332,13 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
         csv_path = os.path.join(csvdir, tgtid + '-seg-' + measure + '.csv')
         if not os.path.isfile(csv_path):
             csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
+    elif measure == 'mice' or measure == 'mte':
+        csv_path = os.path.join(csvdir, measure + '.csv')
     else:
         csv_path = os.path.join(csvdir, tgtid + '-' + measure + '.csv')
     if os.path.isfile(csv_path):
         try:
-            df = pd.read_csv(csv_path, header=0, dtype={'srcid': str})
+            df = pd.read_csv(csv_path, header=0, dtype={'srcid': str, 'tgtid': str})
         except Exception as e:
             sys.stderr.write("Failed to read CSV file: {}\n".format(csv_path))
             raise e
@@ -348,7 +351,11 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
             if replacements:
                 df.rename(columns=replacements, inplace=True)
         # insert columns in reverse order
-        df.insert(0, 'tgtid', tgtid)
+        if measure == 'mice' or measure == 'mte':
+            if tgtid:
+                df = df[df.tgtid==tgtid].copy()
+        else:
+            df.insert(0, 'tgtid', tgtid)
         if cfgid:
             df.insert(0, 'cfgid', int(cfgid))
         df.insert(0, 'version', version)
@@ -359,7 +366,7 @@ def read_measurements(measure, dataset, regid=None, toolkit=None, command=None, 
     return df
 
 
-def read_results(dataset, regid=None, toolkit=None, command=None, version=None, measure=['vox', 'dsc', 'jac', 'time'], cfgid=None):
+def read_results(dataset, regid=None, toolkit=None, command=None, version=None, measure=['vox', 'dsc', 'jac', 'mice', 'time'], cfgid=None):
     """Read all results for a number of quality measures."""
     if not measure:
         raise ValueError("Need to specify at least one evaluation 'measure'")
@@ -460,6 +467,10 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
             df = read_measurements(measure='logjac', dataset=dataset, regid=regid, cfgid=cfgids)
             if 'nexcl' in df and 'n' in df and 'pctexcl' not in df:
                 df = df.assign(pctexcl=(100. * df.nexcl / (df.n + df.nexcl)))
+        elif m == 'mice' or m == 'mte':
+            df = read_measurements(measure=m, dataset=dataset, regid=regid, cfgid=cfgids)
+            if 'nzero' in df and 'n' in df and 'pctzero' not in df:
+                df = df.assign(pctzero=(100. * df.nzero / df.n))
         else:
             df = read_measurements(measure=m, dataset=dataset, regid=regid, cfgid=cfgids)
             if m == 'dsc':
