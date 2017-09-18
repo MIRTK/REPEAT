@@ -135,6 +135,7 @@ set_new_defaults()
   set_defaults
   ffdgrd='Convolution'
   le_lambda=1.5
+  nbch=2
 }
 
 be_vals=(0.0001 0.0005 0.0010 0.0020)
