@@ -208,6 +208,10 @@ for le_lambda in 1.0 1.5; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
 # 2e) missing combinations for 2b) where only one Jacobian penalty is used
 for be in 0.00001 0.00005 0.0001; do
   for le in 0.0001 0.0005; do
@@ -231,3 +235,37 @@ for be in 0.00001 0.00005 0.0001; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+set_new_defaults()
+{
+  set_defaults
+  ffdgrd='Convolution'
+  be=0.00001
+  le=0.0005
+  le_lambda=1
+  lj=0.0005
+  lj_eps=0.01
+  nj=0.00001
+  nj_eps=0.1
+}
+
+be_vals=(0.00001 0.00005)
+le_vals=(0.0005)
+lj_vals=(0.0000 0.0005)
+nj_vals=(0.0000 0.00001 0.00005)
+
+# ------------------------------------------------------------------------------
+# 3) fine tuning of optimization parameters
+
+for levels in 3 4; do
+  for iters in 75 100 125 150; do
+    for rejects in 2 3 4 5 10; do
+      for epsilon in 0.00000 0.00001 0.00010; do
+        append_row
+      done
+    done
+  done
+done
