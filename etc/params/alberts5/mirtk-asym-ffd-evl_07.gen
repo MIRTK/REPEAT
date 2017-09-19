@@ -208,3 +208,26 @@ for le_lambda in 1.0 1.5; do
   done
 done
 
+# 2e) missing combinations for 2b) where only one Jacobian penalty is used
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    nj=0.0000
+    for lj in ${lj_vals[@]}; do
+      append_row
+    done
+    lj=0.0000
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# 2f) missing combinations for 2b) where no Jacobian penalty is used
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    lj=0.0000
+    nj=0.0000
+    append_row
+  done
+done
+
