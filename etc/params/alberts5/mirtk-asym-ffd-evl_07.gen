@@ -260,6 +260,7 @@ nj_vals=(0.0000 0.00001 0.00005)
 # ------------------------------------------------------------------------------
 # 3) fine tuning of optimization parameters
 
+set_new_defaults
 for levels in 3 4; do
   for iters in 75 100 125 150; do
     for rejects in 2 3 4 5 10; do
