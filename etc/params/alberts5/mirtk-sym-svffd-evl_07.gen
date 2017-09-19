@@ -154,4 +154,30 @@ for nj in ${nj_vals[@]}; do
   done
 done
 
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
 
+# ------------------------------------------------------------------------------
+# 3) fine tuning
+
+set_new_defaults()
+{
+  set_defaults
+  ffdgrd='Convolution'
+  le_lambda=1.5
+  nbch=2
+  be=0.0010
+  le=0.0050
+  lj=0.0000
+  nj=0.0000
+}
+
+set_new_defaults
+for levels in 3 4; do
+  for iters in 75 100 125 150 200; do
+    for epsilon in 0.00000 0.00001 0.00010; do
+      append_row
+    done
+  done
+done
