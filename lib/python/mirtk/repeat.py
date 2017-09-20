@@ -378,7 +378,7 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
     # recursion for iterable arguments
     if is_iterable(dataset):
         for arg in dataset:
-            res = read_results(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version, measure=measure)
+            res = read_results(dataset=arg, regid=regid, toolkit=toolkit, command=command, version=version, measure=measure, cfgid=cfgid)
             for m in res:
                 if m in dfs:
                     dfs[m] = pd.concat([dfs[m], res[m]])
@@ -401,7 +401,7 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         regid = None
     if is_iterable(regid):
         for arg in regid:
-            res = read_results(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, measure=measure)
+            res = read_results(dataset=dataset, regid=arg, toolkit=toolkit, command=command, version=version, measure=measure, cfgid=cfgid)
             for m in res:
                 if m in dfs:
                     dfs[m] = pd.concat([dfs[m], res[m]])
@@ -410,7 +410,7 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         return dfs
     if is_iterable(toolkit):
         for arg in toolkit:
-            res = read_results(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version, measure=measure)
+            res = read_results(dataset=dataset, regid=regid, toolkit=arg, command=command, version=version, measure=measure, cfgid=cfgid)
             for m in res:
                 if m in dfs:
                     dfs[m] = pd.concat([dfs[m], res[m]])
@@ -421,7 +421,7 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         command = command[toolkit]
     if is_iterable(command):
         for arg in command:
-            res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, measure=measure)
+            res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=arg, version=version, measure=measure, cfgid=cfgid)
             for m in res:
                 if m in dfs:
                     dfs[m] = pd.concat([dfs[m], res[m]])
@@ -432,7 +432,7 @@ def read_results(dataset, regid=None, toolkit=None, command=None, version=None, 
         version = version[get_regid(toolkit=toolkit, command=command)]
     if is_iterable(version):
         for arg in version:
-            res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, measure=measure)
+            res = read_results(dataset=dataset, regid=regid, toolkit=toolkit, command=command, version=arg, measure=measure, cfgid=cfgid)
             for m in res:
                 if m in dfs:
                     dfs[m] = pd.concat([dfs[m], res[m]])
