@@ -163,7 +163,7 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
 # ------------------------------------------------------------------------------
 # 3) fine tuning
@@ -173,16 +173,16 @@ set_new_defaults()
   set_defaults
   ffdgrd='Convolution'
   nbch=2
-  be=0.00100
-  le=0.00500
+  be=0.00050
+  le=0.00700
   lj=0.00000
   nj=0.00000
 }
 
 set_new_defaults
 for levels in 3 4; do
-  for iters in 75 100 125 150 200; do
-    for epsilon in 0.00000 0.00001 0.00010; do
+  for iters in 50 75 100 125 150; do
+    for epsilon in 0.000000 0.000001 0.000010; do
       append_row
     done
   done
