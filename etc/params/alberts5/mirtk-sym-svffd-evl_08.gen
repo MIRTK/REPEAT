@@ -207,7 +207,7 @@ set_new_defaults()
 }
 
 set_new_defaults
-for be in 0.00400 0.00500 0.00600; do
+for be in 0.00040 0.00050 0.00060; do
   for le in 0.00600 0.00700 0.00800; do
     for le_lambda in 0.0 0.5 1.0 1.5; do
       append_row
