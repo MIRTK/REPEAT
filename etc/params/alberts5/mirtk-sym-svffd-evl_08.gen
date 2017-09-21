@@ -215,3 +215,15 @@ for be in 0.00040 0.00050 0.00060; do
   done
 done
 
+le=0.00700
+for be in 0.00070 0.00080; do
+  for le_lambda in 0.0 0.5 1.0 1.5; do
+    append_row
+  done
+done
+
+le_lambda=2.0
+for be in 0.00040 0.00050 0.00060 0.00070 0.00080; do
+  append_row
+done
+
