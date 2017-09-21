@@ -151,6 +151,16 @@ for nj in ${nj_vals[@]}; do
   done
 done
 
+# try also with le=0.007
+le=0.00700
+for nj in ${nj_vals[@]}; do
+  for lj in ${lj_vals[@]}; do
+    for be in ${be_vals[@]}; do
+      append_row
+    done
+  done
+done
+
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
