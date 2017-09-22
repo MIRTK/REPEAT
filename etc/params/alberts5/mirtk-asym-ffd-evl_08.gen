@@ -1,0 +1,262 @@
+#!/bin/bash
+
+## Generate parameters for MIRTK 'register' command
+## using asymmetric energy formulation and FFD model
+regid="$(basename "${BASH_SOURCE/.gen}")"
+parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
+
+# attention: must be in single quotes; each column entry must be '$name'
+cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$lj,$lj_eps,$nj,$nj_eps,$nj_gamma'
+
+# default parameter values based on pairwise ALBERTs tgt=01, src=02 registrations
+# using schuhschuh/MIRTK (GitHub) develop branch revision 8509812
+set_defaults()
+{
+  usemsk=false
+  usepad=true
+  roi='Union'
+  interp='Fast Linear'
+  optim='ConjugateGradientDescent'
+  linesearch='Adaptive'
+  divini=false
+  srcgrd=false
+  ffdgrd='Convolution'
+  passdof=false
+  conjtot=true
+  levels=3
+  iters=100
+  steps=12
+  rejects=2
+  lastn=0
+  epsilon=0.00001
+  sim='LNCC'
+  bins=64
+  padbins=false
+  window=5
+  ds=2.5
+  be=0
+  le=0
+  le_mu=1
+  le_lambda=1
+  le_rot=true
+  lj=0
+  lj_eps=0.005
+  nj=0
+  nj_eps=0.01
+  nj_gamma=0.5
+}
+
+# auxiliary function to append row with parameter values
+append_row()
+{
+  let i++
+  local cfgid=$(printf %04d $i)
+  eval "echo \"$cfgrow\"" >> "$parcsv"
+}
+
+# write header and initialize row counter
+echo "${cfgrow//$}" > "$parcsv"
+i=0
+
+# ------------------------------------------------------------------------------
+# 1) explore weights of penalty terms individually, only one constraint at a time
+
+# initial value ranges are based on pairwise ALBERTs tgt=01, src=02 registrations
+be_vals=(0.0001 0.0002 0.0003 0.0004 0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 0.0020 0.0030 0.0040 0.0050)
+le_vals=(0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 0.0020 0.0030 0.0040 0.0050)
+lj_vals=(0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 0.0020 0.0030 0.0040 0.0050)
+nj_vals=(0.0010 0.0020 0.0030 0.0040 0.0050 0.0060 0.0070 0.0080 0.0090 0.0100 0.0200)
+
+# 1a) no constraints
+set_defaults
+append_row
+
+# 1b) bending energy
+set_defaults
+for be in ${be_vals[@]}; do
+  append_row
+done
+
+# 1c) elastic energy
+set_defaults
+for le in ${le_vals[@]}; do
+  for le_lambda in 0.0 0.5 1.0 1.5; do
+    append_row
+  done
+done
+
+# 1d) LogJac penalty
+set_defaults
+for lj_eps in 0.0001 0.0010 0.0050 0.0100 0.1000; do
+  for lj in ${lj_vals[@]}; do
+    append_row
+  done
+done
+
+# 1e) NegJac penalty
+set_defaults
+for nj_eps in 0.01 0.05 0.10; do
+  for nj in ${nj_vals[@]}; do
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+exit 0
+
+# ------------------------------------------------------------------------------
+# 2) combine regularization terms
+
+set_new_defaults()
+{
+  set_defaults
+  ffdgrd='Convolution'
+  le_lambda=1
+  lj_eps=0.01
+  nj_eps=0.1
+}
+
+# 2a) try combinations of values found to work well individually
+be_vals=(0.0001 0.0003 0.0005)
+le_vals=(0.0008 0.0010)
+lj_vals=(0.0000 0.0007 0.0010 0.0030)
+nj_vals=(0.0000 0.0010 0.0030 0.0050)
+
+set_new_defaults
+for be in ${be_vals[@]}; do
+  for le in ${le_vals[@]}; do
+    for lj in ${lj_vals[@]}; do
+      for nj in ${nj_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+lj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
+nj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
+
+# 2b) further combinations
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    for lj in ${lj_vals[@]}; do
+      for nj in ${nj_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
+
+# 2c) using bending energy and Jacobian penalties
+set_new_defaults
+le=0.0000
+for be in 0.00001 0.00005 0.0001; do
+  # + LogJac
+  nj=0.0000
+  for lj in ${lj_vals[@]}; do
+    append_row
+  done
+  # + NegJac
+  lj=0.0000
+  for nj in ${nj_vals[@]}; do
+    append_row
+  done
+  # + LogJac + NegJac
+  for lj in ${lj_vals[@]}; do
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# 2d) using linear elasticity and Jacobian penalties
+set_new_defaults
+be=0.0000
+for le_lambda in 1.0 1.5; do
+  for le in 0.0001 0.0005 0.0010; do
+    # + LogJac
+    nj=0.0000
+    for lj in ${lj_vals[@]}; do
+      append_row
+    done
+    # + NegJac
+    lj=0.0000
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+    # + LogJac + NegJac
+    for lj in ${lj_vals[@]}; do
+      for nj in ${nj_vals[@]}; do
+        append_row
+      done
+    done
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+# 2e) missing combinations for 2b) where only one Jacobian penalty is used
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    nj=0.0000
+    for lj in ${lj_vals[@]}; do
+      append_row
+    done
+    lj=0.0000
+    for nj in ${nj_vals[@]}; do
+      append_row
+    done
+  done
+done
+
+# 2f) missing combinations for 2b) where no Jacobian penalty is used
+for be in 0.00001 0.00005 0.0001; do
+  for le in 0.0001 0.0005; do
+    lj=0.0000
+    nj=0.0000
+    append_row
+  done
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+set_new_defaults()
+{
+  set_defaults
+  ffdgrd='Convolution'
+  be=0.00001
+  le=0.0005
+  le_lambda=1
+  lj=0.0005
+  lj_eps=0.01
+  nj=0.00001
+  nj_eps=0.1
+}
+
+be_vals=(0.00001 0.00005)
+le_vals=(0.0005)
+lj_vals=(0.0000 0.0005)
+nj_vals=(0.0000 0.00001 0.00005)
+
+# ------------------------------------------------------------------------------
+# 3) fine tuning of optimization parameters
+
+set_new_defaults
+for levels in 3 4; do
+  for iters in 75 100 125 150; do
+    for rejects in 2 3 4 5 10; do
+      for epsilon in 0.00000 0.00001 0.00010; do
+        append_row
+      done
+    done
+  done
+done
