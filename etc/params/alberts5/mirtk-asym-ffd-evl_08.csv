@@ -137,3 +137,5 @@ cfgid,usemsk,usepad,roi,interp,optim,linesearch,divini,srcgrd,ffdgrd,passdof,con
 0136,false,true,Union,Fast Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,3,100,12,2,0,0.00001,LNCC,64,false,5,2.5,0,0,1,1,true,0,0.005,0.0090,0.10,0.5
 0137,false,true,Union,Fast Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,3,100,12,2,0,0.00001,LNCC,64,false,5,2.5,0,0,1,1,true,0,0.005,0.0100,0.10,0.5
 0138,false,true,Union,Fast Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,3,100,12,2,0,0.00001,LNCC,64,false,5,2.5,0,0,1,1,true,0,0.005,0.0200,0.10,0.5
+0139,false,true,Union,Fast Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,3,100,12,2,0,0.00001,LNCC,64,false,5,2.5,0.00001,0,1,1,true,0,0.005,0,0.01,0.5
+0140,false,true,Union,Fast Linear,ConjugateGradientDescent,Adaptive,false,false,Convolution,false,true,3,100,12,2,0,0.00001,LNCC,64,false,5,2.5,0.00005,0,1,1,true,0,0.005,0,0.01,0.5

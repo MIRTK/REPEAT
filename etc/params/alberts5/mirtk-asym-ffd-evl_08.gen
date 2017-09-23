@@ -103,6 +103,16 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
+#exit 0
+
+# 1f) additional bending energy weights
+set_defaults
+for be in 0.00001 0.00005; do
+  append_row
+done
+
+# Comment following line when previous tests are done, and the results have been analyzed.
+# Adjust parameters for following tests to more narrow ranges found to perform well.
 exit 0
 
 # ------------------------------------------------------------------------------
