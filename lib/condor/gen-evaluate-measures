@@ -76,7 +76,7 @@ fi
 if [ "$extdof" = true -o "$extout" = true ]; then
   refdir="$imgdir"
 else
-  refdir="$vardir/$dataset/affine/out"
+  refdir="$vardir/$dataset/affine/crp"
 fi
 
 # reference image used as evaluate-dof -target
@@ -94,7 +94,11 @@ refsuf=".nii.gz"
 # evaluate-dof '-padding <bgvalue>' or empty string
 refpad=''
 refbgv=$(get_bgvalue "$refmod")
-if [ -n "$refbgv" -a "$(is_mask "$refbgv")" != true ]; then
+if [ -n "$refbgv" ]; then
+  if [ "$(is_mask "$refbgv")" = true ]; then
+    refbgv=$(get_padvalue "$refmod")
+    [ -n "$refbgv" ] || refbgv=0
+  fi
   refpad="-padding $refbgv"
 fi
 
