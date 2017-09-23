@@ -75,8 +75,10 @@ fi
 # reference images
 if [ "$extdof" = true -o "$extout" = true ]; then
   refdir="$imgdir"
+  tgtdir="$imgdir"
 else
   refdir="$vardir/$dataset/affine/crp"
+  tgtdir="$vardir/$dataset/affine/out"
 fi
 
 # reference image used as evaluate-dof -target
@@ -329,7 +331,7 @@ EOF_HEADER
           for tgtid in "${tgtids[@]}"; do
             outcsv="$outdir/$tgtid-$mod-$measure.csv"
             [ $force = true ] || [ ! -f "$outcsv" ] || continue
-            tgtimg="$refdir/$tgtpre$tgtid$tgtsuf"
+            tgtimg="$tgtdir/$tgtpre$tgtid$tgtsuf"
             srcimgs=()
             if [ $regid = 'affine' ]; then
               for srcid in "${srcids[@]}"; do
@@ -405,7 +407,7 @@ EOF_JOB
             for tgtid in "${tgtids[@]}"; do
               outimg="$outdir/$tgtid.nii.gz"
               [ $force = true ] || [ ! -f "$outimg" ] || continue
-              images=("'$refdir/$tgtpre$tgtid$tgtsuf'")
+              images=("'$tgtdir/$tgtpre$tgtid$tgtsuf'")
               for srcid in "${srcids[@]}"; do
                 [ $tgtid = $srcid ] || images=("${images[@]}" "'$imgdir/$imgpre$srcid-$tgtid$imgsuf'")
               done
