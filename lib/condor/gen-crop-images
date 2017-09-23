@@ -67,7 +67,7 @@ EOF_HEADER
       pad=$(get_bgvalue "$chn")
       if [ -n "$pad" -a $(is_mask "$pad") = true ]; then
         msk=$pad
-        pad=$(get_padvalue "$pad")
+        pad=$(get_padvalue "$chn")
         [ -n "$pad" ] || pad=0
       fi
     fi
