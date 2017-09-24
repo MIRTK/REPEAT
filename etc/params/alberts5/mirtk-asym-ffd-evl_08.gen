@@ -8,8 +8,7 @@ parcsv="$(dirname "$BASH_SOURCE")/$regid.csv"
 # attention: must be in single quotes; each column entry must be '$name'
 cfgrow='$cfgid,$usemsk,$usepad,$roi,$interp,$optim,$linesearch,$divini,$srcgrd,$ffdgrd,$passdof,$conjtot,$levels,$iters,$steps,$rejects,$lastn,$epsilon,$sim,$bins,$padbins,$window,$ds,$be,$le,$le_mu,$le_lambda,$le_rot,$lj,$lj_eps,$nj,$nj_eps,$nj_gamma'
 
-# default parameter values based on pairwise ALBERTs tgt=01, src=02 registrations
-# using schuhschuh/MIRTK (GitHub) develop branch revision 8509812
+# default parameter values
 set_defaults()
 {
   usemsk=false
@@ -59,7 +58,7 @@ echo "${cfgrow//$}" > "$parcsv"
 i=0
 
 # ------------------------------------------------------------------------------
-# 1) explore weights of penalty terms individually, only one constraint at a time
+# 1) sim=LNCC, explore weights of penalty terms individually, one at a time
 
 # initial value ranges are based on pairwise ALBERTs tgt=01, src=02 registrations
 be_vals=(0.0001 0.0002 0.0003 0.0004 0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 0.0020 0.0030 0.0040 0.0050)
@@ -113,160 +112,33 @@ done
 
 # Comment following line when previous tests are done, and the results have been analyzed.
 # Adjust parameters for following tests to more narrow ranges found to perform well.
-exit 0
+#exit 0
 
 # ------------------------------------------------------------------------------
-# 2) combine regularization terms
+# 2) sim=NMI with BE or LE for direct comparison of similarity measures
+
+be_vals=(0.00001 0.00005 0.0001 0.0002 0.0003 0.0004 0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 0.0020 0.0030 0.0040 0.0050)
 
 set_new_defaults()
 {
   set_defaults
-  ffdgrd='Convolution'
-  le_lambda=1
-  lj_eps=0.01
-  nj_eps=0.1
+  sim='NMI'
+  bins=64
+  le_lambda=0.0
 }
 
-# 2a) try combinations of values found to work well individually
-be_vals=(0.0001 0.0003 0.0005)
-le_vals=(0.0008 0.0010)
-lj_vals=(0.0000 0.0007 0.0010 0.0030)
-nj_vals=(0.0000 0.0010 0.0030 0.0050)
+# 2a) no constraints
+set_new_defaults
+append_row
 
+# 2b) bending energy
 set_new_defaults
 for be in ${be_vals[@]}; do
-  for le in ${le_vals[@]}; do
-    for lj in ${lj_vals[@]}; do
-      for nj in ${nj_vals[@]}; do
-        append_row
-      done
-    done
-  done
+  append_row
 done
 
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
-
-lj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
-nj_vals=(0.00001 0.00005 0.0001 0.0005 0.0010)
-
-# 2b) further combinations
-for be in 0.00001 0.00005 0.0001; do
-  for le in 0.0001 0.0005; do
-    for lj in ${lj_vals[@]}; do
-      for nj in ${nj_vals[@]}; do
-        append_row
-      done
-    done
-  done
-done
-
-# 2c) using bending energy and Jacobian penalties
+# 2c) elastic energy
 set_new_defaults
-le=0.0000
-for be in 0.00001 0.00005 0.0001; do
-  # + LogJac
-  nj=0.0000
-  for lj in ${lj_vals[@]}; do
-    append_row
-  done
-  # + NegJac
-  lj=0.0000
-  for nj in ${nj_vals[@]}; do
-    append_row
-  done
-  # + LogJac + NegJac
-  for lj in ${lj_vals[@]}; do
-    for nj in ${nj_vals[@]}; do
-      append_row
-    done
-  done
-done
-
-# 2d) using linear elasticity and Jacobian penalties
-set_new_defaults
-be=0.0000
-for le_lambda in 1.0 1.5; do
-  for le in 0.0001 0.0005 0.0010; do
-    # + LogJac
-    nj=0.0000
-    for lj in ${lj_vals[@]}; do
-      append_row
-    done
-    # + NegJac
-    lj=0.0000
-    for nj in ${nj_vals[@]}; do
-      append_row
-    done
-    # + LogJac + NegJac
-    for lj in ${lj_vals[@]}; do
-      for nj in ${nj_vals[@]}; do
-        append_row
-      done
-    done
-  done
-done
-
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
-
-# 2e) missing combinations for 2b) where only one Jacobian penalty is used
-for be in 0.00001 0.00005 0.0001; do
-  for le in 0.0001 0.0005; do
-    nj=0.0000
-    for lj in ${lj_vals[@]}; do
-      append_row
-    done
-    lj=0.0000
-    for nj in ${nj_vals[@]}; do
-      append_row
-    done
-  done
-done
-
-# 2f) missing combinations for 2b) where no Jacobian penalty is used
-for be in 0.00001 0.00005 0.0001; do
-  for le in 0.0001 0.0005; do
-    lj=0.0000
-    nj=0.0000
-    append_row
-  done
-done
-
-# Comment following line when previous tests are done, and the results have been analyzed.
-# Adjust parameters for following tests to more narrow ranges found to perform well.
-#exit 0
-
-set_new_defaults()
-{
-  set_defaults
-  ffdgrd='Convolution'
-  be=0.00001
-  le=0.0005
-  le_lambda=1
-  lj=0.0005
-  lj_eps=0.01
-  nj=0.00001
-  nj_eps=0.1
-}
-
-be_vals=(0.00001 0.00005)
-le_vals=(0.0005)
-lj_vals=(0.0000 0.0005)
-nj_vals=(0.0000 0.00001 0.00005)
-
-# ------------------------------------------------------------------------------
-# 3) fine tuning of optimization parameters
-
-set_new_defaults
-for levels in 3 4; do
-  for iters in 75 100 125 150; do
-    for rejects in 2 3 4 5 10; do
-      for epsilon in 0.00000 0.00001 0.00010; do
-        append_row
-      done
-    done
-  done
+for le in ${le_vals[@]}; do
+  append_row
 done
