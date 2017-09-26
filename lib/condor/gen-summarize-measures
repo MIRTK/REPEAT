@@ -326,18 +326,6 @@ EOF_JOB
 
         val_names=()
         val_paths=()
-        if [ $evlice = true ]; then
-          measure="mice"
-          val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
-          val_names=("${val_names[@]}" "'${measure}'")
-          val_paths=("${val_paths[@]}" "'$val_path'")
-        fi
-        if [ $evlmte = true ]; then
-          measure="mte"
-          val_path="$regdir/evl/dof/$measure/$tgtid.nii.gz"
-          val_names=("${val_names[@]}" "'${measure}'")
-          val_paths=("${val_paths[@]}" "'$val_path'")
-        fi
         for mod in "${mods[@]}"; do
           for measure in $(get_measures "$mod"); do
             [ -n "$measure" ] || continue
